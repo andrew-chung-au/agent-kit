@@ -1,0 +1,26 @@
+{
+  "name": "python-agent-sandbox",
+  "image": "mcr.microsoft.com/devcontainers/python:3.12",
+  "features": { "ghcr.io/devcontainers/features/github-cli:1": {} },
+  "containerEnv": {
+    "SSH_AUTH_SOCK": "",
+    "GIT_TERMINAL_PROMPT": "0",
+    "CLAUDE_CONFIG_DIR": "/home/vscode/.claude"
+  },
+  "remoteEnv": {
+    "PATH": "${containerEnv:PATH}:/home/vscode/.local/bin:/home/vscode/.opencode/bin",
+    "OPENCODE_API_KEY": "${localEnv:OPENCODE_API_KEY}",
+    "GH_TOKEN": "${localEnv:AGENT_GH_TOKEN}"
+  },
+  "mounts": ["source=claude-config,target=/home/vscode/.claude,type=volume"],
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "github.gitAuthentication": false,
+        "git.terminalAuthentication": false
+      },
+      "extensions": ["ms-python.python"]
+    }
+  },
+  "postCreateCommand": "bash .devcontainer/setup.sh"
+}
