@@ -1,0 +1,339 @@
+#!/usr/bin/env bash
+# agent-kit-push-check v3
+#
+# Push check for a clean clone (local sandbox profile, see environments.md).
+# For each ref being pushed, it finds every agent-kit project changed by the
+# new commits and runs `make -C <project> install verify` for each, inside a
+# throwaway container that sees only a git bundle of the pushed commits: no
+# credentials, no ignored files, no other branches.
+#
+# Before that, it reports every protected file the new commits change (by any
+# route, including commits that skipped pre-commit), with the commits that
+# changed it, and asks you to confirm at the terminal. With no terminal the
+# push is blocked: push from a terminal. A commit adding a FORBIDDEN file
+# blocks the push outright. It reads each agent-kit.conf as text, never runs it.
+# This is a report you confirm, not proof that a change was approved.
+#
+# Install: copy this file to ~/.agent-hooks/pre-push and make it executable;
+# your clean-hook helper copies it into each clean clone's .git/hooks/pre-push.
+# Copy it only from a clean clone, never from a sandbox. Never run it from the
+# repo, and never install it with make: make runs repo code on your machine.
+#
+# On this machine it runs only git, docker and coreutils. Repo code
+# (Makefiles, tests, installs) runs only inside the container.
+#
+# This is a quality gate, not a security gate: whoever controls a project's
+# Makefile controls what `verify` does. Your review of the diff is the
+# security control.
+#
+# Settings (environment variables, all optional):
+#   AGENT_PUSH_CHECK_IMAGE    container image (default python:3.12, which has git and make)
+#   AGENT_PUSH_CHECK_NETWORK  set to "none" to run without network access
+#   AGENT_PUSH_CHECK_PLAN     set to 1 to print what would be checked, run nothing, and pass
+set -euo pipefail
+
+remote="${1:-origin}"
+image="${AGENT_PUSH_CHECK_IMAGE:-python:3.12}"
+zero=0000000000000000000000000000000000000000
+
+# The part that runs inside the container, against /push/push.bundle.
+# $BUNDLE and $WORK are variables only so the script can be tested without Docker.
+container_script='
+set -e
+BUNDLE="${BUNDLE:-/push/push.bundle}"; WORK="${WORK:-/w}"
+git config --global --add safe.directory "*"
+git init -q "$WORK" && cd "$WORK"
+git fetch -q "$BUNDLE" "+refs/*:refs/agent-push-check/*"
+git checkout -q "$SHA"
+if [ -n "$BASE" ] && ! git cat-file -e "$BASE^{commit}" 2>/dev/null; then BASE=""; fi
+printf "%s\n" "$PROJECTS" | while IFS= read -r p; do
+  [ -n "$p" ] || continue
+  targets="verify"
+  if grep -qE -- "^install[[:space:]]*::?" "$p/Makefile"; then targets="install verify"; fi
+  echo "push check: make -C $p $targets"
+  if [ -n "$BASE" ]; then make -C "$p" $targets BASE="$BASE"; else make -C "$p" $targets; fi
+done
+'
+
+# Project in commit $1 containing path $2: the nearest folder, walking up,
+# whose agent-kit.conf exists in that commit. Git only. Prints nothing if none.
+project_of() {
+  local sha="$1" dir
+  dir="$(dirname -- "$2")"
+  while :; do
+    if [ "$dir" = "." ]; then
+      if git cat-file -e "$sha:agent-kit.conf" 2>/dev/null; then echo "."; fi
+      return 0
+    fi
+    if git cat-file -e "$sha:$dir/agent-kit.conf" 2>/dev/null; then echo "$dir"; return 0; fi
+    dir="$(dirname -- "$dir")"
+  done
+}
+
+# Repo-root paths protected in every repo using the kit (from .githooks/pre-commit),
+# plus every agent-kit.conf at any path. Written here, not read from the repo.
+root_protected() {
+  case "$1" in
+    .githooks/* | .github/* | .devcontainer/* | .devcontainer.json | .vscode/* | .envrc | .gitmodules | \
+      agent-kit.conf | */agent-kit.conf) return 0 ;;
+  esac
+  return 1
+}
+
+# Reads the agent-kit.conf blob $1 as text (never sourcing it) into
+# $tmp/conf-$1.{PROTECTED,FORBIDDEN,ALLOWED}, one pattern per line. Only the
+# plain form counts: NAME=( 'pattern' ... ), single-quoted literals, over one or
+# more lines. Returns 1 if a list isn't in that form or PROTECTED is missing.
+re_start='^[[:space:]]*(PROTECTED|FORBIDDEN|ALLOWED)=\((.*)$'
+re_named='(^|[^A-Za-z0-9_])(PROTECTED|FORBIDDEN|ALLOWED)([^A-Za-z0-9_]|$)'
+re_token="^'([^']*)'(.*)$"
+re_after='^([[:space:]]|\))'
+conf_readable() {
+  local out="$tmp/conf-$1" line name="" rest seen=" "
+  [ -e "$out.ok" ] && return 0
+  [ -e "$out.bad" ] && return 1
+  : > "$out.PROTECTED"; : > "$out.FORBIDDEN"; : > "$out.ALLOWED"
+  while IFS= read -r line || [ -n "$line" ]; do
+    if [ -z "$name" ]; then
+      if [[ "$line" =~ $re_start ]]; then
+        name="${BASH_REMATCH[1]}"; rest="${BASH_REMATCH[2]}"
+        case "$seen" in *" $name "*) touch "$out.bad"; return 1 ;; esac
+        seen="$seen$name "
+      elif [[ "$line" =~ ^[[:space:]]*# ]] || ! [[ "$line" =~ $re_named ]]; then
+        continue # a comment or another setting
+      else
+        touch "$out.bad"; return 1 # PROTECTED and friends set some other way
+      fi
+    else
+      rest="$line"
+    fi
+    while :; do # the tokens of an open list
+      rest="${rest#"${rest%%[![:space:]]*}"}"
+      if [ -z "$rest" ] || [ "${rest:0:1}" = "#" ]; then break; fi
+      if [ "${rest:0:1}" = ")" ]; then
+        rest="${rest:1}"; rest="${rest#"${rest%%[![:space:]]*}"}"
+        if [ -n "$rest" ] && [ "${rest:0:1}" != "#" ]; then touch "$out.bad"; return 1; fi
+        name=""; break
+      fi
+      if ! [[ "$rest" =~ $re_token ]]; then touch "$out.bad"; return 1; fi
+      printf '%s\n' "${BASH_REMATCH[1]}" >> "$out.$name"
+      rest="${BASH_REMATCH[2]}"
+      if [ -n "$rest" ] && ! [[ "$rest" =~ $re_after ]]; then touch "$out.bad"; return 1; fi
+    done
+  done < <(git cat-file blob "$1")
+  if [ -n "$name" ]; then touch "$out.bad"; return 1; fi
+  case "$seen" in *" PROTECTED "*) ;; *) touch "$out.bad"; return 1 ;; esac
+  touch "$out.ok"
+}
+
+# True if path $1 matches a pattern in file $2 ("*" crosses "/", as in lib.sh).
+matches_file() {
+  local pat
+  while IFS= read -r pat; do
+    # shellcheck disable=SC2053
+    if [[ "$1" == $pat ]]; then return 0; fi
+  done < "$2"
+  return 1
+}
+
+# Blob id of project $2's agent-kit.conf in commit $1.
+conf_blob() {
+  if [ "$2" = "." ]; then git rev-parse -q --verify "$1:agent-kit.conf"; else git rev-parse -q --verify "$1:$2/agent-kit.conf"; fi
+}
+
+# Path $2 relative to project $1.
+rel_path() { if [ "$1" = "." ]; then printf '%s' "$2"; else printf '%s' "${2#"$1"/}"; fi; }
+
+# True if path $2 is protected by its project's conf in commit $1, or that conf
+# can't be read. False if the path has no project in that commit.
+protected_in() {
+  local p blob
+  p="$(project_of "$1" "$2")"
+  [ -n "$p" ] || return 1
+  blob="$(conf_blob "$1" "$p")"
+  if ! conf_readable "$blob"; then echo "$p" >> "$tmp/unread"; return 0; fi
+  matches_file "$(rel_path "$p" "$2")" "$tmp/conf-$blob.PROTECTED"
+}
+
+# True if path $1 is FORBIDDEN and not ALLOWED by the pushed version of its project's conf.
+forbidden() {
+  local p blob rel
+  p="$(project_of "$local_sha" "$1")"
+  [ -n "$p" ] || return 1
+  blob="$(conf_blob "$local_sha" "$p")"
+  conf_readable "$blob" || return 1 # an unreadable conf lists its paths instead
+  rel="$(rel_path "$p" "$1")"
+  matches_file "$rel" "$tmp/conf-$blob.FORBIDDEN" && ! matches_file "$rel" "$tmp/conf-$blob.ALLOWED"
+}
+
+# Prints $1, escaped if it holds control characters, so a name can't fake report lines.
+show() { case "$1" in *[[:cntrl:]]*) printf '%q' "$1" ;; *) printf '%s' "$1" ;; esac; }
+
+# Prints each path in the NUL-separated file $1 with every new commit that touched it.
+print_paths() {
+  local f g st c
+  while IFS= read -r -d '' f; do
+    printf '  %s\n' "$(show "$f")"
+    while IFS= read -r -d '' g && IFS= read -r -d '' st && IFS= read -r -d '' c; do
+      [ "$g" = "$f" ] || continue
+      printf '    %s %s  %s\n' "$(git rev-parse --short "$c")" "$st" "$(show "$(git log -1 --format=%s "$c")")"
+    done < "$tmp/changes"
+  done < "$1"
+}
+
+status=0
+tmp="$(mktemp -d)"
+trap 'rm -rf "$tmp"; git update-ref -d refs/agent-push-check/tip 2>/dev/null || true' EXIT
+
+while read -r local_ref local_sha remote_ref remote_sha; do
+  [ "$local_sha" = "$zero" ] && continue # deleting a ref: nothing to test
+
+  # New commits: reachable from what's pushed, not yet on THIS remote. Refs
+  # fetched from the sandbox remote don't count as pushed.
+  exclude=(--not "--remotes=$remote")
+  if [ "$remote_sha" != "$zero" ] && git cat-file -e "$remote_sha^{commit}" 2>/dev/null; then
+    exclude+=("$remote_sha")
+  fi
+  if [ -z "$(git rev-list -n 1 "$local_sha" "${exclude[@]}")" ]; then
+    echo "push check: ${local_sha:0:8} has no commits that $remote doesn't already have"
+    continue
+  fi
+
+  # Base for verify's weakened-test check: what the remote had for this ref,
+  # else the first parent of the oldest new commit (topological order).
+  base=""
+  if [ "$remote_sha" != "$zero" ] && git merge-base --is-ancestor "$remote_sha" "$local_sha" 2>/dev/null; then
+    base="$remote_sha"
+  else
+    oldest="$(git rev-list --topo-order --reverse "$local_sha" "${exclude[@]}" | head -n 1)"
+    base="$(git rev-parse -q --verify "$oldest^1" 2>/dev/null || true)"
+  fi
+
+  # Protected-files report. Every change in the new commits (merges against
+  # each parent, renames as delete plus add), as path, change, commit.
+  git rev-list --topo-order --reverse "$local_sha" "${exclude[@]}" |
+    while IFS= read -r c; do
+      git diff-tree -m -r --root --no-commit-id --no-renames --name-status -z "$c" |
+        while IFS= read -r -d '' st && IFS= read -r -d '' f; do printf '%s\0%s\0%s\0' "$f" "$st" "$c"; done
+    done > "$tmp/changes"
+  # The remote's conf: from the ref's remote commit if the clone has it, else the base.
+  old=()
+  if [ "$remote_sha" != "$zero" ] && git cat-file -e "$remote_sha^{commit}" 2>/dev/null; then old+=("$remote_sha"); fi
+  if [ -n "$base" ]; then old+=("$base"); fi
+  : > "$tmp/listed"; : > "$tmp/forbidden"; : > "$tmp/unread"
+  while IFS= read -r -d '' f && IFS= read -r -d '' st && IFS= read -r -d '' c; do printf '%s\0' "$f"; done < "$tmp/changes" |
+    sort -zu > "$tmp/paths"
+  while IFS= read -r -d '' f; do
+    listed=0
+    if root_protected "$f" || protected_in "$local_sha" "$f"; then listed=1; fi
+    for o in ${old[@]+"${old[@]}"}; do
+      if [ -n "$(project_of "$o" "$f")" ]; then
+        if protected_in "$o" "$f"; then listed=1; fi
+        break
+      fi
+    done
+    if [ "$listed" -eq 1 ]; then printf '%s\0' "$f" >> "$tmp/listed"; fi
+  done < "$tmp/paths"
+  # FORBIDDEN: any commit adding or changing one (deleting is fine).
+  while IFS= read -r -d '' f && IFS= read -r -d '' st && IFS= read -r -d '' c; do
+    if [ "$st" != "D" ] && forbidden "$f"; then printf '%s\0' "$f" >> "$tmp/forbidden"; fi
+  done < "$tmp/changes"
+  sort -zu -o "$tmp/forbidden" "$tmp/forbidden"
+
+  if [ -s "$tmp/listed" ]; then
+    echo "push check: protected files changed in ${local_sha:0:8} (commits not yet on $remote):"
+    print_paths "$tmp/listed"
+    if [ -s "$tmp/unread" ]; then
+      sort -u "$tmp/unread" | while IFS= read -r p; do
+        echo "  ($(show "$p")/agent-kit.conf isn't in the plain NAME=( '...' ) form, so every changed path in it is listed)"
+      done
+    fi
+  else
+    echo "push check: no protected files changed in ${local_sha:0:8}"
+  fi
+  if [ -s "$tmp/forbidden" ]; then
+    echo "push check: FORBIDDEN files added or changed in ${local_sha:0:8}; push blocked:"
+    print_paths "$tmp/forbidden"
+    echo "  Remove them from these commits (rewrite the history) before pushing."
+    status=1; continue
+  fi
+  if [ -s "$tmp/listed" ]; then
+    if ! true 2>/dev/null </dev/tty; then
+      echo "push check: no terminal to confirm these protected changes on; push blocked. Push from a terminal."
+      status=1; continue
+    fi
+    printf 'push check: push these protected changes? [y/N] ' >&2
+    answer=""
+    read -r answer </dev/tty || answer=""
+    case "$answer" in
+      y | Y | yes | YES | Yes) ;;
+      *) echo "push check: not confirmed; push blocked."; status=1; continue ;;
+    esac
+  fi
+
+  # Every path any new commit touched (merges against each parent), exactly as
+  # stored: -z keeps unusual names unquoted.
+  : > "$tmp/files"
+  git log -m --no-renames --name-only -z --format= "$local_sha" "${exclude[@]}" > "$tmp/files"
+
+  : > "$tmp/projects"; : > "$tmp/lost"
+  while IFS= read -r -d '' f; do
+    [ -n "$f" ] || continue
+    p="$(project_of "$local_sha" "$f")"
+    if [ -n "$p" ]; then
+      echo "$p" >> "$tmp/projects"
+    elif [ -n "$base" ] && [ -n "$(project_of "$base" "$f")" ]; then
+      project_of "$base" "$f" >> "$tmp/lost" # project existed before; its agent-kit.conf is gone
+    fi
+  done < "$tmp/files"
+  projects="$(sort -u "$tmp/projects")"
+  lost="$(sort -u "$tmp/lost")"
+
+  if [ -n "$lost" ]; then
+    echo "push check: agent-kit.conf was removed from a project these commits change; push blocked:"
+    while IFS= read -r p; do echo "    $p"; done <<< "$lost"
+    echo "  If that's intended, review it, then push with AGENT_PUSH_CHECK_ALLOW_REMOVED=1."
+    if [ "${AGENT_PUSH_CHECK_ALLOW_REMOVED:-}" != "1" ]; then status=1; continue; fi
+  fi
+
+  # A repo that doesn't use the kit: fall back to a verify target at the root.
+  if [ -z "$projects" ] && ! git cat-file -e "$local_sha:agent-kit.conf" 2>/dev/null; then
+    makefile="$(git cat-file -p "$local_sha:Makefile" 2>/dev/null || true)"
+    if grep -qE '^verify[[:space:]]*::?' <<< "$makefile"; then projects="."; fi
+  fi
+
+  if [ -z "$projects" ]; then
+    echo "push check: WARNING no agent-kit project or root verify target changed in ${local_sha:0:8}; nothing checked"
+    continue
+  fi
+
+  if [ "${AGENT_PUSH_CHECK_PLAN:-}" = "1" ]; then
+    echo "push check plan for ${local_sha:0:8} (base ${base:-none}):"
+    while IFS= read -r p; do echo "  make -C $p [install] verify"; done <<< "$projects"
+    continue
+  fi
+
+  # Hand the container only the pushed history, as a bundle.
+  rm -f "$tmp/push.bundle"
+  git update-ref "refs/agent-push-check/tip" "$local_sha"
+  bundle_ok=1
+  git bundle create -q "$tmp/push.bundle" "refs/agent-push-check/tip" 2>/dev/null || bundle_ok=0
+  git update-ref -d "refs/agent-push-check/tip"
+  if [ "$bundle_ok" -ne 1 ]; then
+    echo "push check: couldn't bundle ${local_sha:0:8}; push blocked"
+    status=1; continue
+  fi
+
+  echo "push check: ${local_sha:0:8} in a throwaway container ($image)..."
+  net=()
+  [ "${AGENT_PUSH_CHECK_NETWORK:-}" = "none" ] && net=(--network none)
+  if ! docker run --rm ${net[@]+"${net[@]}"} \
+      --mount "type=bind,src=$tmp/push.bundle,dst=/push/push.bundle,readonly" \
+      -e SHA="$local_sha" -e BASE="$base" -e PROJECTS="$projects" \
+      "$image" bash -c "$container_script" </dev/null; then
+    echo "push check: make verify failed for ${local_sha:0:8}, push blocked"
+    status=1
+  fi
+done
+
+exit "$status"
