@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+# agent-kit-hooks-version: 3
+# Repo-wide pre-commit dispatcher, installed at <repo root>/.githooks by `make hooks`.
+# For each folder touched by this commit that has adopted the agent kit (contains
+# agent-kit.conf), runs that folder's own checks. Other folders are left alone.
+# Also protects repo-root files that control how agents, checks and editors run:
+# the hooks, CI workflows, the dev container recipe, VS Code workspace settings,
+# .envrc and submodules. Agents must never bypass
+# this with --no-verify.
+set -uo pipefail
+root="$(git rev-parse --show-toplevel)"
+cd "$root" || exit 1
+
+find_project() { # nearest ancestor folder of a path that contains agent-kit.conf
+  local dir
+  dir="$(dirname "$1")"
+  while :; do
+    if [ -f "$dir/agent-kit.conf" ]; then echo "$dir"; return; fi
+    [ "$dir" = "." ] && return
+    dir="$(dirname "$dir")"
+  done
+}
+
+fail=0
+staged="$(git -c core.quotePath=false diff --cached --name-only --no-renames)"
+[ -z "$staged" ] && exit 0
+
+# Repo-root paths that need human approval in every repo using the kit.
+root_protected="$(printf '%s\n' "$staged" | grep -E '^"?(\.githooks/|\.github/|\.devcontainer/|\.devcontainer\.json"?$|\.vscode/|\.envrc"?$|\.gitmodules"?$)' || true)"
+if [ -n "$root_protected" ] && [ "${HUMAN_APPROVED:-}" != "1" ]; then
+  echo "agent-kit: this commit changes files that control hooks, CI, the dev container or your editor:" >&2
+  printf '  %s\n' $root_protected >&2
+  echo "  That needs human approval: HUMAN_APPROVED=1 git commit ..." >&2
+  fail=1
+fi
+
+projects="$(while IFS= read -r f; do find_project "$f"; done <<< "$staged" | sort -u)"
+while IFS= read -r p; do
+  [ -z "$p" ] && continue
+  kit_dir="$( (cd "$p" && . ./agent-kit.conf && echo "${KIT_DIR:-_docs/agent-kit}") )"
+  if [ ! -f "$p/$kit_dir/scripts/check-staged.sh" ]; then
+    echo "agent-kit: $p has agent-kit.conf but no $kit_dir/scripts/check-staged.sh." >&2
+    fail=1
+    continue
+  fi
+  (cd "$p" && bash "$kit_dir/scripts/check-staged.sh") || fail=1
+done <<< "$projects"
+
+exit "$fail"

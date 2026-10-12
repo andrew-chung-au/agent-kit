@@ -1,0 +1,44 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "permission": {
+    "read": {
+      "*": "allow",
+      "*.env": "deny",
+      "*.env.*": "deny",
+      "*.env.example": "allow"
+    },
+    "edit": {
+      "*": "allow",
+      "AGENTS.md": "ask",
+      "CLAUDE.md": "ask",
+      "agent-kit.conf": "ask",
+      "_docs/specs.md": "ask",
+      "agent-kit/*": "ask",
+      "Makefile": "ask",
+      ".claude/*": "ask",
+      "opencode.json": "ask",
+      ".opencode/*": "ask",
+      ".githooks/*": "ask",
+      ".github/*": "ask",
+      ".devcontainer/*": "deny",
+      "agent-kit/environments/local-sandbox/pre-push": "deny"
+    },
+    "bash": {
+      "*": "ask",
+      "make *": "allow",
+      "git status*": "allow",
+      "git diff*": "allow",
+      "git log*": "allow",
+      "git show*": "allow",
+      "git add .": "deny",
+      "git add -A*": "deny",
+      "git add --all*": "deny",
+      "git add -u*": "deny",
+      "git commit -a*": "deny",
+      "git commit --all*": "deny",
+      "*--no-verify*": "deny",
+      "git push*": "deny",
+      "git config core.hooksPath*": "deny"
+    }
+  }
+}
