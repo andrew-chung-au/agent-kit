@@ -1,0 +1,28 @@
+# agent-kit.conf: per-project settings for the agent kit's scripts and git hooks.
+# Lives in the project folder (next to AGENTS.md). Its presence is what opts the
+# folder in: the repo's git hooks only act on folders that contain this file.
+#
+# Patterns are matched against paths relative to this folder. "*" matches any
+# characters, including "/", so "*.db" matches "data/app.db" too.
+
+# Where the kit lives, relative to this folder.
+KIT_DIR="_docs/agent-kit"
+
+# Commands the verification gate runs. Leave TEST_CMD empty only before any
+# code exists (verify then warns). Leave LINT_CMD / TYPECHECK_CMD empty until
+# the project has them and the existing code passes (see blueprints.md).
+TEST_CMD="make test"
+LINT_CMD=""
+TYPECHECK_CMD=""
+
+# Test files: deleting these, or adding skip/focus markers to them, fails the gate.
+TEST_FILES=( 'tests/*' '*test_*.py' '*_test.py' '*conftest.py' '*.test.*' '*.spec.*' 'e2e/*' )
+
+# Never committed. Deleting an already-committed one is allowed.
+FORBIDDEN=( '.env' '*/.env' '.env.*' '*/.env.*' '*.db' '*.sqlite' '*.sqlite3'
+            '*__pycache__/*' '*.pyc' '*node_modules/*' '*.pem' '*.key' )
+# Exceptions to FORBIDDEN.
+ALLOWED=( '.env.example' '*/.env.example' )
+
+# Commits touching these need HUMAN_APPROVED=1 (see AGENTS.md conventions).
+PROTECTED=( 'AGENTS.md' 'CLAUDE.md' 'agent-kit.conf' '_docs/specs.md' '_docs/agent-kit/*' )

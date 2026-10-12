@@ -1,0 +1,46 @@
+# Blueprint: CI backstop that runs the verification gate on every push.
+# The only layer an agent can't bypass with --no-verify. Optional; add when the
+# human asks for it (see blueprints.md).
+#
+# Where it goes: <repo root>/.github/workflows/<project>-verify.yml.
+# GitHub only reads workflows from .github/ at the repository root, never from a
+# project subfolder.
+#
+# Fill in the placeholders. For a standalone repo (project at the root), delete
+# the two `paths:` filters and set working-directory to "."
+# Untested until its first run on GitHub: check the Actions tab after pushing.
+
+name: <project> verify
+
+# Keep both safety settings: the job's token can only read the repo, and the
+# job uses no secrets (never add ${{ secrets.... }}), so a malicious test has
+# nothing useful to take.
+permissions:
+  contents: read
+
+on:
+  push:
+    paths: ['<project folder>/**']
+  pull_request:
+    paths: ['<project folder>/**']
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: <project folder>
+    steps:
+      - uses: actions/checkout@v4 # check for the current major version
+        with:
+          fetch-depth: 0 # full history, so verify can diff against the pushed range
+
+      # <Stack setup steps for this project, for example:>
+      # - uses: astral-sh/setup-uv@v6
+      # - uses: oven-sh/setup-bun@v2
+      # - uses: actions/setup-node@v4
+
+      - run: make install
+
+      - name: Verify
+        run: make verify BASE="${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || github.event.before }}"
