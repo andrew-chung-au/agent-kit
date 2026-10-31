@@ -9,7 +9,9 @@
 
 ## Reflection
 
-<One `###` per role, copied unchanged from its issue comment.>
+<Repeat for each role: a `###` heading, then its block copied unchanged from its issue comment.>
+
+### <Role>
 
 **What slowed you down (evidence):**
 **What nearly went wrong or was blocked:**
