@@ -7,7 +7,7 @@ How work moves from idea to done, with any AI coding tool. Project-specific valu
 Before picking up work, the orchestrator checks the spec:
 
 1. **No `_docs/specs.md`:** the project is in planning. See Planning.
-2. **The spec changed since the last session:** take the spec version recorded in the latest session summary and run `git log --oneline <version>..HEAD -- _docs/specs.md`. If that lists any commits, run a backlog review (see Backlog) before starting an issue. If no summary records a version yet, skip this check.
+2. **The spec changed since the last session:** take the spec version in the session summary last committed (`git log`, not `ls`) and run `git log --oneline <version>..HEAD -- _docs/specs.md`. If that lists commits, run a backlog review (see Backlog) before starting an issue. If none records one, skip this check.
 3. **Otherwise:** continue with the lifecycle.
 
 ## Planning

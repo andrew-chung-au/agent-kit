@@ -1,9 +1,11 @@
 # <Issue #NNN: title> | <Planning: topic>
 
-**Date:** YYYY-MM-DD
+**Date:** YYYY-MM-DDTHH:MMZ (UTC)
 **Spec version:** <commit hash, or "none">
 
 ## What changed and why
+
+**What I learned:** <optional, one line>
 
 ## Files created or modified
 

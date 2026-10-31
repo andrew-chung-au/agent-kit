@@ -24,7 +24,7 @@ Layout: <top-level folders and key files>.
 - **Environment:** <codespace / local sandbox (dev container; you can't push) / local checkout>, with anything not available there, for example "no Docker". See `_docs/agent-kit/environments.md`.
 - **Branching:** <e.g. commit directly to `main` / short-lived `feat/...` branches merged by PR>
 - **Dependencies:** <the command for adding each kind of dependency>
-- **Session summaries:** `_session-summaries/`, named <naming scheme>.
+- **Session summaries:** `_session-summaries/`, named per `_docs/agent-kit/procedures/session-summary.md`.
 
 ## Project gotchas
 

@@ -240,7 +240,29 @@ class CoverageTest(KitCase):
         self.assert_fails("installable `newtool.sh`")
 
 
+class TemplateFilesTest(KitCase):
+    def test_missing_new_template_path_fails_with_doc_line_and_span(self):
+        self.write("team/pm.md", "Line one.\nCopy `templates/source.md`.\n")
+        self.assert_fails("agent-kit/team/pm.md:2: kit path `templates/source.md` does not exist")
+
+    def test_filename_pattern_and_example_names_are_not_flagged(self):
+        self.write("procedures/verify.md",
+                   "Name it `<timestamp>-<kind>-<id>-<role>-<slug>.md`.\n"
+                   "Pattern `templates/<timestamp>-<kind>-x.md` is a placeholder.\n"
+                   "Examples: `2026-10-31T0642Z-issue-022-engineer-claims-check.md`,\n"
+                   "`2026-10-31T0642Z-decision-cloud-push-allow-path.md` and\n"
+                   "`2026-10-31T0642Z-measure-doc-budget-baseline.md`.\n")
+        self.assert_passes()
+
+
 class RealKitTest(unittest.TestCase):
+    def test_every_loose_template_has_a_blueprints_row(self):
+        kit = REPO / "agent-kit"
+        blueprints = (kit / "blueprints.md").read_text(encoding="utf-8")
+        missing = [f"templates/{p.name}" for p in sorted((kit / "templates").iterdir())
+                   if p.is_file() and f"templates/{p.name}" not in blueprints]
+        self.assertEqual(missing, [], "templates with no blueprints.md row")
+
     def test_todays_kit_passes(self):
         result = subprocess.run([sys.executable, "-B", str(CHECKER)], cwd=REPO,
                                 capture_output=True, text=True, timeout=60)

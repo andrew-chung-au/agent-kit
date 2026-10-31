@@ -26,7 +26,14 @@ What a project using this kit should have, when each piece applies, and how to c
 | Git hooks | Always, at setup; once per repository | `.githooks/` at the repo root, activated by `make hooks` wherever agents commit (never in a clean clone) | `githooks/`, via `scripts/install-hooks.sh` |
 | Ignore rules | Always, at setup | Project `.gitignore` | See Ignore rules below |
 | Product spec | Planning; written or approved by the human | `_docs/specs.md` | Human-owned; see `process.md` |
-| Session summaries folder | The first session summary | `_session-summaries/` | `procedures/session-summary.md` |
+| Session summaries folder | The first session summary | `_session-summaries/` | `procedures/session-summary.md`, `templates/session-summary.md` |
+| Issue task format | Always, at setup | Every groomed issue | `templates/task-template.md` |
+| Docs index | The first doc beyond the README and `AGENTS.md` | `_docs/index.md` | `templates/docs-index.md` |
+| Entry-type folders | The first decision, measurement, source or runbook; the project names each folder and lists it in the index | One folder per entry type under `_docs/` | `templates/docs-index.md` |
+| Source entries | The project depends on something external (data, API, vendor doc, standard, tool version) | Source folder from the index | `templates/source.md` |
+| Measurement entries | The project has a repeatable check of quality or cost | Measurement folder from the index | `templates/measurement.md` |
+| Decision records | A choice that may be revisited | Decision folder from the index | `templates/adr.md` |
+| Runbook entries | A problem needed the same fix twice | Runbook folder from the index | `templates/runbook.md` |
 | CI backstop | The human asks for it, or uses the local sandbox profile | `.github/workflows/` at the repo root | `templates/ci-verify.yml.template` |
 | Local sandbox files | The human uses the local sandbox profile | `.devcontainer/` at the repo root; the push check in `~/.agent-hooks/` | `environments/local-sandbox/`, copied by the human from a clean clone |
 | Claude Code layer | The human uses Claude Code | `CLAUDE.md` and `.claude/` in the project folder | `claude-code/START.md`, with `claude-code/agents/` and `claude-code/hooks/` |

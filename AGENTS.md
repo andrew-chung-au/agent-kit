@@ -23,7 +23,7 @@ Layout: `agent-kit/` is the kit source (README, setup, process, `team/`, `proced
 - **Environment:** local sandbox (dev container; you can't push: your GitHub token is read-only). No Docker, so the push check can't run end to end here. See `agent-kit/environments.md`.
 - **Branching:** commit directly to `main`.
 - **Dependencies:** none. Kit scripts run with bash, git, make, coreutils and the Python 3 standard library only, and the push check runs on the human's machine with only git, docker and coreutils. Propose any new dependency at the decision point; never install one.
-- **Session summaries:** `_session-summaries/`, named as in `agent-kit/procedures/session-summary.md` (`issue-<NNN>-<short-name>.md`, `planning-<YYYY-MM-DD>-<short-name>.md`).
+- **Session summaries:** `_session-summaries/`, named as in `agent-kit/procedures/session-summary.md`.
 
 ## Issues
 
