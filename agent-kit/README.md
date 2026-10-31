@@ -108,7 +108,7 @@ Agents take their rules from the project's `AGENTS.md`, not from the kit folder,
 ### Changes in 1.8
 
 - **Claude Code layer** (`claude-code/`, start at `START.md`). It replaces the separate Claude Code-only kit 1.0 used in Table Ready, and brings it fully up to date with the core kit:
-  - role definitions that point to `team/`: PM and QA can't edit files, and the Engineer carries a hook that re-runs `make verify` before it can finish;
+  - role definitions that point to `team/`: the PM edits files only under `.scratch/` by instruction, QA can't edit files, and the Engineer carries a hook that re-runs `make verify` before it can finish;
   - a git guard hook that blocks broad staging, `commit -a`, `--no-verify`, `git push` and `core.hooksPath` changes before they run;
   - settings with the allow-list, ask rules for protected files, deny rules for `.env` files and `git push`, and commit attribution.
 

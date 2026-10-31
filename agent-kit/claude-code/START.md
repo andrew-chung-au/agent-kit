@@ -9,7 +9,7 @@ The process, roles, verify gate and git hooks are the core kit's and apply uncha
 | File | Installed as | What it does |
 |---|---|---|
 | `CLAUDE.md.template` | `CLAUDE.md` in the project folder | Loads `AGENTS.md`, and points Claude Code's scratch files at `.scratch/` |
-| `agents/pm.md`, `agents/software-engineer.md`, `agents/qa-engineer.md` | `.claude/agents/` | Role definitions, so the orchestrator launches each role by name. Each points to its file in `team/`. PM and QA can't edit files; they write only to `.scratch/`. The Engineer carries the verify hook. |
+| `agents/pm.md`, `agents/software-engineer.md`, `agents/qa-engineer.md` | `.claude/agents/` | Role definitions, so the orchestrator launches each role by name. Each points to its file in `team/`. The PM can write and edit only under `.scratch/`; QA can write only there and can't edit. The Engineer carries the verify hook. |
 | `hooks/guard_git.py` | Runs in place from the kit | Before any shell command: blocks `git add .`/`-A`/`-u`, `git commit -a`, `--no-verify`, `git commit -n`, `git push` and changes to `core.hooksPath`, with the reason and the allowed alternative |
 | `hooks/verify_on_stop.py` | Runs in place from the kit | When the Engineer tries to finish: runs `make verify` and sends it back to fix any failure, up to three times, then lets it stop and warns you |
 | `settings.json` | Merged into `.claude/settings.json` | Pre-approves `make` targets and read-only git; asks before edits to protected files; blocks reading `.env` files and `git push`; registers the git guard; sets commit attribution |
@@ -36,7 +36,7 @@ Setup does this when you say you use Claude Code (`setup.md`, step 4). To do it 
 
 - The hooks and rules apply only inside Claude Code. The core kit's git hooks still cover every tool, and your review of the diff is still the real control.
 - Rules and the git guard match the commands Claude usually writes. They aren't a security boundary: a command written another way can get past them. For example, a push run through a script. The git hooks and your review catch what gets past.
-- PM and QA have the Write tool so they can use `.scratch/`. Nothing enforces that they write only there; **Assert clean** after QA catches any change to the project's files.
+- PM and QA have the Write tool, and the PM the Edit tool, so they can use `.scratch/`. Their role text limits them to `.scratch/`; no hook or path rule enforces it, so the tools themselves don't stop a write elsewhere; **Assert clean** after QA catches any change to the project's files.
 
 ## Projects that already have a Claude Code setup
 
