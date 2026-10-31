@@ -11,7 +11,7 @@ Layout: `agent-kit/` is the kit source (README, setup, process, `team/`, `proced
 
 - **Install:** none
 - **Run:** none
-- **Test (all):** `make test`: syntax checks of the kit's shell scripts, Python hooks and JSON settings. There are no unit tests yet.
+- **Test (all):** `make test`: syntax checks of the kit's shell scripts, Python hooks and scripts and JSON settings, the kit's claims check (`agent-kit/scripts/check-claims.py`), and the stdlib unittest suite in `tests/`.
 - **Test (one file):** none
 - **Verify:** `make verify`: tests, whitespace and weakened-test checks. How to use it: `agent-kit/procedures/verify.md`.
 - **Assert clean:** `make assert-clean`: confirms nothing in this folder changed (used after QA).
