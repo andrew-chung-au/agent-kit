@@ -7,6 +7,7 @@ real kit, which must pass.
 from __future__ import annotations
 
 import importlib.util
+import re
 import shutil
 import subprocess
 import sys
@@ -246,13 +247,39 @@ class TemplateFilesTest(KitCase):
         self.assert_fails("agent-kit/team/pm.md:2: kit path `templates/source.md` does not exist")
 
     def test_filename_pattern_and_example_names_are_not_flagged(self):
+        procedure = (REPO / "agent-kit" / "procedures" / "session-summary.md").read_text(encoding="utf-8")
+        lines = procedure.splitlines()
+        start = lines.index("Examples:") + 1
+        examples = []
+        for line in lines[start:]:
+            if not line.strip():
+                break
+            examples += re.findall(r"`([^`]+\.md)`", line)
+        self.assertGreaterEqual(len(examples), 3)
+        kinds = re.findall(r"^\| `([a-z]+)` \|", procedure, re.MULTILINE)
+        self.assertIn("issue", kinds)
+        convention = re.compile(
+            r"^\d{4}-\d{2}-\d{2}T\d{4}Z-(?P<kind>[a-z]+)-(?:\d{3}-)?"
+            r"(?:(?:orchestrator|pm|engineer|qa)-)?[a-z0-9]+(?:-[a-z0-9]+)*\.md$")
+        for name in examples:
+            match = convention.match(name)
+            self.assertIsNotNone(match, name)
+            self.assertIn(match.group("kind"), kinds, name)
+        # A name with a colon in the timestamp breaks the convention.
+        self.assertIsNone(convention.match("2026-10-31T06:42Z-issue-022-engineer-x.md"))
+
+        # A kit whose procedure holds the pattern and those names passes.
         self.write("procedures/verify.md",
                    "Name it `<timestamp>-<kind>-<id>-<role>-<slug>.md`.\n"
                    "Pattern `templates/<timestamp>-<kind>-x.md` is a placeholder.\n"
-                   "Examples: `2026-10-31T0642Z-issue-022-engineer-claims-check.md`,\n"
-                   "`2026-10-31T0642Z-decision-cloud-push-allow-path.md` and\n"
-                   "`2026-10-31T0642Z-measure-doc-budget-baseline.md`.\n")
+                   + "".join(f"- `{name}`\n" for name in examples))
         self.assert_passes()
+
+        # Negative control: the same names under templates/ are read as kit paths and fail.
+        self.write("procedures/verify.md", "".join(f"- `templates/{name}`\n" for name in examples))
+        out = self.assert_fails()
+        for name in examples:
+            self.assertIn(f"templates/{name}", out)
 
 
 class RealKitTest(unittest.TestCase):

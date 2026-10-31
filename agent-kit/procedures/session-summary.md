@@ -7,6 +7,14 @@ At the end of every orchestrator session: issue work, planning or a backlog revi
 3. Fill in `_docs/agent-kit/templates/session-summary.md`, with the full UTC timestamp on the `**Date:**` line. Keep each section to a few lines, and write "none" rather than leaving a section out.
 4. Commit it on its own: `git add _session-summaries/<file>`, with a message like "Add session summary for issue #004".
 
+## Reflection
+
+After QA PASS, ask each role for a `Reflection:` block of up to three lines in its own issue comment (planning: a reply): (1) what slowed you down, with evidence; (2) what nearly went wrong or was blocked; (3) one proposed change: the file it touches, the expected effect, how it would be measured. Copy the blocks unchanged under `## Reflection`, one `###` per role; a role not asked reads `unknown (role not asked)`. One proposal per session, 150 words at most. It is a suggestion for the human; nobody applies it.
+
+## Launch usage
+
+Under `## Launch usage`, write one line per subagent launch: role, active time, tool uses, copied from the completion notification, not estimated. A figure the tool doesn't give reads `unknown`. No launches: `none`.
+
 ## Filename convention
 
 One convention names every log-style entry, whatever its type: `<timestamp>-<kind>-<id>-<role>-<slug>.md`. This is its only home; other docs link here.
@@ -20,8 +28,9 @@ Rules:
 - The timestamp is UTC with no colons (`YYYY-MM-DDTHHMMZ`) and comes first, so `ls` sorts chronologically. The file also records the full timestamp with timezone near the top.
 - `<kind>`, `<id>` and `<role>` let a glob such as `*issue-022*` group an issue.
 - No sequence numbers: parallel agents would collide. Issue numbers are safe, because GitHub allocates them.
-- If the exact name exists, the second writer appends `-2` before `.md`.
-- Names never change after creation. Files created before this convention (`issue-NNN-...`, `planning-<date>-...`) keep their names; the convention applies to new files only.
+- If the exact name exists, the second writer appends `-2` before `.md`, the third `-3`.
+- Names never change after creation. Files named `issue-NNN-<slug>.md` or `planning-<date>-<slug>.md` predate the convention and keep their names; `ls` sorts them after new names, so sort by their `**Date:**` line (date only).
+- The last summary is `git log -1 --format=%h -- _session-summaries/`.
 
 | Kind | Entry type | `<id>` | `<role>` |
 |---|---|---|---|

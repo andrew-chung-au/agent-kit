@@ -7,6 +7,18 @@
 
 **What I learned:** <optional, one line>
 
+## Reflection
+
+<One `###` per role, copied unchanged from its issue comment.>
+
+**What slowed you down (evidence):**
+**What nearly went wrong or was blocked:**
+**One proposed change (file, expected effect, measure):**
+
+## Launch usage
+
+<One line per launch: role, active time, tool uses. Write "none" if there were none.>
+
 ## Files created or modified
 
 ## Decisions made by the human
