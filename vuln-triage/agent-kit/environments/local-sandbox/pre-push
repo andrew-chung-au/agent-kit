@@ -1,0 +1,159 @@
+#!/usr/bin/env bash
+# agent-kit-push-check v2
+#
+# Push check for a clean clone (local sandbox profile, see environments.md).
+# For each ref being pushed, it finds every agent-kit project changed by the
+# new commits and runs `make -C <project> install verify` for each, inside a
+# throwaway container that sees only a git bundle of the pushed commits: no
+# credentials, no ignored files, no other branches.
+#
+# Install: copy this file to ~/.agent-hooks/pre-push and make it executable;
+# your clean-hook helper copies it into each clean clone's .git/hooks/pre-push.
+# Copy it only from a clean clone, never from a sandbox. Never run it from the
+# repo, and never install it with make: make runs repo code on your machine.
+#
+# On this machine it runs only git, docker and coreutils. Repo code
+# (Makefiles, tests, installs) runs only inside the container.
+#
+# This is a quality gate, not a security gate: whoever controls a project's
+# Makefile controls what `verify` does. Your review of the diff is the
+# security control.
+#
+# Settings (environment variables, all optional):
+#   AGENT_PUSH_CHECK_IMAGE    container image (default python:3.12, which has git and make)
+#   AGENT_PUSH_CHECK_NETWORK  set to "none" to run without network access
+#   AGENT_PUSH_CHECK_PLAN     set to 1 to print what would be checked, run nothing, and pass
+set -euo pipefail
+
+remote="${1:-origin}"
+image="${AGENT_PUSH_CHECK_IMAGE:-python:3.12}"
+zero=0000000000000000000000000000000000000000
+
+# The part that runs inside the container, against /push/push.bundle.
+# $BUNDLE and $WORK are variables only so the script can be tested without Docker.
+container_script='
+set -e
+BUNDLE="${BUNDLE:-/push/push.bundle}"; WORK="${WORK:-/w}"
+git config --global --add safe.directory "*"
+git init -q "$WORK" && cd "$WORK"
+git fetch -q "$BUNDLE" "+refs/*:refs/agent-push-check/*"
+git checkout -q "$SHA"
+if [ -n "$BASE" ] && ! git cat-file -e "$BASE^{commit}" 2>/dev/null; then BASE=""; fi
+printf "%s\n" "$PROJECTS" | while IFS= read -r p; do
+  [ -n "$p" ] || continue
+  targets="verify"
+  if grep -qE -- "^install[[:space:]]*::?" "$p/Makefile"; then targets="install verify"; fi
+  echo "push check: make -C $p $targets"
+  if [ -n "$BASE" ]; then make -C "$p" $targets BASE="$BASE"; else make -C "$p" $targets; fi
+done
+'
+
+# Project in commit $1 containing path $2: the nearest folder, walking up,
+# whose agent-kit.conf exists in that commit. Git only. Prints nothing if none.
+project_of() {
+  local sha="$1" dir
+  dir="$(dirname -- "$2")"
+  while :; do
+    if [ "$dir" = "." ]; then
+      if git cat-file -e "$sha:agent-kit.conf" 2>/dev/null; then echo "."; fi
+      return 0
+    fi
+    if git cat-file -e "$sha:$dir/agent-kit.conf" 2>/dev/null; then echo "$dir"; return 0; fi
+    dir="$(dirname -- "$dir")"
+  done
+}
+
+status=0
+tmp="$(mktemp -d)"
+trap 'rm -rf "$tmp"; git update-ref -d refs/agent-push-check/tip 2>/dev/null || true' EXIT
+
+while read -r local_ref local_sha remote_ref remote_sha; do
+  [ "$local_sha" = "$zero" ] && continue # deleting a ref: nothing to test
+
+  # New commits: reachable from what's pushed, not yet on THIS remote. Refs
+  # fetched from the sandbox remote don't count as pushed.
+  exclude=(--not "--remotes=$remote")
+  if [ "$remote_sha" != "$zero" ] && git cat-file -e "$remote_sha^{commit}" 2>/dev/null; then
+    exclude+=("$remote_sha")
+  fi
+  if [ -z "$(git rev-list -n 1 "$local_sha" "${exclude[@]}")" ]; then
+    echo "push check: ${local_sha:0:8} has no commits that $remote doesn't already have"
+    continue
+  fi
+
+  # Base for verify's weakened-test check: what the remote had for this ref,
+  # else the first parent of the oldest new commit (topological order).
+  base=""
+  if [ "$remote_sha" != "$zero" ] && git merge-base --is-ancestor "$remote_sha" "$local_sha" 2>/dev/null; then
+    base="$remote_sha"
+  else
+    oldest="$(git rev-list --topo-order --reverse "$local_sha" "${exclude[@]}" | head -n 1)"
+    base="$(git rev-parse -q --verify "$oldest^1" 2>/dev/null || true)"
+  fi
+
+  # Every path any new commit touched (merges against each parent), exactly as
+  # stored: -z keeps unusual names unquoted.
+  : > "$tmp/files"
+  git log -m --no-renames --name-only -z --format= "$local_sha" "${exclude[@]}" > "$tmp/files"
+
+  : > "$tmp/projects"; : > "$tmp/lost"
+  while IFS= read -r -d '' f; do
+    [ -n "$f" ] || continue
+    p="$(project_of "$local_sha" "$f")"
+    if [ -n "$p" ]; then
+      echo "$p" >> "$tmp/projects"
+    elif [ -n "$base" ] && [ -n "$(project_of "$base" "$f")" ]; then
+      project_of "$base" "$f" >> "$tmp/lost" # project existed before; its agent-kit.conf is gone
+    fi
+  done < "$tmp/files"
+  projects="$(sort -u "$tmp/projects")"
+  lost="$(sort -u "$tmp/lost")"
+
+  if [ -n "$lost" ]; then
+    echo "push check: agent-kit.conf was removed from a project these commits change; push blocked:"
+    while IFS= read -r p; do echo "    $p"; done <<< "$lost"
+    echo "  If that's intended, review it, then push with AGENT_PUSH_CHECK_ALLOW_REMOVED=1."
+    if [ "${AGENT_PUSH_CHECK_ALLOW_REMOVED:-}" != "1" ]; then status=1; continue; fi
+  fi
+
+  # A repo that doesn't use the kit: fall back to a verify target at the root.
+  if [ -z "$projects" ] && ! git cat-file -e "$local_sha:agent-kit.conf" 2>/dev/null; then
+    makefile="$(git cat-file -p "$local_sha:Makefile" 2>/dev/null || true)"
+    if grep -qE '^verify[[:space:]]*::?' <<< "$makefile"; then projects="."; fi
+  fi
+
+  if [ -z "$projects" ]; then
+    echo "push check: WARNING no agent-kit project or root verify target changed in ${local_sha:0:8}; nothing checked"
+    continue
+  fi
+
+  if [ "${AGENT_PUSH_CHECK_PLAN:-}" = "1" ]; then
+    echo "push check plan for ${local_sha:0:8} (base ${base:-none}):"
+    while IFS= read -r p; do echo "  make -C $p [install] verify"; done <<< "$projects"
+    continue
+  fi
+
+  # Hand the container only the pushed history, as a bundle.
+  rm -f "$tmp/push.bundle"
+  git update-ref "refs/agent-push-check/tip" "$local_sha"
+  bundle_ok=1
+  git bundle create -q "$tmp/push.bundle" "refs/agent-push-check/tip" 2>/dev/null || bundle_ok=0
+  git update-ref -d "refs/agent-push-check/tip"
+  if [ "$bundle_ok" -ne 1 ]; then
+    echo "push check: couldn't bundle ${local_sha:0:8}; push blocked"
+    status=1; continue
+  fi
+
+  echo "push check: ${local_sha:0:8} in a throwaway container ($image)..."
+  net=()
+  [ "${AGENT_PUSH_CHECK_NETWORK:-}" = "none" ] && net=(--network none)
+  if ! docker run --rm ${net[@]+"${net[@]}"} \
+      --mount "type=bind,src=$tmp/push.bundle,dst=/push/push.bundle,readonly" \
+      -e SHA="$local_sha" -e BASE="$base" -e PROJECTS="$projects" \
+      "$image" bash -c "$container_script" </dev/null; then
+    echo "push check: make verify failed for ${local_sha:0:8}, push blocked"
+    status=1
+  fi
+done
+
+exit "$status"
