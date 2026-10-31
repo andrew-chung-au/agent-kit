@@ -30,6 +30,9 @@ test: ## Run all unit tests
 
 # --- Only when the project has the capability --------------------------------
 
+run: ## Run the project in the foreground (for humans; agents use <name>-start)
+	<the project's run command>
+
 test-one: ## Run one test file: make test-one FILE=path
 	@test -n "$(FILE)" || { echo "Usage: make test-one FILE=path/to/test_file"; exit 1; }
 	<the project's single-file test command> "$(FILE)"

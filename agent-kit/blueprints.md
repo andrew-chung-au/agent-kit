@@ -29,8 +29,8 @@ What a project using this kit should have, when each piece applies, and how to c
 | Session summaries folder | The first session summary | `_session-summaries/` | `procedures/session-summary.md` |
 | CI backstop | The human asks for it, or uses the local sandbox profile | `.github/workflows/` at the repo root | `templates/ci-verify.yml.template` |
 | Local sandbox files | The human uses the local sandbox profile | `.devcontainer/` at the repo root; the push check in `~/.agent-hooks/` | `environments/local-sandbox/`, copied by the human from a clean clone |
-| Claude Code layer | The human uses Claude Code | `CLAUDE.md` and `.claude/` in the project folder | `claude-code/START.md` |
-| OpenCode layer | The human uses OpenCode | `opencode.json` and `.opencode/` in the project folder | `opencode/START.md` |
+| Claude Code layer | The human uses Claude Code | `CLAUDE.md` and `.claude/` in the project folder | `claude-code/START.md`, with `claude-code/agents/` and `claude-code/hooks/` |
+| OpenCode layer | The human uses OpenCode | `opencode.json` and `.opencode/` in the project folder | `opencode/START.md`, with `opencode/agents/` |
 | Tool-native enforcement for other tools | The human wants hard enforcement in a tool without a layer | That tool's own config folder | Not in the kit; see README |
 | Tool permission allow-list | The human's tool asks for approval on routine commands | That tool's own settings file | See Tool permissions below |
 | Role definitions | The human's tool can define named subagents, and the orchestrator launches roles as subagents | That tool's agents folder, for example `.claude/agents/` | See Role definitions below |

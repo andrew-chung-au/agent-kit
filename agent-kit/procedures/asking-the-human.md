@@ -89,7 +89,7 @@ Decision needed: how should the on-call agent's "curl to localhost only" limit b
 - Context: #10, QA FAIL on criterion 6. The tool's prefix rules can't limit curl to one host:
   a rule for http://localhost also matches http://localhost.example.com.
 - Options:
-  1. A `make probe URL=...` wrapper that checks the URL, and no direct curl: simple and testable,
+  1. A `make <probe-target> URL=...` wrapper that checks the URL, and no direct curl: simple and testable,
      but the agent could still edit the Makefile during a run.
   2. A tool hook that parses every curl command: stronger, but more code and harder to test.
   3. Keep the prefix rules and document the gap: no work, but the limit isn't enforced.

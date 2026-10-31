@@ -5,7 +5,17 @@
       "Bash(git status *)",
       "Bash(git diff *)",
       "Bash(git log *)",
-      "Bash(git show *)"
+      "Bash(git show *)",
+      "Bash(git cat-file *)",
+      "Bash(git remote)",
+      "Bash(git remote -v)",
+      "Bash(git remote show *)",
+      "Bash(git remote get-url *)",
+      "Bash(gh issue view *)",
+      "Bash(gh issue list *)",
+      "Bash(gh run list *)",
+      "Bash(gh run view *)",
+      "Bash(sha256sum *)"
     ],
     "ask": [
       "Edit(/AGENTS.md)",
@@ -19,7 +29,20 @@
       "Read(.env)",
       "Read(.env.local)",
       "Read(.env.*.local)",
-      "Bash(git push *)"
+      "Edit(.env)",
+      "Edit(.env.local)",
+      "Edit(.env.*.local)",
+      "Bash(git push *)",
+      "Bash(git remote add *)",
+      "Bash(git remote remove *)",
+      "Bash(git remote rename *)",
+      "Bash(git remote set-head *)",
+      "Bash(git remote set-branches *)",
+      "Bash(git remote set-url *)",
+      "Bash(git remote prune *)",
+      "Bash(git remote update *)",
+      "Bash(gh run view *--log*)",
+      "Bash(gh run view *--log-failed*)"
     ]
   },
   "hooks": {

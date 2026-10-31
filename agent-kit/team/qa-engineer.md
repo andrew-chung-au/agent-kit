@@ -40,7 +40,7 @@ Verify: PASS
 - files changed: 4 files, 120 insertions(+), 3 deletions(-)
 
 Other commands run
-- `make run`, then `make stop`; `make assert-clean` → PASS
+- `make run`, then `make <name>-stop`; `make assert-clean` → PASS
 
 Outside the criteria
 - Risks no criterion covers, each with how you found it, or "none"

@@ -17,7 +17,9 @@ clean-scratch: ## Empty .scratch/ at the end of an issue (refuses while a starte
 	@for f in .scratch/*.pid; do if [ -f "$$f" ] && kill -0 "$$(cat "$$f")" 2>/dev/null; then echo "$$f: process $$(cat "$$f") is still running; stop it first"; exit 1; fi; done
 	@mkdir -p .scratch && find .scratch -mindepth 1 -delete && echo ".scratch/ is now empty"
 
-test: ## Syntax-check the kit's shell scripts, Python hooks and JSON settings
+test: ## Syntax checks, the kit's claims check, and the unit tests in tests/
 	@for f in agent-kit/scripts/*.sh agent-kit/githooks/* agent-kit/environments/local-sandbox/setup.sh agent-kit/environments/local-sandbox/pre-push; do bash -n "$$f" || exit 1; done; echo "shell: OK"
-	@python3 -B -c 'import ast, sys; [ast.parse(open(f).read(), f) for f in sys.argv[1:]]' agent-kit/claude-code/hooks/*.py && echo "python: OK"
+	@python3 -B -c 'import ast, sys; [ast.parse(open(f).read(), f) for f in sys.argv[1:]]' agent-kit/claude-code/hooks/*.py agent-kit/scripts/*.py tests/*.py && echo "python: OK"
 	@for f in agent-kit/claude-code/settings.json agent-kit/opencode/opencode.json agent-kit/environments/local-sandbox/devcontainer.json; do python3 -m json.tool "$$f" > /dev/null || exit 1; done; echo "json: OK"
+	@python3 -B agent-kit/scripts/check-claims.py
+	@python3 -B -m unittest discover tests
