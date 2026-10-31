@@ -20,6 +20,12 @@ clean-scratch: ## Empty .scratch/ at the end of an issue (refuses while a starte
 	@for f in .scratch/*.pid; do if [ -f "$$f" ] && kill -0 "$$(cat "$$f")" 2>/dev/null; then echo "$$f: process $$(cat "$$f") is still running; stop it first"; exit 1; fi; done
 	@mkdir -p .scratch && find .scratch -mindepth 1 -delete && echo ".scratch/ is now empty"
 
+# --- When the project's tasks are GitHub issues --------------------------------
+
+issue-hash: ## Print an issue body's sha256, author and owner check: make issue-hash N=<issue number>
+	$(if $(and $(filter 1,$(words $(N))),$(if $(strip $(subst 0,,$(subst 1,,$(subst 2,,$(subst 3,,$(subst 4,,$(subst 5,,$(subst 6,,$(subst 7,,$(subst 8,,$(subst 9,,$(N)))))))))))),,x)),,$(error Usage: make issue-hash N=<issue number>))
+	@python3 -B _docs/agent-kit/scripts/issue-hash.py "$(N)"
+
 # --- When the stack is known (wrap the project's own commands) -------------
 
 install: ## Install dependencies
