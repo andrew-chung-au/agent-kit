@@ -157,6 +157,58 @@ class TierCheckTest(TierCheckBase):
                 self.assertIn("no path limit", r.stdout)
 
 
+class TierCheckBaseTest(TierCheckBase):
+    """A bad BASE, or a failing git command, must never end in PASS."""
+
+    def assertNoPass(self, r, code):
+        self.assertEqual(r.returncode, code, r.stdout + r.stderr)
+        self.assertNotIn("PASS", r.stdout)
+
+    def test_a_nonexistent_base_exits_2(self):
+        r = self.tier(base="nosuchrev")
+        self.assertNoPass(r, 2)
+        self.assertIn("not a commit", r.stderr)
+
+    def test_a_base_that_is_not_a_commit_exits_2(self):
+        r = self.tier(base="HEAD:docs/a.md")
+        self.assertNoPass(r, 2)
+
+    def test_a_base_with_a_leading_dash_is_not_an_option(self):
+        for base in ("--output=injected.txt", "-p", "--stat"):
+            with self.subTest(base=base):
+                r = self.tier(base=base)
+                self.assertNoPass(r, 2)
+                self.assertIn("must not start with '-'", r.stderr)
+                self.assertFalse((self.repo / "injected.txt").exists(), "BASE reached git as an option")
+
+    def test_a_valid_base_by_name_and_by_hash_still_passes(self):
+        self.append("docs/a.md", 1)
+        self.assertEqual(self.tier(base="HEAD").returncode, 0)
+        self.assertEqual(self.tier(base=self.base).returncode, 0)
+
+    def _failing_git(self, fail_on):
+        import shutil
+        real = shutil.which("git", path=self.env["PATH"])
+        stubs = self.work / "failgit"
+        stubs.mkdir(exist_ok=True)
+        stub = stubs / "git"
+        stub.write_text(
+            '#!/bin/sh\nfor a in "$@"; do [ "$a" = "%s" ] && { echo "fatal: forced failure" >&2; exit 128; }; done\n'
+            'exec "%s" "$@"\n' % (fail_on, real), encoding="utf-8")
+        stub.chmod(0o755)
+        return {"PATH": str(stubs) + ":" + self.env["PATH"]}
+
+    def test_a_failing_git_diff_is_a_failure_not_a_pass(self):
+        r = self.run_cmd(["bash", SCRIPT, "light", self.base], env=self._failing_git("diff"))
+        self.assertNoPass(r, 1)
+        self.assertIn("could not list the changes", r.stderr)
+
+    def test_a_failing_git_ls_files_is_a_failure_not_a_pass(self):
+        r = self.run_cmd(["bash", SCRIPT, "light", self.base], env=self._failing_git("ls-files"))
+        self.assertNoPass(r, 1)
+        self.assertIn("could not list the changes", r.stderr)
+
+
 class TierCheckNoAllowanceTest(TierCheckBase):
     conf = DEFAULT_CONF  # LIGHT_ALLOWED unset
 

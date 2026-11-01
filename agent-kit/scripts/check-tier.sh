@@ -40,6 +40,18 @@ BASE="${2-}"
 if [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ]; then
   BASE="$(git rev-parse --abbrev-ref --symbolic-full-name '@{upstream}' 2>/dev/null || echo HEAD)"
 fi
+# Fail closed on a bad BASE: no leading "-" (git would read it as an option), and it must
+# resolve to a commit. From here on git gets the resolved hash, never the caller's text.
+case "$BASE" in
+  -*)
+    echo "tier-check: BASE must not start with '-': $BASE" >&2
+    exit 2
+    ;;
+esac
+if ! BASE_SHA="$(git rev-parse --verify --quiet --end-of-options "$BASE^{commit}")" || [ -z "$BASE_SHA" ]; then
+  echo "tier-check: BASE is not a commit in this repository: $BASE" >&2
+  exit 2
+fi
 
 # Always at least Standard, even when LIGHT_ALLOWED matches.
 ESCALATE=(
@@ -63,9 +75,18 @@ classify() { # classify PATH
   fi
 }
 
+# Git runs inside "$(...)" with its NULs turned into \001 (a variable cannot hold NUL), so a
+# failing git command is seen here and fails the check instead of being swallowed.
+collect_failed() {
+  echo "tier-check: FAIL. git could not list the changes ($1), so nothing was checked." >&2
+  exit 1
+}
+
 # Tracked changes since BASE (committed, staged and unstaged). -z: NUL-delimited
 # "added<TAB>deleted<TAB>path<NUL>", and core.quotePath=false, so git never quotes a name.
-while IFS= read -r -d '' rec; do
+tracked="$(git -c core.quotePath=false diff --relative --numstat --no-renames -z "$BASE_SHA" -- . | tr '\0' '\001')" \
+  || collect_failed "git diff"
+while IFS= read -r -d $'\001' rec; do
   added="${rec%%$'\t'*}"
   rest="${rec#*$'\t'}"
   deleted="${rest%%$'\t'*}"
@@ -77,15 +98,18 @@ while IFS= read -r -d '' rec; do
   else
     lines=$((lines + added + deleted))
   fi
-done < <(git -c core.quotePath=false diff --relative --numstat --no-renames -z "$BASE" -- .)
+done <<< "$tracked"
 
 # Untracked files count too: they are present when the human reviews.
-while IFS= read -r -d '' path; do
+untracked="$(git -c core.quotePath=false ls-files --others --exclude-standard -z -- . | tr '\0' '\001')" \
+  || collect_failed "git ls-files"
+while IFS= read -r -d $'\001' path; do
   [ -z "$path" ] && continue
   classify "$path"
-  n="$(grep -c '' -- "$path" 2>/dev/null || true)"
+  n="$(grep -c '' -- "$path" 2>/dev/null)"
+  [ "$?" -le 1 ] || collect_failed "cannot read $path"
   lines=$((lines + ${n:-0}))
-done < <(git -c core.quotePath=false ls-files --others --exclude-standard -z -- .)
+done <<< "$untracked"
 
 fail=0
 if [ "${#escalating[@]}" -gt 0 ]; then
