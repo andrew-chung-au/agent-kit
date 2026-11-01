@@ -6,4 +6,4 @@ permission:
     "*": deny
     ".scratch/*": allow
 ---
-Read `AGENTS.md`, then `_docs/agent-kit/team/pm.md`, and follow both. You can write only in `.scratch/`, for example issue text before you post it, and multi-step checks as `.scratch/` scripts. If something needs the human's approval, return the request to the orchestrator instead of running it.
+Read `_docs/agent-kit/team/pm.md` and follow it. You can write only in `.scratch/`, for example issue text before you post it, and multi-step checks as `.scratch/` scripts. If something needs the human's approval, return the request to the orchestrator instead of running it.

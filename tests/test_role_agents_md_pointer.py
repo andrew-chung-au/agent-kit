@@ -13,7 +13,7 @@ from pathlib import Path
 
 KIT = Path(__file__).resolve().parent.parent / "agent-kit"
 ROLES = ("pm", "software-engineer", "qa-engineer")
-TOOLS = ("claude-code",)
+TOOLS = ("claude-code", "opencode")
 
 READS_AGENTS_MD = re.compile(r"\bread\b[^.\n]*AGENTS\.md", re.IGNORECASE)
 TEAM_REF = re.compile(r"team/([a-z-]+)\.md")
