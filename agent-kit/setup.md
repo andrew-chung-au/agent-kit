@@ -53,6 +53,8 @@ For every row in `blueprints.md`, record **now**, **later** (with its trigger) o
 
 **Environment.** Find out which profile in `environments.md` applies, from a `.devcontainer/` folder, a codespace, or by asking, and fill in the **Environment** setting in `AGENTS.md`, including what isn't available there (for example Docker in the local sandbox). For the local sandbox, also propose adding `.devcontainer/` and `.github/` at the repo root if they're missing, from `environments/local-sandbox/` and `templates/ci-verify.yml.template`; the human copies them in the clean clone. Existing `.claude/` files are classified like any other agent setup (step 3).
 
+**Issue form.** If the repository is public or takes issues from outside reporters, propose `templates/github/ISSUE_TEMPLATE/intake.yml`; the human decides whether to install it as `.github/ISSUE_TEMPLATE/intake.yml` at the repo root, like the CI file.
+
 ## 5. Propose and wait
 
 Show the human, in one message:

@@ -42,6 +42,7 @@ What a project using this kit should have, when each piece applies, and how to c
 | Decision records | A choice that may be revisited | Decision folder from the index | `templates/adr.md` |
 | Runbook entries | A problem needed the same fix twice | Runbook folder from the index | `templates/runbook.md` |
 | CI backstop | The human asks for it, or uses the local sandbox profile | `.github/workflows/` at the repo root | `templates/ci-verify.yml.template` |
+| Issue intake form | The repository is public or takes issues from outside reporters. The form asks for the problem, what they expected and evidence, and applies no label. The PM grooms an intake issue into the `task-template.md` shape, as for any issue | `.github/ISSUE_TEMPLATE/intake.yml` at the repo root | `templates/github/ISSUE_TEMPLATE/intake.yml` |
 | Local sandbox files | The human uses the local sandbox profile | `.devcontainer/` at the repo root; the push check in `~/.agent-hooks/` | `environments/local-sandbox/`, copied by the human from a clean clone |
 | Claude Code layer | The human uses Claude Code | `CLAUDE.md` and `.claude/` in the project folder | `claude-code/START.md`, with `claude-code/agents/` and `claude-code/hooks/` |
 | OpenCode layer | The human uses OpenCode | `opencode.json` and `.opencode/` in the project folder | `opencode/START.md`, with `opencode/agents/` |
