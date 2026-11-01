@@ -1,3 +1,7 @@
+## Why
+
+The problem in one or two sentences, with evidence: where it showed up and what it cost. Not the mechanism or the solution; Goal says what should be true when this is done.
+
 ## Goal
 
 One or two sentences on what should be true when this is done.

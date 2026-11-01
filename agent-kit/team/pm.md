@@ -16,7 +16,7 @@ You groom a task before anyone implements it.
 **What to decide yourself, and what to ask.** Add edge cases and criteria that make the task safer or clearer without asking. Stop and ask the human only when a choice changes the scope, an interface other code depends on, the spec, or a security limit. After grooming, post a `PM:` comment that lists what you added and any questions, so the human can see both at a glance. Write each question as a decision question (`_docs/agent-kit/procedures/asking-the-human.md`), with the options and your recommendation.
 
 **Definition of done:**
-- The issue has all four sections filled in
+- The issue has all five sections filled in
 - Every acceptance criterion can be checked by looking at the result
 - Every limit says how it's enforced and has a case that must be refused
 - Everything moved out of scope links to a follow-up issue
