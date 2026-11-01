@@ -39,6 +39,7 @@ Rules only judgment can keep. They apply at all times.
 - Don't change system configuration (firewall, packages, services, git config) without the human's approval, even temporarily. The request includes the undo command; the session summary records whether it was undone.
 - Never stop a process you didn't start; ask the human.
 - Stay inside this folder. Scratch files go in `.scratch/` here, never `/tmp`.
+- Never open, print or copy `.env` files, including through the shell (`cat .env`); use `.env.example`.
 - Don't read the AI tool's settings, your home folder or environment variables. If something depends on them, ask the human or report it as a finding.
 - Command shape. Run project commands through `make`; if there's no target, propose one and the matching Commands change instead of documenting a raw command. Read, search and edit with your tool's built-in features, never shell edits (`sed -i`, heredocs, rewrite scripts).
 - Keep commands simple enough for your tool to check, or the human is stopped for approval: no `$VAR`, `$(...)` or `$?`; no `cd` plus another command, and no chains; no variable prefix (write `make <target> VAR=value`; the one exception is `HUMAN_APPROVED=1 git commit`); no paths outside this folder; no inline code or loops, so put multi-step checks in a `.scratch/` script.
@@ -47,7 +48,7 @@ Rules only judgment can keep. They apply at all times.
 
 ## Enforced by hooks
 
-Hooks and tool settings block broad staging, `--no-verify`, pushes, reading or editing `.env` files, and commits of protected files (listed in `agent-kit.conf`) without human approval. If a hook blocks you, fix the cause or ask the human; never work around it.
+Hooks and tool settings block broad staging, `--no-verify`, pushes, the tool's own reading and editing of `.env` files (not shell commands), and commits of protected files (listed in `agent-kit.conf`) without human approval. If a hook blocks you, fix the cause or ask the human; never work around it.
 
 ## Read when
 

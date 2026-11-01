@@ -9,7 +9,7 @@ Most tools show a short description with each command, including when they ask t
 - Good: "Send the ResponderTest alert to check criterion 4 of #10"
 - Not enough: "Send alert", "Run check", "Inspect folder"
 
-If the tool asks for approval only because it couldn't check the command, the description is all the human sees. Prefer rewriting the command in a simpler form (see the Conventions in `AGENTS.md`).
+If the tool asks for approval only because it couldn't check the command, the description is all the human sees. Prefer rewriting the command in a simpler form (see the command-shape rules in the Non-negotiables of `AGENTS.md`).
 
 ## When to ask before acting
 

@@ -24,5 +24,5 @@ FORBIDDEN=( '.env' '*/.env' '.env.*' '*/.env.*' '*.db' '*.sqlite' '*.sqlite3'
 # Exceptions to FORBIDDEN.
 ALLOWED=( '.env.example' '*/.env.example' )
 
-# Commits touching these need HUMAN_APPROVED=1 (see AGENTS.md conventions).
+# Commits touching these need HUMAN_APPROVED=1 (see the hook line in AGENTS.md).
 PROTECTED=( 'AGENTS.md' 'CLAUDE.md' 'agent-kit.conf' '_docs/specs.md' '_docs/agent-kit/*' )

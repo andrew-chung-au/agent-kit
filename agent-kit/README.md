@@ -73,7 +73,7 @@ If the repo already has hooks, `make hooks` checks them first. Standard Git LFS 
 
 ## Fewer approval prompts
 
-Agents trigger most approval prompts in two ways: working outside the project folder (scratch files in `/tmp`, redirects to `/dev/null`, reading the tool's own settings), and shell commands too complex for the tool to check. The commonest are editing files from the shell (`sed -i`, heredoc scripts), `$?` and other shell variables, `cd … &&` chains, and settings put before a command (`VAR=x make run`). The shared Conventions list these forms and their replacements: the tool's own editor, `.scratch/` scripts, `make <target> VAR=x`, and start/stop targets for servers.
+Agents trigger most approval prompts in two ways: working outside the project folder (scratch files in `/tmp`, redirects to `/dev/null`, reading the tool's own settings), and shell commands too complex for the tool to check. The commonest are editing files from the shell (`sed -i`, heredoc scripts), `$?` and other shell variables, `cd … &&` chains, and settings put before a command (`VAR=x make run`). The command-shape rules in the Non-negotiables list these forms and their replacements: the tool's own editor, `.scratch/` scripts, `make <target> VAR=x`, and start/stop targets for servers.
 
 A prompt is worth stopping for when it's a real decision (a design or security choice), a protected commit, or something outside the project. For the rest, approve if the purpose is fine. If you decline, say why in a few words, such as "use the Edit tool" or "no `$?`". The agent is told never to pursue a declined goal another way, so the reason tells it what to fix.
 
@@ -92,9 +92,11 @@ Agents take their rules from the project's `AGENTS.md`, not from the kit folder,
 1. Pause at a clean point: finish the current step, commit, and exit the agent session. `git status --short` should show nothing.
 2. From the project folder, unzip the new kit over the old one: `unzip -o <path>/agent-kit.zip`.
 3. Run `make hooks`. It upgrades older hooks and leaves current ones alone.
-4. Start an agent and say: "The agent kit in `_docs/agent-kit/` has been upgraded to <version>. Review this project using `_docs/agent-kit/setup.md` in review mode. Update the shared Conventions block in `AGENTS.md` to match the template, leaving the project half unchanged, and apply any blueprint changes. Show me the diffs and the exact `git add` paths, including `_docs/agent-kit/`, and wait for my approval."
+4. Start an agent and say: "The agent kit in `_docs/agent-kit/` has been upgraded to <version>. Review this project using `_docs/agent-kit/setup.md` in review mode. Update the shared block in `AGENTS.md` (between SHARED START and SHARED END) to match the template, leaving the project half unchanged (see the note below if it has no marker pair yet), and apply any blueprint changes. Show me the diffs and the exact `git add` paths, including `_docs/agent-kit/`, and wait for my approval."
 5. Review and approve, then commit the kit folder, `AGENTS.md` and any other changed files with `HUMAN_APPROVED=1`. Check that `_docs/agent-kit/` is among the staged paths. Include `.githooks/` at the repo root if `make hooks` changed it.
 6. Start a fresh agent session, so the new rules load.
+
+**Note for projects last upgraded before the slimmed template:** the shared rules moved into Non-negotiables, the hook line, Read when triggers and the step docs. The shared block is now bracketed by `<!-- SHARED START ... -->` and `<!-- SHARED END -->`. A project with only the old single `<!-- SHARED: ... -->` marker takes the new block from that marker to the end of its file, and its Project gotchas go after SHARED END. An upgrade never replaces a project's `AGENTS.md` wholesale: the change is a diff you approve. Review the project's own settings and gotchas for rules that now duplicate the moved ones.
 
 ### Changes in 1.9
 

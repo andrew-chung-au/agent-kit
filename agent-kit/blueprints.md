@@ -109,7 +109,7 @@ Tools that ask before running commands can usually pre-approve safe ones. Allowi
 
 Never allow-list `git push` or commits with `HUMAN_APPROVED=1`. The prompt before an approved commit is the human's last check that what's staged is what they approved.
 
-Allow rules don't help with commands the tool can't analyse (shell variables, heredocs, chains, paths outside the folder). Those still ask whatever the allow rules say, so the only fix is the agent writing simpler commands, as the Conventions in `AGENTS.md` describe.
+Allow rules don't help with commands the tool can't analyse (shell variables, heredocs, chains, paths outside the folder). Those still ask whatever the allow rules say, so the only fix is the agent writing simpler commands, as the command-shape rules in the Non-negotiables of `AGENTS.md` describe.
 
 In a monorepo, tools that restrict reads to the project folder will ask each time a kit review reads the repo-root `.githooks/`. Add that one folder to the tool's allowed directories, not the whole repo root. In Claude Code, that's `/add-dir <repo root>/.githooks` for one session, or `permissions.additionalDirectories` in `.claude/settings.local.json` to keep it.
 

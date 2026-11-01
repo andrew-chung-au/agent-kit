@@ -36,13 +36,13 @@ For each existing item, choose one:
 - **Does the same job as a kit component** (a verify script, a role definition, a hook that blocks `git add .`): Superseded. Name the kit component that replaces it, and check that nothing it did is lost.
 - **Holds project-specific content** (commands, gotchas, settings, permission rules for project files): Merge it into the matching kit file, usually the project half of `AGENTS.md` or the layer's settings.
 - **Does something the kit doesn't** (a project-specific skill, an extra check): Keep it. Say how it fits alongside the kit, and if it seems generally useful, suggest it as a kit improvement.
-- **Conflicts with the kit's rules** (a hook or setting that allows what the Conventions forbid): flag it as a question for the human.
+- **Conflicts with the kit's rules** (a hook or setting that allows what the Non-negotiables or the hook line forbid): flag it as a question for the human.
 
 ## 4. Match against the blueprints
 
 For every row in `blueprints.md`, record **now**, **later** (with its trigger) or **not applicable**, and the evidence. In review mode, also report drift:
 
-- A shared Conventions block in `AGENTS.md` that differs from `templates/AGENTS.md.template`.
+- A shared block in `AGENTS.md` (between SHARED START and SHARED END) that differs from `templates/AGENTS.md.template`.
 - Command slots in `AGENTS.md` that don't match Makefile targets.
 - A long-running process (a server, a watcher) without `<name>-start` and `<name>-stop` targets.
 - Hooks not active in this clone (`git config core.hooksPath` isn't `.githooks`).
@@ -84,4 +84,4 @@ Done when:
 - Every command slot in `AGENTS.md` is a make target or "none".
 - `git config core.hooksPath` is `.githooks`.
 - The baseline `make verify` result is reported, with issues proposed for any failures.
-- No placeholders (`<...>`) or unconfirmed notes remain in the project half of `AGENTS.md`. The shared Conventions block keeps its generic examples, such as `make <target> VAR=value`.
+- No placeholders (`<...>`) or unconfirmed notes remain in the project half of `AGENTS.md`. The shared block (between SHARED START and SHARED END) keeps its generic examples, such as `make <target> VAR=value`.

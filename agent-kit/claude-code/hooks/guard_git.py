@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Claude Code PreToolUse hook (Bash): block git commands the kit's Conventions forbid.
+"""Claude Code PreToolUse hook (Bash): block git commands the kit's rules forbid (see "Enforced by hooks" in AGENTS.md).
 
 Blocks, with the reason and the allowed alternative:
 - broad staging: `git add .`, `-A`, `--all`, `-u`, `--update`, `:/`, `*`
