@@ -77,6 +77,7 @@ Treat partial output as unverified. Relaunch the role with a note of what's alre
    - Apply approved AGENTS.md, spec and other protected-file changes in their own commits, with `HUMAN_APPROVED=1`.
    - If an approved change needs Engineer work, go back to step 3; QA re-checks only what changed.
    - For each risk the human wants handled later, the PM files a follow-up issue.
+   - Run `make sweep-due`; if it says due, propose a sweep (`_docs/agent-kit/procedures/sweep.md`) to the human.
 8. Clean up, then write the session summary following `_docs/agent-kit/procedures/session-summary.md`:
    - Confirm nothing started during the issue is still running (`make <name>-stop` for each).
    - Confirm temporary system changes are undone, or that the human chose to keep them.

@@ -21,6 +21,9 @@ issue-hash: ## Print an issue body's sha256, author and owner check: make issue-
 	$(if $(and $(filter 1,$(words $(N))),$(if $(strip $(subst 0,,$(subst 1,,$(subst 2,,$(subst 3,,$(subst 4,,$(subst 5,,$(subst 6,,$(subst 7,,$(subst 8,,$(subst 9,,$(N)))))))))))),,x)),,$(error Usage: make issue-hash N=<issue number>))
 	@python3 -B agent-kit/scripts/issue-hash.py "$(N)"
 
+sweep-due: ## Say whether a sweep is due (read-only; the sweep interval is set in the script)
+	@python3 -B agent-kit/scripts/sweep-due.py
+
 test: ## Syntax checks, the kit's claims check, and the unit tests in tests/
 	@for f in agent-kit/scripts/*.sh agent-kit/githooks/* agent-kit/environments/local-sandbox/setup.sh agent-kit/environments/local-sandbox/pre-push; do bash -n "$$f" || exit 1; done; echo "shell: OK"
 	@python3 -B -c 'import ast, sys; [ast.parse(open(f).read(), f) for f in sys.argv[1:]]' agent-kit/claude-code/hooks/*.py agent-kit/scripts/*.py tests/*.py && echo "python: OK"

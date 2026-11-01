@@ -21,6 +21,9 @@ What a project using this kit should have, when each piece applies, and how to c
 | `run`, `test-one`, `e2e`, `migration` targets | The project has that capability | Project `Makefile` | `templates/Makefile.mk` |
 | `<name>-start` and `<name>-stop` targets | The project has a long-running process that agents start and stop while testing (a server, a watcher, a responder) | Project `Makefile` | `templates/Makefile.mk` |
 | `issue-hash` target | The project's tasks are GitHub issues | Project `Makefile` | `templates/Makefile.mk`, running `scripts/issue-hash.py` |
+| `sweep-due` target | The project runs the periodic sweep and its tasks are GitHub issues | Project `Makefile` | `templates/Makefile.mk`, running `scripts/sweep-due.py` |
+| Sweep procedure and skill | The project wants periodic reflection and measures | `procedures/sweep.md`; the skill in `.claude/skills/sweep/` or `.opencode/skills/sweep/` | `procedures/sweep.md`, `claude-code/skills/`, `opencode/skills/` |
+| Sweep entries | The first sweep | `_docs/measurements/`, listed in `_docs/index.md` | `procedures/sweep.md`, `templates/measurement.md` |
 | Stub setting for external processes | The project's code starts a paid or external process (an AI agent, a cloud service) | The project's own configuration | Added by the Engineer with the feature; see below |
 | Lint and type-check gates | A linter or type checker is installed **and** existing code passes it | `lint`/`typecheck` targets, then `LINT_CMD`/`TYPECHECK_CMD` in `agent-kit.conf` | `templates/Makefile.mk` |
 | Environment profile | Always, at setup | **Environment** setting in `AGENTS.md` | `environments.md` |
@@ -51,7 +54,7 @@ What a project using this kit should have, when each piece applies, and how to c
 
 **Kit settings.** Set `TEST_CMD` to the test target. Adjust `TEST_FILES` to the project's test layout and `FORBIDDEN` to its secrets and generated files. Keep `PROTECTED` covering at least `AGENTS.md`, `agent-kit.conf`, the spec and the kit folder.
 
-**Make targets.** Wrap the project's existing commands; don't introduce new tools. Add missing targets to an existing Makefile, and never rename or replace existing ones. Add a `## description` comment after each existing target's name so `make help` lists it. When a target is added, the Commands section of `AGENTS.md` gets the matching slot, except for process helpers such as `issue-hash`, which `pm.md` and the Issues rule introduce.
+**Make targets.** Wrap the project's existing commands; don't introduce new tools. Add missing targets to an existing Makefile, and never rename or replace existing ones. Add a `## description` comment after each existing target's name so `make help` lists it. When a target is added, the Commands section of `AGENTS.md` gets the matching slot, except for process helpers such as `issue-hash` and `sweep-due`, which `pm.md`, `process.md` and the Issues rule introduce.
 
 **Start and stop targets.** Agents trigger approval prompts, and risk stopping the wrong process, when they start a server with `&` and stop it with `pgrep` and `kill`. A target pair keeps the process ID and log in `.scratch/`, refuses to start a second copy, and stops only the process it started. Name the pair after the process, for example `responder-start` and `responder-stop`, and add both to the Commands section of `AGENTS.md`. Keep the project's foreground target (such as `make run`) for humans.
 

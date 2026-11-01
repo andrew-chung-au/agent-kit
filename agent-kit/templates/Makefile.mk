@@ -26,6 +26,9 @@ issue-hash: ## Print an issue body's sha256, author and owner check: make issue-
 	$(if $(and $(filter 1,$(words $(N))),$(if $(strip $(subst 0,,$(subst 1,,$(subst 2,,$(subst 3,,$(subst 4,,$(subst 5,,$(subst 6,,$(subst 7,,$(subst 8,,$(subst 9,,$(N)))))))))))),,x)),,$(error Usage: make issue-hash N=<issue number>))
 	@python3 -B _docs/agent-kit/scripts/issue-hash.py "$(N)"
 
+sweep-due: ## Say whether a sweep is due (read-only; the sweep interval is set in the script)
+	@python3 -B _docs/agent-kit/scripts/sweep-due.py
+
 # --- When the stack is known (wrap the project's own commands) -------------
 
 install: ## Install dependencies

@@ -10,6 +10,7 @@ The process, roles, verify gate and git hooks are the core kit's and apply uncha
 |---|---|---|
 | `CLAUDE.md.template` | `CLAUDE.md` in the project folder | Loads `AGENTS.md`, and points Claude Code's scratch files at `.scratch/` |
 | `agents/pm.md`, `agents/software-engineer.md`, `agents/qa-engineer.md` | `.claude/agents/` | Role definitions, so the orchestrator launches each role by name. Each points to its file in `team/`. The PM can write and edit only under `.scratch/`; QA can write only there and can't edit. The Engineer carries the verify hook. |
+| `skills/sweep/SKILL.md` | `.claude/skills/sweep/SKILL.md` | The sweep skill: `/sweep` points at `procedures/sweep.md`. Only you or the orchestrator invoke it by name. |
 | `hooks/guard_git.py` | Runs in place from the kit | Before any shell command: blocks `git add .`/`-A`/`-u`, `git commit -a`, `--no-verify`, `git commit -n`, `git push` and changes to `core.hooksPath`, with the reason and the allowed alternative |
 | `hooks/verify_on_stop.py` | Runs in place from the kit | When the Engineer tries to finish: runs `make verify` and sends it back to fix any failure, up to three times, then lets it stop and warns you |
 | `settings.json` | Merged into `.claude/settings.json` | Pre-approves `make` targets and read-only git; asks before edits to protected files; blocks reading `.env` files and `git push`; registers the git guard; sets commit attribution |
@@ -22,7 +23,7 @@ Setup does this when you say you use Claude Code (`setup.md`, step 4). To do it 
 
 1. **Start Claude Code in the project folder**, not the repository root. The hooks find the kit through `$CLAUDE_PROJECT_DIR`, which is the folder the session started in.
 2. **`CLAUDE.md`:** copy `claude-code/CLAUDE.md.template` as `CLAUDE.md`, or merge its two lines into an existing `CLAUDE.md`.
-3. **Role definitions:** copy the three files in `claude-code/agents/` into `.claude/agents/`.
+3. **Role definitions:** copy the three files in `claude-code/agents/` into `.claude/agents/`, and `claude-code/skills/sweep/` into `.claude/skills/sweep/`.
 4. **Settings:** merge `claude-code/settings.json` into `.claude/settings.json`, keeping any settings already there. Then make the `ask` list match the project's `PROTECTED` list in `agent-kit.conf`: one `Edit(/<pattern>)` rule per entry. For example, `incident-response/probe.py` becomes `Edit(/incident-response/probe.py)`. A folder pattern ending in `/*` becomes `/**`, because in these rules `*` doesn't cross into subfolders: `_docs/agent-kit/*` becomes `Edit(/_docs/agent-kit/**)`. If the project's secrets use other names, add a `Read(...)` deny rule for each one.
 5. **Protection:** add `'.claude/*'` to `PROTECTED` in `agent-kit.conf`. These files decide what agents may do.
 6. **Check it.** Restart Claude Code and accept the workspace trust prompt; the Engineer's hook only runs in a trusted folder. Then check:
