@@ -24,6 +24,7 @@ What a project using this kit should have, when each piece applies, and how to c
 | `sweep-due` target | The project runs the periodic sweep and its tasks are GitHub issues | Project `Makefile` | `templates/Makefile.mk`, running `scripts/sweep-due.py` |
 | Sweep procedure and skill | The project wants periodic reflection and measures | `procedures/sweep.md`; the skill in `.claude/skills/sweep/` or `.opencode/skills/sweep/` | `procedures/sweep.md`, `claude-code/skills/`, `opencode/skills/` |
 | Sweep entries | The first sweep | `_docs/measurements/`, listed in `_docs/index.md` | `procedures/sweep.md`, `templates/measurement.md` |
+| Long-running process procedure | The project has a long-running process that agents start and stop (see the start and stop targets) | Read through the "Read when" trigger in `AGENTS.md` | `procedures/processes.md` |
 | Stub setting for external processes | The project's code starts a paid or external process (an AI agent, a cloud service) | The project's own configuration | Added by the Engineer with the feature; see below |
 | Lint and type-check gates | A linter or type checker is installed **and** existing code passes it | `lint`/`typecheck` targets, then `LINT_CMD`/`TYPECHECK_CMD` in `agent-kit.conf` | `templates/Makefile.mk` |
 | Environment profile | Always, at setup | **Environment** setting in `AGENTS.md` | `environments.md` |
@@ -50,7 +51,7 @@ What a project using this kit should have, when each piece applies, and how to c
 
 ## Notes on specific blueprints
 
-**Project instructions.** Fill the project half from what the folder actually contains; write "none" for command slots the project doesn't have yet. Keep the shared Conventions block unchanged. Carry useful content from any existing instruction file into the project half, and say where each part went. In a monorepo, include the line that limits work to this folder. Leave nested instruction files that other tools generated (for example `frontend/AGENTS.md`) in place, and check they don't contradict the root file.
+**Project instructions.** Fill the project half from what the folder actually contains; write "none" for command slots the project doesn't have yet. Keep the shared block (between the SHARED START and SHARED END markers) unchanged. Carry useful content from any existing instruction file into the project half, and say where each part went. In a monorepo, include the line that limits work to this folder. Leave nested instruction files that other tools generated (for example `frontend/AGENTS.md`) in place, and check they don't contradict the root file.
 
 **Kit settings.** Set `TEST_CMD` to the test target. Adjust `TEST_FILES` to the project's test layout and `FORBIDDEN` to its secrets and generated files. Keep `PROTECTED` covering at least `AGENTS.md`, `agent-kit.conf`, the spec and the kit folder.
 

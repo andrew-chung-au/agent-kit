@@ -21,8 +21,12 @@ blocks are read; prose is never a claim. Three checks:
    _docs/agent-kit/). `agent-kit/<p>` and `_docs/agent-kit/<p>` resolve to the
    kit root; any other path resolves against the doc's folder first, then the
    kit root, and passes if either exists. A trailing `/` must be a directory.
-   Spans with `<`, `>`, `*`, `$`, `~`, `...`, `=`, `#`, `://` or whitespace are
-   skipped as placeholders, globs, anchors or commands. Bare filenames without
+   Spans with `<`, `>`, `*`, `$`, `~`, `...`, `=`, `://` or whitespace are
+   skipped as placeholders, globs or commands. A span with `#` is checked only
+   when the part before the first `#` ends in `.md` and the anchor is not empty:
+   the file must exist and have a heading whose GitHub-style slug (lowercase,
+   punctuation other than hyphens removed, spaces turned into hyphens) is the
+   anchor; any other span with `#` is skipped. Bare filenames without
    a `/` (such as `settings.json`) are deliberately not checked: the same name
    can mean a kit file or a project file.
 
@@ -52,7 +56,7 @@ KIT_PREFIXES = (
     "claude-code/", "opencode/", "agents/", "hooks/", "agent-kit/", "_docs/agent-kit/",
 )
 ROOT_PREFIXES = ("_docs/agent-kit/", "agent-kit/")
-PATH_SKIP = ("<", ">", "*", "$", "~", "...", "=", "#", "://")
+PATH_SKIP = ("<", ">", "*", "$", "~", "...", "=", "://")
 MAKE_OPTS_WITH_VALUE = {
     "-C", "-f", "-I", "-o", "-W",
     "--directory", "--file", "--include", "--old-file", "--assume-old",
@@ -62,6 +66,7 @@ MODULE_DIRS = ("templates", "scripts", "githooks", "claude-code", "opencode",
                "environments", "procedures", "team")
 IGNORED_NAMES = {"__pycache__"}
 FENCE = re.compile(r"^\s*(`{3,}|~{3,})")
+HEADING = re.compile(r"^ {0,3}#{1,6}\s+(.*?)\s*#*\s*$")
 INLINE = re.compile(r"(`+)(.+?)(?<!`)\1(?!`)")
 OPERATORS = re.compile(r"&&|\|\||[;|()`]")
 ASSIGNMENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
@@ -138,7 +143,34 @@ def is_kit_path(span: str) -> bool:
         return False
     if any(mark in span for mark in PATH_SKIP):
         return False
-    return not any(ch.isspace() for ch in span)
+    if any(ch.isspace() for ch in span):
+        return False
+    if "#" in span:
+        path, _, anchor = span.partition("#")
+        return path.endswith(".md") and bool(anchor) and "#" not in anchor
+    return True
+
+
+def heading_slugs(text: str) -> set:
+    """Return the GitHub-style anchor of every heading outside fenced code."""
+    slugs, seen, fence = set(), {}, None
+    for line in text.splitlines():
+        match = FENCE.match(line)
+        if fence:
+            if match and match.group(1)[0] == fence[0] and len(match.group(1)) >= len(fence):
+                fence = None
+            continue
+        if match:
+            fence = match.group(1)
+            continue
+        heading = HEADING.match(line)
+        if not heading:
+            continue
+        slug = re.sub(r"[^\w\- ]", "", heading.group(1).lower()).replace(" ", "-")
+        count = seen.get(slug, 0)
+        seen[slug] = count + 1
+        slugs.add(slug if count == 0 else f"{slug}-{count}")
+    return slugs
 
 
 def path_exists(candidate: Path, want_dir: bool) -> bool:
@@ -168,10 +200,14 @@ def check_docs(kit: Path, failures: list, counts: dict):
                                     f"or a .mk file this doc names (claim: `{code.strip()}`)")
             if inline and is_kit_path(code):
                 counts["paths"] += 1
-                want_dir = code.endswith("/")
-                if not any(path_exists(c, want_dir) for c in resolve(code, doc, kit)):
+                path, _, anchor = code.partition("#")
+                want_dir = path.endswith("/")
+                found = [c for c in resolve(path, doc, kit) if path_exists(c, want_dir)]
+                if not found:
                     kind = "directory" if want_dir else "path"
                     failures.append(f"{label}:{number}: kit {kind} `{code}` does not exist")
+                elif anchor and anchor not in heading_slugs(found[0].read_text(encoding="utf-8")):
+                    failures.append(f"{label}:{number}: kit path `{code}` has no heading with anchor `#{anchor}`")
 
 
 def installable(kit: Path):

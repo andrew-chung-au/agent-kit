@@ -201,7 +201,7 @@ class PathClaimsTest(KitCase):
 
     def test_placeholders_globs_anchors_and_bare_names_are_skipped(self):
         spans = ["templates/<name>.md", "scripts/*.sh", "scripts/$NAME", "team/~x",
-                 "templates/...", "scripts/x.sh FOO=1", "templates/a=b", "team/pm.md#commits",
+                 "templates/...", "scripts/x.sh FOO=1", "templates/a=b", "team/pm.md#",
                  "templates/two words.md", "agent-kit/https://x", "nope.md", "settings.json",
                  "src/app/nope.py", ".claude/agents/nope.md"]
         self.write("team/pm.md", "".join(f"`{s}`\n" for s in spans))

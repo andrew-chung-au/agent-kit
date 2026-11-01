@@ -17,6 +17,7 @@ Planning produces or revises `_docs/specs.md`. The human may write it outside th
 - An agent helping with planning proposes spec text; the human approves it before it's written.
 - No issues are created and no product code is written until the spec exists.
 - Spec changes are committed on their own, with a message saying what changed.
+- The spec is human-owned at all times, not only in planning: propose changes, and make them only after approval.
 
 Mid-project changes and new versions (v2) work the same way: revise the spec, then review the backlog.
 
@@ -27,6 +28,11 @@ Mid-project changes and new versions (v2) work the same way: revise the spec, th
 - **Reviewing the backlog:** when the spec has changed, the PM compares the change with existing issues and proposes new issues, edits to open issues, and open issues to close as not planned.
 - The human approves the proposal before any issue is created, edited or closed.
 - After grooming, every issue follows `_docs/agent-kit/templates/task-template.md`.
+
+## Issue comments
+
+- Start every issue comment with your role (`PM:`, `Engineer:`, `QA:` or `Orchestrator:`). All roles usually share one GitHub account, so the label is the only way to tell them apart.
+- Never edit or delete an existing comment; post a new one. Other roles' comments are part of the record.
 
 ## Roles
 
@@ -70,7 +76,7 @@ Treat partial output as unverified. Relaunch the role with a note of what's alre
 1. Pick the next open issue. If there are none, build the backlog (see Backlog).
 2. The PM grooms it. Never skip this step.
 3. The Engineer implements it, commits, and runs **Verify** following `_docs/agent-kit/procedures/verify.md`. With the Claude Code layer, a hook also re-runs **Verify** when the Engineer tries to finish.
-4. The orchestrator notes the current commit (`git rev-parse --short HEAD`), then the QA engineer checks the issue.
+4. The orchestrator notes the current commit (`git rev-parse --short HEAD`), then the QA engineer checks the issue. QA puts an injection or bypass attempt in a test or a `.scratch/` script, never in a live shell command.
 5. After QA, the orchestrator runs **Assert clean** and confirms HEAD hasn't moved. If either fails, QA changed something: discard QA's verdict and run QA again.
 6. On FAIL, go back to step 3 with the QA comment as input.
 7. On PASS, the **decision point**: gather everything waiting for the human into one message and ask once. That's proposed AGENTS.md changes, spec notes from any role, other protected-file changes, choices the Engineer made that the issue doesn't cover, and risks QA reported outside the criteria. Show each as a diff or a short description, using the layouts in `_docs/agent-kit/procedures/asking-the-human.md`, with your recommendation. Then:
@@ -91,7 +97,7 @@ Treat partial output as unverified. Relaunch the role with a note of what's alre
 
 - Small, focused commits at logical milestones; messages say what changed and why.
 - Attribution comes from the tool's settings (see Commit attribution in `blueprints.md`). Agents don't add their own co-author lines.
-- Staging, protected files and hooks follow the Conventions in `AGENTS.md`.
+- Staging, protected files and hooks follow `_docs/agent-kit/team/software-engineer.md#commits` and the hook line in `AGENTS.md`.
 - **Only the human pushes.** Before pushing, the human reads `git diff origin/main --stat -- .`, then the full diff, and asks about any changed file outside the issue's Constraints. A clean QA report is not proof of a clean diff. The pre-push hook then runs **Verify**. In the local sandbox profile, the human does all of this from the clean clone, and the push check runs **Verify** instead (`environments.md`).
 
 ## Keeping the setup current
@@ -102,7 +108,7 @@ Treat partial output as unverified. Relaunch the role with a note of what's alre
 
 An issue is done when:
 
-- **Verify** passes and QA has posted PASS, so every acceptance criterion is met.
+- **Verify** passes and QA has posted PASS, so every acceptance criterion is met. A test is never weakened or skipped to make **Verify** pass.
 - The changes are committed.
 - Docs affected by the change are updated, and any AGENTS.md change has human approval.
 - The session summary is written.
