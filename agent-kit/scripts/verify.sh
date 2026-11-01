@@ -53,11 +53,13 @@ fi
 section "Weakened tests"
 changed_tests=()
 deleted_tests=()
-while IFS=$'\t' read -r status path; do
+# -z: NUL-delimited "status<NUL>path<NUL>", so git never quotes an unusual name
+# (non-ASCII, double quote, backslash) and no pattern is matched against a quoted form.
+while IFS= read -r -d '' status && IFS= read -r -d '' path; do
   [ -z "$path" ] && continue
   matches_any "$path" "${TEST_FILES[@]}" || continue
   if [ "$status" = "D" ]; then deleted_tests+=("$path"); else changed_tests+=("$path"); fi
-done < <(git diff --relative --name-status --no-renames "$BASE")
+done < <(git diff --relative --name-status --no-renames -z "$BASE")
 
 if [ "${#deleted_tests[@]}" -gt 0 ]; then
   echo "FAIL: test files deleted:"
