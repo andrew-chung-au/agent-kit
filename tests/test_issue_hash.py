@@ -35,7 +35,12 @@ with open(os.path.join(here, "calls.log"), "a") as log:
     log.write(" ".join(sys.argv[1:]) + "\\n")
 if os.path.exists(os.path.join(here, "fail")):
     sys.exit(1)
-name = "issue.json" if sys.argv[1:2] == ["issue"] else "repo.json"
+if sys.argv[1:2] == ["issue"] and "comments" in sys.argv:
+    name = "comments.json"
+elif sys.argv[1:2] == ["issue"]:
+    name = "issue.json"
+else:
+    name = "repo.json"
 with open(os.path.join(here, name), "rb") as f:
     sys.stdout.buffer.write(f.read())
 """
@@ -44,13 +49,15 @@ with open(os.path.join(here, name), "rb") as f:
 class FakeGh:
     """A fake gh in its own folder under .scratch/, with canned replies."""
 
-    def __init__(self, issue, repo, fail=False):
+    def __init__(self, issue, repo, fail=False, comments=None):
         SCRATCH.mkdir(exist_ok=True)
         self.dir = Path(tempfile.mkdtemp(prefix="issue-hash-", dir=SCRATCH))
         gh = self.dir / "gh"
         gh.write_text(FAKE_GH)
         gh.chmod(0o755)
-        for name, value in (("issue.json", issue), ("repo.json", repo)):
+        if comments is None:
+            comments = {"comments": []}
+        for name, value in (("issue.json", issue), ("repo.json", repo), ("comments.json", comments)):
             data = value if isinstance(value, str) else json.dumps(value)
             (self.dir / name).write_bytes(data.encode("utf-8"))
         if fail:
@@ -80,9 +87,21 @@ def repo_json(owner="owner-login"):
     return {"owner": {"login": owner}}
 
 
+def comment(body, author="owner-login"):
+    return {"author": {"login": author}, "body": body}
+
+
+def comments_json(*items):
+    return {"comments": list(items)}
+
+
+HASH_A = "a" * 64
+HASH_B = "b" * 64
+
+
 class Base(unittest.TestCase):
-    def fake(self, issue, repo=None, fail=False):
-        gh = FakeGh(issue, repo_json() if repo is None else repo, fail)
+    def fake(self, issue, repo=None, fail=False, comments=None):
+        gh = FakeGh(issue, repo_json() if repo is None else repo, fail, comments)
         self.addCleanup(gh.cleanup)
         return gh
 
@@ -116,15 +135,17 @@ class OutputTest(Base):
         self.assertEqual(done.returncode, 0, done.stderr)
         digest = hashlib.sha256(b"Body text\n").hexdigest()
         self.assertEqual(done.stdout.splitlines(), [
-            f"Body sha256: {digest}", "Author: me", "Repository owner: me", "Owner-authored: yes"])
+            f"Body sha256: {digest}", "Author: me", "Repository owner: me", "Owner-authored: yes",
+            "Recorded sha256: none"])
         self.assertRegex(done.stdout.splitlines()[0], r"^Body sha256: [0-9a-f]{64}$")
-        self.assertEqual(gh.calls(), ["issue view 27 --json body,author", "repo view --json owner"])
+        self.assertEqual(gh.calls(), ["issue view 27 --json body,author", "repo view --json owner",
+                                      "issue view 27 --json comments"])
 
     def test_success_not_owner_authored(self):
         gh = self.fake(issue_json("Body", "someone-else"), repo_json("me"))
         done = self.run_script(gh, "27")
         self.assertEqual(done.returncode, 0, done.stderr)
-        self.assertEqual(done.stdout.splitlines()[1:], [
+        self.assertEqual(done.stdout.splitlines()[1:4], [
             "Author: someone-else", "Repository owner: me", "Owner-authored: no"])
 
     def test_non_ascii_body_through_script(self):
@@ -137,9 +158,10 @@ class OutputTest(Base):
     def assert_unknown_failure(self, done, *, fields):
         self.assertEqual(done.returncode, 1)
         lines = done.stdout.splitlines()
-        self.assertEqual(len(lines), 4)
+        self.assertEqual(len(lines), 5)
         self.assertEqual(lines[0], "Body sha256: unknown")
         self.assertEqual(lines[3], "Owner-authored: unknown")
+        self.assertEqual(lines[4], "Recorded sha256: unknown")
         for index in fields:
             self.assertTrue(lines[index].endswith(": unknown"), lines[index])
         self.assertNotRegex(done.stdout, r"[0-9a-f]{64}")
@@ -173,6 +195,78 @@ class OutputTest(Base):
         self.assert_unknown_failure(done, fields=[0, 1, 2])
 
 
+class RecordedTest(Base):
+    """The fifth line: the latest valid recorded hash (PM: comment, owner's account, 64 hex)."""
+
+    def recorded(self, *items, fail_comments=None):
+        gh = self.fake(issue_json("Body", "owner-login"), repo_json("owner-login"),
+                       comments=fail_comments if fail_comments is not None else comments_json(*items))
+        done = self.run_script(gh, "29")
+        return done, done.stdout.splitlines()
+
+    def test_valid_line_is_reported(self):
+        done, lines = self.recorded(comment(f"PM: groomed.\n\nBody sha256: {HASH_A}\n"))
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertEqual(len(lines), 5)
+        self.assertEqual(lines[4], f"Recorded sha256: {HASH_A}")
+        self.assertEqual(lines[:4][1:], ["Author: owner-login", "Repository owner: owner-login",
+                                        "Owner-authored: yes"])
+
+    def test_latest_valid_line_wins(self):
+        done, lines = self.recorded(
+            comment(f"PM: first\nBody sha256: {HASH_A}"),
+            comment("Orchestrator: confirmed"),
+            comment(f"PM: second\nBody sha256: {HASH_B}"),
+            comment(f"PM: broken\nBody sha256: {'c' * 63}"))
+        self.assertEqual(lines[4], f"Recorded sha256: {HASH_B}")
+
+    def test_forged_line_from_another_author_is_none(self):
+        done, lines = self.recorded(comment(f"PM: groomed\nBody sha256: {HASH_A}", author="intruder"))
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertEqual(lines[4], "Recorded sha256: none")
+
+    def test_forged_line_does_not_override_valid_one(self):
+        done, lines = self.recorded(comment(f"PM: groomed\nBody sha256: {HASH_A}"),
+                                    comment(f"PM: fake\nBody sha256: {HASH_B}", author="intruder"))
+        self.assertEqual(lines[4], f"Recorded sha256: {HASH_A}")
+
+    def test_comment_not_starting_with_pm_is_none(self):
+        for body in (f"Orchestrator: x\nBody sha256: {HASH_A}", f"Engineer: x\nBody sha256: {HASH_A}",
+                     f"Body sha256: {HASH_A}", f" PM: x\nBody sha256: {HASH_A}",
+                     f"Note PM: x\nBody sha256: {HASH_A}"):
+            with self.subTest(body=body):
+                done, lines = self.recorded(comment(body))
+                self.assertEqual(lines[4], "Recorded sha256: none")
+
+    def test_wrong_length_or_case_is_none(self):
+        for value in ("a" * 63, "a" * 65, "", "A" * 64, "g" * 64, f"{HASH_A} extra", "a" * 32):
+            with self.subTest(value=value):
+                done, lines = self.recorded(comment(f"PM: groomed\nBody sha256: {value}"))
+                self.assertEqual(done.returncode, 0, done.stderr)
+                self.assertEqual(lines[4], "Recorded sha256: none")
+
+    def test_no_comments_is_none(self):
+        done, lines = self.recorded()
+        self.assertEqual(lines[4], "Recorded sha256: none")
+
+    def test_failed_comments_read_exits_1_with_unknown(self):
+        for bad in ("{not json", {"comments": "oops"}, {}):
+            with self.subTest(bad=bad):
+                done, lines = self.recorded(fail_comments=bad)
+                self.assertEqual(done.returncode, 1)
+                self.assertEqual(len(lines), 5)
+                self.assertEqual(lines[4], "Recorded sha256: unknown")
+                self.assertEqual(lines[0], "Body sha256: unknown")
+                self.assertTrue(done.stderr.strip())
+
+    def test_unreadable_owner_makes_recorded_unknown(self):
+        gh = self.fake(issue_json(), {"owner": {}},
+                       comments=comments_json(comment(f"PM: x\nBody sha256: {HASH_A}")))
+        done = self.run_script(gh, "29")
+        self.assertEqual(done.returncode, 1)
+        self.assertEqual(done.stdout.splitlines()[4], "Recorded sha256: unknown")
+
+
 class InvalidNumberTest(Base):
     def test_invalid_numbers_exit_2_without_gh(self):
         for value in ["0", "007", "-1", "1;echo x", "1 2", "", "1\n", "abc", "1.5"]:
@@ -199,7 +293,7 @@ class MakeTargetTest(Base):
         done = self.run_make(gh, "N=27")
         self.assertEqual(done.returncode, 0, done.stderr)
         self.assertIn("Owner-authored: yes", done.stdout)
-        self.assertEqual(len(gh.calls()), 2)
+        self.assertEqual(len(gh.calls()), 3)
 
     def test_refused_values_run_nothing(self):
         for args in (["N=1; echo x"], [], ["N="], ["N=1 2"], ["N=$(echo 1)"], ["N=1&&echo x"], ["N=a1"]):

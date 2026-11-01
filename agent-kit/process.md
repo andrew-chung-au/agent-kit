@@ -26,8 +26,8 @@ Mid-project changes and new versions (v2) work the same way: revise the spec, th
 - Tasks are GitHub issues, worked one at a time.
 - **Building the backlog:** when there are no open issues and the spec has parts not yet built, the PM proposes new issues from the spec.
 - **Reviewing the backlog:** when the spec has changed, the PM compares the change with existing issues and proposes new issues, edits to open issues, and open issues to close as not planned.
-- The human approves the proposal before any issue is created, edited or closed.
-- After grooming, every issue follows `_docs/agent-kit/templates/task-template.md`.
+- The human's approval of a backlog proposal still comes before any issue is created, edited or closed.
+- After grooming, every issue follows `_docs/agent-kit/templates/task-template.md`. Grooming comes before the label, and the label approves the groomed text (Lifecycle, steps 1 and 2).
 
 ## Issue comments
 
@@ -73,12 +73,12 @@ Treat partial output as unverified. Relaunch the role with a note of what's alre
 
 ## Lifecycle
 
-1. Pick the next open issue. If there are none, build the backlog (see Backlog).
-2. The PM grooms it. Never skip this step.
-3. The Engineer implements it, commits, and runs **Verify** following `_docs/agent-kit/procedures/verify.md`. With the Claude Code layer, a hook also re-runs **Verify** when the Engineer tries to finish.
-4. The orchestrator notes the current commit (`git rev-parse --short HEAD`), then the QA engineer checks the issue. QA puts an injection or bypass attempt in a test or a `.scratch/` script, never in a live shell command.
+1. Pick the next open issue in the agreed order. If there are none, build the backlog (see Backlog).
+2. The PM grooms it, even if it is not yet labelled, when it is owner-authored (`AGENTS.md`, Issues). Groom only the next issue in the agreed order, not a second unlabelled issue while the first waits for the label. The PM's comment records the body hash. Then the human reads the groomed text and adds `approved`; the Engineer starts only after that. If the human changes the text, the orchestrator has the PM record the new hash in a new `PM:` comment before the label is added. Never skip this step.
+3. Before launching the Engineer, and before relaunching it after a QA FAIL, run the hash check (see Approved text). The Engineer implements it, commits, and runs **Verify** following `_docs/agent-kit/procedures/verify.md`. With the Claude Code layer, a hook also re-runs **Verify** when the Engineer tries to finish.
+4. Before launching QA, the orchestrator runs the hash check and notes the current commit (`git rev-parse --short HEAD`). Then the QA engineer checks the issue. QA puts an injection or bypass attempt in a test or a `.scratch/` script, never in a live shell command.
 5. After QA, the orchestrator runs **Assert clean** and confirms HEAD hasn't moved. If either fails, QA changed something: discard QA's verdict and run QA again.
-6. On FAIL, go back to step 3 with the QA comment as input.
+6. On FAIL, go back to step 3 with the QA comment as input; the hash check runs again.
 7. On PASS, the **decision point**: gather everything waiting for the human into one message and ask once. That's proposed AGENTS.md changes, spec notes from any role, other protected-file changes, choices the Engineer made that the issue doesn't cover, and risks QA reported outside the criteria. Show each as a diff or a short description, using the layouts in `_docs/agent-kit/procedures/asking-the-human.md`, with your recommendation. Then:
    - Apply approved AGENTS.md, spec and other protected-file changes in their own commits, with `HUMAN_APPROVED=1`.
    - If an approved change needs Engineer work, go back to step 3; QA re-checks only what changed.
@@ -89,9 +89,17 @@ Treat partial output as unverified. Relaunch the role with a note of what's alre
    - Confirm temporary system changes are undone, or that the human chose to keep them.
    - If a `.scratch/` script is worth keeping, propose it as a test or a make target at the decision point (step 7). Nothing in `.scratch/` survives cleanup.
    - Run `make clean-scratch`. It empties `.scratch/`, including session logs and test tokens, and refuses while a started process is still running. Record in the summary that it ran.
-9. Close the issue. Only the orchestrator closes issues: after QA posts PASS, or as not planned after the human approves a backlog review.
+9. Close the issue. Only the orchestrator closes issues: after QA posts PASS on an `approved` issue, or as not planned after the human approves that closure in a backlog review, whatever the label.
 10. The human reviews the diff and pushes (see Commits).
 11. Repeat until the backlog is empty and every part of the spec is built.
+
+### Approved text
+
+The `approved` label means the human approved the groomed body as recorded. The hash check: run `make issue-hash N=<number>` and compare `Body sha256:` with `Recorded sha256:`. If they differ, `Recorded sha256:` is `none` or `unknown`, or the command exits non-zero or prints `unknown`, don't launch the role; show the human the diff of the body, not a paraphrase.
+
+A recorded hash counts only from a comment that starts with `PM:` and is authored by the repository owner's account: the script compares each comment's `comments[].author.login` with `Repository owner:`, and the latest valid line wins. A `Body sha256:` line anywhere else is ignored.
+
+To change the body after approval, the human confirms it in this session, recorded in an `Orchestrator:` comment naming the new hash; the PM then records that hash in a `PM:` comment. Without that `PM:` line the launch stays blocked. Neither the orchestrator nor the PM edits an approved body and carries on without the confirmation comment. A title change is reported to the human as a note, not a freeze failure.
 
 ## Commits and pushes
 
