@@ -8,7 +8,9 @@ load_conf
 fail=0
 forbidden=()
 protected=()
-while IFS=$'\t' read -r status path; do
+# -z: NUL-delimited "status<NUL>path<NUL>", so git never quotes an unusual name
+# (non-ASCII, double quote, backslash) and no pattern is matched against a quoted form.
+while IFS= read -r -d '' status && IFS= read -r -d '' path; do
   [ -z "$path" ] && continue
   if [ "$status" != "D" ] && matches_any "$path" "${FORBIDDEN[@]}" && ! matches_any "$path" "${ALLOWED[@]}"; then
     forbidden+=("$path")
@@ -16,7 +18,7 @@ while IFS=$'\t' read -r status path; do
   if matches_any "$path" "${PROTECTED[@]}"; then
     protected+=("$path")
   fi
-done < <(git diff --cached --relative --name-status --no-renames)
+done < <(git diff --cached --relative --name-status --no-renames -z)
 
 project="$(basename "$(pwd)")"
 
