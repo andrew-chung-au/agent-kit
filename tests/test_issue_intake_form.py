@@ -106,6 +106,10 @@ class IntakeFormTest(unittest.TestCase):
         self.assertLessEqual(len(self.text.splitlines()), MAX_LINES)
         self.assertLessEqual(len(self.text.split()), MAX_WORDS)
 
+    def test_installed_form_equals_template(self):
+        installed = ROOT / ".github" / "ISSUE_TEMPLATE" / "intake.yml"
+        self.assertEqual(installed.read_bytes(), FORM.read_bytes())
+
     def test_bad_copies_each_fail(self):
         good = self.text
         bad = {
