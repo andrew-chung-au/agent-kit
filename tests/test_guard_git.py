@@ -127,6 +127,74 @@ class GuardGitTest(unittest.TestCase):
         self.assertEqual(result.returncode, 2)
         self.assertIn("Stage explicit paths only", result.stderr)
 
+    # Issue #39: shell commands naming .env files.
+
+    ENV_REFUSED = [
+        "cat .env", "less .env", "grep x .env", "cp .env .scratch/x", "cp .env.example .env",
+        "echo x > .env", "cat < .env", "cat <.env",
+        "cat ./.env", "cat sub/dir/.env", 'cat "/workspaces/proj/.env"', "cat '.env'",
+        "cat .env.local", "cat .env.production.local", "cat .env.example.bak",
+        "echo hi && cat .env", "cat .env | head", "echo $(cat .env)", "echo `cat .env`",
+        "FOO=1 cat .env", "sudo cat .env",
+        "grep -f .env x", "cat --file=.env",
+        "ls .env", "git check-ignore .env",
+        # option-like and odd shapes
+        "cat -- .env", "cat -n .env", "cat .env;", "cat >>.env", "cat 2>.env", "cat --file='.env'",
+        "echo ok; cat .env.local", "git add .env", "f=.env", "FILE=.env cat",
+    ]
+    ENV_ALLOWED = [
+        "cat .env.example", "grep x .env.example", "cat ./.env.example", "git add .env.example",
+        "cat environment.txt", "ls .envrc.d", "cat my.env.txt", "cat .environment", "cat env",
+        "cat .env_notes", "ls .envrc", "cat .ENV", "cat .env/", "cat -- ",
+        'git commit -m "document the .env rule"', 'gh issue comment 39 --body "never cat .env"',
+        "git status", "git add agent-kit/README.md", "make verify", "gh issue view 39",
+        "", "   ", '""', "cat --", "cat -",
+    ]
+
+    def test_env_commands_refused(self):
+        for command in self.ENV_REFUSED:
+            with self.subTest(command=command):
+                result = self.run_command(command)
+                self.assertEqual(result.returncode, 2, result.stderr)
+                for text in ("Blocked by the agent kit", ".env", ".env.example", "ask the human"):
+                    self.assertIn(text, result.stderr)
+
+    def test_env_lookalikes_and_ordinary_commands_allowed(self):
+        for command in self.ENV_ALLOWED:
+            with self.subTest(command=command):
+                result = self.run_command(command)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(result.stderr, "")
+
+    def test_env_example_allowed_and_env_local_refused(self):
+        self.assertEqual(self.run_command("cat .env.example").returncode, 0)
+        self.assertEqual(self.run_command("cat .env.local").returncode, 2)
+
+    def test_env_check_runs_on_non_git_commands_and_before_git_check(self):
+        self.assertEqual(self.run_command("git add .env.local").returncode, 2)
+        self.assertEqual(self.run_command("cat .env").returncode, 2)
+
+    def test_env_check_fails_open_on_unparseable_or_missing_input(self):
+        # Unbalanced quote: the parser can't split it, so it is let through, as today.
+        self.assertEqual(self.run_command("cat '.env").returncode, 0)
+        self.assertEqual(self.run_guard("{}").returncode, 0)
+        self.assertEqual(self.run_guard('{"tool_input": null}').returncode, 0)
+        self.assertEqual(self.run_guard('{"tool_input": {"command": null}}').returncode, 0)
+        self.assertEqual(self.run_guard("").returncode, 0)
+
+    def test_env_known_gaps_still_pass(self):
+        # Documented gaps (decision 1): indirection the parser can't see.
+        for command in ('bash -c "cat .env"', "cat .e*","cat $f", "cat *"):
+            with self.subTest(command=command):
+                self.assertEqual(self.run_command(command).returncode, 0)
+
+    def test_hook_docstring_lists_env_block_and_gaps(self):
+        text = GUARD.read_text(encoding="utf-8")
+        doc = text.split('"""')[1]
+        self.assertIn(".env", doc)
+        self.assertIn("Known gaps", doc)
+        self.assertIn("bash -c", doc)
+
 
 if __name__ == "__main__":
     unittest.main()

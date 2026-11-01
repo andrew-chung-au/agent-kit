@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
-"""Claude Code PreToolUse hook (Bash): block git commands the kit's rules forbid (see "Enforced by hooks" in AGENTS.md).
+"""Claude Code PreToolUse hook (Bash): block shell commands the kit's rules forbid (see "Enforced by hooks" in AGENTS.md).
 
 Blocks, with the reason and the allowed alternative:
+- any command with an argument naming a `.env` file (`.env`, or `.env.*` other than
+  exactly `.env.example`), whatever the command: `cat .env`, `ls .env`, `cp .env.example .env`.
+  Use `.env.example`, or ask the human.
 - broad staging: `git add .`, `-A`, `--all`, `-u`, `--update`, `:/`, `*`
 - `git commit -a` / `--all` (also in clusters such as `-am`)
 - skipping hooks: `--no-verify`, and `git commit -n` (also in clusters such as `-nm`)
@@ -14,6 +17,13 @@ any command with an environment prefix, and that prompt is the approval check.
 Exit 2 blocks the tool call and shows the message to Claude. Anything this
 script can't parse is let through: Claude Code's own permission checks and the
 git hooks still apply. This is a guard against habits, not a security boundary.
+
+Known gaps in the `.env` block (documented, not fixed): indirection the parser can't
+see (globs such as `cat .e*`, variables such as `f=.env; cat $f`, `bash -c "cat .env"`
+and `sh -c` where the name sits inside one quoted token, `python3 -c "open('.env')"`,
+`xargs`, `find -exec`, reading the file through any other tool), and a command that
+never names the file but reads it (`cat *` in a folder that has `.env`). OpenCode has
+no such guard until #13.
 """
 from __future__ import annotations
 
@@ -51,6 +61,27 @@ def segments(command: str):
     if current:
         result.append(current)
     return result
+
+
+def names_env_file(tokens) -> bool:
+    """True if any token names a forbidden `.env` file.
+
+    Source: `agent-kit.conf` (FORBIDDEN `.env`, `.env.*`; ALLOWED `.env.example`).
+    A token matches when its last path component, after stripping a leading `<`/`>`
+    redirect (`<`, `>`, `>>`, `2>`) and quotes or backticks, and also for the value of `--opt=value`, is
+    exactly `.env` or starts with `.env.` and is not exactly `.env.example`.
+    Whole-name, case-sensitive.
+    """
+    for token in tokens:
+        token = re.sub(r"^[0-9]*[<>]+", "", token).strip("`'\"")
+        candidates = [token]
+        if "=" in token:
+            candidates.append(token.split("=", 1)[1].strip("`'\""))
+        for candidate in candidates:
+            name = candidate.rsplit("/", 1)[-1]
+            if name == ".env" or (name.startswith(".env.") and name != ".env.example"):
+                return True
+    return False
 
 
 def git_parts(tokens):
@@ -98,6 +129,10 @@ def main() -> None:
         sys.exit(0)
     command = (payload.get("tool_input") or {}).get("command") or ""
     for tokens in segments(command) or []:
+        if names_env_file(tokens):
+            print("Blocked by the agent kit: don't open, print or copy `.env` files from the shell. "
+                  "Use `.env.example`, or ask the human.", file=sys.stderr)
+            sys.exit(2)
         parts = git_parts(tokens)
         if not parts:
             continue

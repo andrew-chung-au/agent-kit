@@ -112,7 +112,7 @@ Agents take their rules from the project's `AGENTS.md`, not from the kit folder,
 - **Claude Code layer** (`claude-code/`, start at `START.md`). It replaces the separate Claude Code-only kit 1.0 used in Table Ready, and brings it fully up to date with the core kit:
   - role definitions that point to `team/`: the PM edits files only under `.scratch/` by instruction, QA can't edit files, and the Engineer carries a hook that re-runs `make verify` before it can finish;
   - a git guard hook that blocks broad staging, `commit -a`, `--no-verify`, `git push` and `core.hooksPath` changes before they run;
-  - settings with the allow-list, ask rules for protected files, deny rules for `.env` files and `git push`, and commit attribution.
+  - settings with the allow-list, ask rules for protected files, deny rules for `.env` files and `git push`, and commit attribution. The git guard also blocks shell commands naming `.env` files (not `.env.example`); indirection such as `bash -c "cat .env"` is a known gap, and OpenCode has no shell guard until #13.
 
   The hooks run in place from the kit, so kit upgrades update them.
 - **Existing agent setups:** setup no longer needs to know where a project's current setup came from. It reads each existing agent file, works out what it does, and classifies it against the kit: superseded, merged, kept or flagged as a conflict. That covers older kit versions, other kits and hand-built tool configurations alike.

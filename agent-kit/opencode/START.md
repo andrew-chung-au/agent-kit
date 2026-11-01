@@ -8,7 +8,7 @@ Start here if you run the agent kit with OpenCode. OpenCode reads `AGENTS.md` di
 |---|---|---|
 | `agents/pm.md`, `agents/software-engineer.md`, `agents/qa-engineer.md` | `.opencode/agents/` | Role definitions (subagents), each pointing to its file in `team/`. PM and QA can edit files only in `.scratch/`; OpenCode enforces that. The file name is the agent's name. |
 | `skills/sweep/SKILL.md` | `.opencode/skills/sweep/SKILL.md` | The sweep skill, pointing at `procedures/sweep.md`. OpenCode lists its one-line description to every agent; the body loads only when the skill is called. |
-| `opencode.json` | Merged into `opencode.json` in the project folder | Blocks reading `.env` files (but not `.env.example`); asks before edits to protected files; asks before shell commands except `make` targets and read-only git; blocks broad staging, `commit -a`, `--no-verify`, `git push` and `core.hooksPath` changes |
+| `opencode.json` | Merged into `opencode.json` in the project folder | Blocks reading `.env` files with its file tools (but not `.env.example`; shell commands naming `.env` files are not blocked until #13); asks before edits to protected files; asks before shell commands except `make` targets and read-only git; blocks broad staging, `commit -a`, `--no-verify`, `git push` and `core.hooksPath` changes |
 
 In OpenCode's permission rules, the last matching rule wins, so the file lists the general `*` rule first and the specific rules after it.
 

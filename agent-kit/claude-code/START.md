@@ -13,7 +13,7 @@ The process, roles, verify gate and git hooks are the core kit's and apply uncha
 | `skills/sweep/SKILL.md` | `.claude/skills/sweep/SKILL.md` | The sweep skill: `/sweep` points at `procedures/sweep.md`. Only you or the orchestrator invoke it by name. |
 | `hooks/guard_git.py` | Runs in place from the kit | Before any shell command: blocks `git add .`/`-A`/`-u`, `git commit -a`, `--no-verify`, `git commit -n`, `git push` and changes to `core.hooksPath`, with the reason and the allowed alternative |
 | `hooks/verify_on_stop.py` | Runs in place from the kit | When the Engineer tries to finish: runs `make verify` and sends it back to fix any failure, up to three times, then lets it stop and warns you |
-| `settings.json` | Merged into `.claude/settings.json` | Pre-approves `make` targets and read-only git; asks before edits to protected files; blocks reading `.env` files and `git push`; registers the git guard; sets commit attribution |
+| `settings.json` | Merged into `.claude/settings.json` | Pre-approves `make` targets and read-only git; asks before edits to protected files; blocks reading `.env` files and `git push`; registers the git guard, which also blocks shell commands naming `.env` files; sets commit attribution |
 
 The hooks run from `_docs/agent-kit/claude-code/hooks/`, so upgrading the kit upgrades them too.
 
