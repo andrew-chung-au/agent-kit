@@ -24,6 +24,10 @@ issue-hash: ## Print an issue body's sha256, author and owner check: make issue-
 sweep-due: ## Say whether a sweep is due (read-only; the sweep interval is set in the script)
 	@python3 -B agent-kit/scripts/sweep-due.py
 
+tier-check: ## Check a change against its tier's path limit: make tier-check TIER=<light|standard|heavy> [BASE=<commit>]
+	$(if $(and $(filter 1,$(words $(TIER))),$(filter light standard heavy,$(TIER))),,$(error Usage: make tier-check TIER=<light|standard|heavy> [BASE=<commit>]))
+	@bash agent-kit/scripts/check-tier.sh "$(TIER)" "$(BASE)"
+
 test: ## Syntax checks, the kit's claims check, and the unit tests in tests/
 	@for f in agent-kit/scripts/*.sh agent-kit/githooks/* agent-kit/environments/local-sandbox/setup.sh agent-kit/environments/local-sandbox/pre-push; do bash -n "$$f" || exit 1; done; echo "shell: OK"
 	@python3 -B -c 'import ast, sys; [ast.parse(open(f).read(), f) for f in sys.argv[1:]]' agent-kit/claude-code/hooks/*.py agent-kit/scripts/*.py tests/*.py && echo "python: OK"
