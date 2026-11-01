@@ -29,6 +29,10 @@ issue-hash: ## Print an issue body's sha256, author and owner check: make issue-
 sweep-due: ## Say whether a sweep is due (read-only; the sweep interval is set in the script)
 	@python3 -B _docs/agent-kit/scripts/sweep-due.py
 
+tier-check: ## Check a change against its tier's path limit: make tier-check TIER=<light|standard|heavy> [BASE=<commit>]
+	$(if $(and $(filter 1,$(words $(TIER))),$(filter light standard heavy,$(TIER))),,$(error Usage: make tier-check TIER=<light|standard|heavy> [BASE=<commit>]))
+	@bash _docs/agent-kit/scripts/check-tier.sh "$(TIER)" "$(BASE)"
+
 # --- When the stack is known (wrap the project's own commands) -------------
 
 install: ## Install dependencies

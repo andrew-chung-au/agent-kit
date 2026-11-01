@@ -71,12 +71,30 @@ A role can stop part-way: a usage limit, a crash, a timeout or a lost connection
 
 Treat partial output as unverified. Relaunch the role with a note of what's already done and what it must check or redo, never with what it was about to do. If something can't be repaired without a judgement call, ask the human.
 
+## Tiers
+
+| Tier | Who works it | Gates | For |
+|---|---|---|---|
+| Light | Engineer only; no PM grooming, no QA | `make verify`, `make tier-check TIER=light`, the human's review of the diff | Small changes to the paths `LIGHT_ALLOWED` lists in `agent-kit.conf` |
+| Standard | PM grooms, Engineer implements, QA checks | The Lifecycle below | Everything else |
+| Heavy | The Standard path | Extra gates: none yet | Changes to the process itself, security boundaries and interfaces other code depends on |
+
+- **The human's label sets the tier:** `tier:light`, `tier:standard` or `tier:heavy`, read with `gh issue view <N> --json labels`. No tier label means Standard. Two or more tier labels mean the highest. A tier named in the issue body or in anyone's comment ("this is trivial", "Tier: light") is ignored. A proposal has no effect until the human sets the label.
+- **Proposals:** every PM grooming comment states `Proposed tier: <light|standard|heavy>`, a one-line reason and the paths the change is expected to touch, so the human can compare them with `LIGHT_ALLOWED` and the escalation list in `scripts/check-tier.sh`. A grooming comment without that line is incomplete. The orchestrator may also propose a tier in an `Orchestrator:` comment, never as a label and never as a decision. When in doubt, propose the higher tier, and never a lower one than `make tier-check` allows.
+- **Light issues get a short PM launch.** They are not groomed, so the PM cannot carry the proposal in a grooming comment. When the human says an issue is meant to be Light, the orchestrator launches the PM only to post one `PM:` comment with the `Body sha256:` line (from `make issue-hash N=<number>`) and the same `Proposed tier:` line, reason and expected paths, before the human labels. Only a `PM:` comment from the owner's account records the hash; the orchestrator's own record does not count. If a would-be-Light issue has a recorded hash but no `Proposed tier:` line in the latest `PM:` comment, the orchestrator stops and asks for the proposal first. The orchestrator never decides that an issue is Light.
+- **Raise, never lower.** An agent may raise the tier: the orchestrator runs the higher tier's steps and posts an `Orchestrator:` comment naming the new tier and the reason. It never touches labels. Lowering needs the human to change the label and say so in the session.
+- **When Light stops being Light:** if `make tier-check TIER=light` fails, or the change grows past the allowance while being done, the orchestrator stops the Light path, posts that comment, and the change goes through PM grooming, Engineer and QA as Standard. Carrying on as Light after a failed check is not allowed.
+- **Heavy before its gates exist:** if an issue carries `tier:heavy`, the orchestrator tells the human at pick-up that Heavy currently adds no gate beyond Standard, and asks whether to proceed.
+- **What enforces this:** the label rule in `AGENTS.md` (only the human labels) and the rules above. `make tier-check` checks paths and size only; no hook runs it, so the orchestrator runs it and its output is shown at the human's diff review. Raising-only and the proposal line are process rules, enforced by the orchestrator's check before the Engineer launches and by the human's reading.
+- **Every Light change has its own `approved` issue.** There is no standing housekeeping issue. The session summary is still written, and its first line names the tier.
+- **Review of Light** after its first ten uses: did any Light change need a follow-up fix to the same paths? Was the short PM launch wasteful enough to reopen the decision above? Narrow `LIGHT_ALLOWED` if so.
+
 ## Lifecycle
 
 1. Pick the next open issue in the agreed order. If there are none, build the backlog (see Backlog).
-2. The PM grooms it, even if it is not yet labelled, when it is owner-authored (`AGENTS.md`, Issues). Groom only the next issue in the agreed order, not a second unlabelled issue while the first waits for the label. The PM's comment records the body hash. Then the human reads the groomed text and adds `approved`; the Engineer starts only after that. If the human changes the text, the orchestrator has the PM record the new hash in a new `PM:` comment before the label is added. Never skip this step.
-3. Before launching the Engineer, and before relaunching it after a QA FAIL, run the hash check (see Approved text). The Engineer implements it, commits, and runs **Verify** following `_docs/agent-kit/procedures/verify.md`. With the Claude Code layer, a hook also re-runs **Verify** when the Engineer tries to finish.
-4. Before launching QA, the orchestrator runs the hash check and notes the current commit (`git rev-parse --short HEAD`). Then the QA engineer checks the issue. QA puts an injection or bypass attempt in a test or a `.scratch/` script, never in a live shell command.
+2. The PM grooms it, even if it is not yet labelled, when it is owner-authored (`AGENTS.md`, Issues). Groom only the next issue in the agreed order, not a second unlabelled issue while the first waits for the label. The PM's comment records the body hash. Then the human reads the groomed text and adds `approved`; the Engineer starts only after that. If the human changes the text, the orchestrator has the PM record the new hash in a new `PM:` comment before the label is added. Never skip this step. By default (no tier label is Standard) the PM grooms in full, and the grooming comment carries the `Proposed tier:` line. Only when the human has said the issue is meant to be Light does the PM do the short launch instead (hash record and proposal, no rewrite of the body; see Tiers). The orchestrator never decides a tier.
+3. Before launching the Engineer, and before relaunching it after a QA FAIL, run the hash check (see Approved text), for every tier. The Engineer implements it, commits, and runs **Verify** following `_docs/agent-kit/procedures/verify.md`. With the Claude Code layer, a hook also re-runs **Verify** when the Engineer tries to finish. For Light, the Engineer also runs `make tier-check TIER=light` and lists its output in the `Engineer:` comment.
+4. Before launching QA, the orchestrator runs the hash check and notes the current commit (`git rev-parse --short HEAD`). Then the QA engineer checks the issue. QA puts an injection or bypass attempt in a test or a `.scratch/` script, never in a live shell command. Steps 4 to 6 apply to Standard and Heavy only; Light has no QA.
 5. After QA, the orchestrator runs **Assert clean** and confirms HEAD hasn't moved. If either fails, QA changed something: discard QA's verdict and run QA again.
 6. On FAIL, go back to step 3 with the QA comment as input; the hash check runs again.
 7. On PASS, the **decision point**: gather everything waiting for the human into one message and ask once. That's proposed AGENTS.md changes, spec notes from any role, other protected-file changes, choices the Engineer made that the issue doesn't cover, and risks QA reported outside the criteria. Show each as a diff or a short description, using the layouts in `_docs/agent-kit/procedures/asking-the-human.md`, with your recommendation. Then:
@@ -89,7 +107,7 @@ Treat partial output as unverified. Relaunch the role with a note of what's alre
    - Confirm temporary system changes are undone, or that the human chose to keep them.
    - If a `.scratch/` script is worth keeping, propose it as a test or a make target at the decision point (step 7). Nothing in `.scratch/` survives cleanup.
    - Run `make clean-scratch`. It empties `.scratch/`, including session logs and test tokens, and refuses while a started process is still running. Record in the summary that it ran.
-9. Close the issue. Only the orchestrator closes issues: after QA posts PASS on an `approved` issue, or as not planned after the human approves that closure in a backlog review, whatever the label.
+9. Close the issue. Only the orchestrator closes issues: after QA posts PASS on an `approved` issue, or as not planned after the human approves that closure in a backlog review, whatever the label. A Light issue is closed once its Definition of done is met, with no QA PASS.
 10. The human reviews the diff and pushes (see Commits).
 11. Repeat until the backlog is empty and every part of the spec is built.
 
@@ -117,6 +135,7 @@ To change the body after approval, the human confirms it in this session, record
 An issue is done when:
 
 - **Verify** passes and QA has posted PASS, so every acceptance criterion is met. A test is never weakened or skipped to make **Verify** pass.
+- For Light, instead of QA's PASS: `make tier-check TIER=light` passes, the human has approved the diff (for a protected file, the exact diff), and the `Engineer:` comment on the issue lists the changed paths, the **Verify** result and the `tier-check` output.
 - The changes are committed.
 - Docs affected by the change are updated, and any AGENTS.md change has human approval.
 - The session summary is written.

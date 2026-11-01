@@ -24,5 +24,14 @@ FORBIDDEN=( '.env' '*/.env' '.env.*' '*/.env.*' '*.db' '*.sqlite' '*.sqlite3'
 # Exceptions to FORBIDDEN.
 ALLOWED=( '.env.example' '*/.env.example' )
 
+# Light tier (process.md, Tiers): the paths a Light change may touch, checked by
+# `make tier-check TIER=light`. Unset or empty means nothing qualifies. An entry on the
+# check's fixed escalation list (scripts, hooks, tool settings, Makefile, this file,
+# CI, test files, FORBIDDEN) is ignored. Example, Markdown docs only:
+# LIGHT_ALLOWED=( 'README.md' 'docs/*.md' )
+LIGHT_ALLOWED=()
+# Most changed lines a Light change may have (default 20).
+# LIGHT_MAX_LINES=20
+
 # Commits touching these need HUMAN_APPROVED=1 (see the hook line in AGENTS.md).
 PROTECTED=( 'AGENTS.md' 'CLAUDE.md' 'agent-kit.conf' '_docs/specs.md' '_docs/agent-kit/*' )
