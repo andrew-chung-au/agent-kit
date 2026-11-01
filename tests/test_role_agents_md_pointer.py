@@ -2,8 +2,7 @@
 
 A role definition must not tell the role to read `AGENTS.md` (the tool already
 loads it), and must name its own `team/<role>.md`, never another role's or none.
-TOOLS lists the tool folders checked; add "opencode" once its definitions are
-reworded (commit 3b).
+TOOLS lists the tool folders checked: both Claude Code and OpenCode.
 """
 from __future__ import annotations
 
