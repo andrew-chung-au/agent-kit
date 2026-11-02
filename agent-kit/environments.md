@@ -16,7 +16,7 @@ There are two separate choices:
 | You review and push from | The same codespace | A separate clean clone, `<repo>` | The same checkout |
 | Kit's git hooks (`make hooks`) | In the codespace | In the container only | In the checkout |
 | What checks a push | The kit's pre-push hook, then CI | Your push check (`environments/local-sandbox/pre-push`) in a throwaway container, then CI | The kit's pre-push hook, then CI |
-| Can the agent push? | Yes: the codespace's GitHub token can. Only the rules and hooks stop it | No: its token is read-only | Yes: it can use your login |
+| Can the agent push? | Yes: the codespace's GitHub token can. Only the rules and hooks stop it | No: its token has read-only code access | Yes: it can use your login |
 | Docker | Available | Not available | Available |
 | Best for | Projects that need Docker (Compose stacks, databases) | Everything else | Quick experiments only |
 
@@ -28,7 +28,7 @@ The codespace's own token can push to the repo, so nothing technical stops an ag
 
 ## Local sandbox
 
-The agent works in a dev container with a read-only GitHub token, in its own clone of the repo. You review its commits from a second, clean clone that is never opened in the container, and push from there. The guide that sets this up lives outside the kit. The kit supplies reference copies of its files in `environments/local-sandbox/`:
+The agent works in a dev container with a GitHub token that can't push, in its own clone of the repo. You review its commits from a second, clean clone that is never opened in the container, and push from there. The guide that sets this up lives outside the kit. The kit supplies reference copies of its files in `environments/local-sandbox/`:
 
 | File | Installed as | Notes |
 |---|---|---|
@@ -37,6 +37,14 @@ The agent works in a dev container with a read-only GitHub token, in its own clo
 | `templates/ci-verify.yml.template` | `.github/workflows/` at the repo root | CI with `permissions: contents: read` and no secrets |
 
 **Copy these files only from a clean clone, never from a sandbox.** An agent can change anything in its sandbox, including the kit.
+
+### The sandbox token
+
+As the human stated it from the token settings (2026-11-02): repository permissions are read access to code and metadata, and read and write access to issues; no user permissions. Whether the token is scoped to a single repository is not verified; scope it to one repository. Git credentials come from a credential helper rather than the remote URL. You set the token in your GitHub account's token settings; agents never print or read it.
+
+**Limit:** with issues write, the token can also edit or close issues and add labels, including `approved`. The `AGENTS.md` rule that agents never add that label is a text rule the token does not enforce. So OpenCode's `gh issue edit*`, `gh issue close*` and `gh api*` stay at ask, and a scanned `make` target is the structured way to write issues.
+
+With no Docker, the sandbox can't run the push check end to end; it runs on your machine.
 
 ### Rules for the local sandbox
 
