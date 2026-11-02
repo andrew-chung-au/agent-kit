@@ -34,4 +34,4 @@ LIGHT_ALLOWED=()
 # LIGHT_MAX_LINES=20
 
 # Commits touching these need HUMAN_APPROVED=1 (see the hook line in AGENTS.md).
-PROTECTED=( 'AGENTS.md' 'CLAUDE.md' 'agent-kit.conf' '_docs/specs.md' '_docs/agent-kit/*' )
+PROTECTED=( 'AGENTS.md' 'CLAUDE.md' 'Makefile' 'agent-kit.conf' '_docs/specs.md' '_docs/agent-kit/*' )

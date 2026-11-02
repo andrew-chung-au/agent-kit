@@ -22,9 +22,24 @@ clean-scratch: ## Empty .scratch/ at the end of an issue (refuses while a starte
 
 # --- When the project's tasks are GitHub issues --------------------------------
 
+# Rule for every target that takes a variable: validate it with make functions
+# before it is used. `make *` is allowed without approval and make pastes
+# variables into shell commands unquoted, so an unchecked variable is an
+# injection point. Free text never goes in a variable (pass a path under
+# .scratch/). issue-dump is the worked example: $(subst) strips the allowed
+# characters and $(error) refuses what is left. Nothing in the tool settings can
+# check a project's own targets; the Engineer and QA read new ones against this rule.
+
 issue-hash: ## Print an issue body's sha256, author and owner check: make issue-hash N=<issue number>
 	$(if $(and $(filter 1,$(words $(N))),$(if $(strip $(subst 0,,$(subst 1,,$(subst 2,,$(subst 3,,$(subst 4,,$(subst 5,,$(subst 6,,$(subst 7,,$(subst 8,,$(subst 9,,$(N)))))))))))),,x)),,$(error Usage: make issue-hash N=<issue number>))
 	@python3 -B _docs/agent-kit/scripts/issue-hash.py "$(N)"
+
+issue-number-ok = $(and $(filter 1,$(words $(1))),$(if $(subst 0,,$(subst 1,,$(subst 2,,$(subst 3,,$(subst 4,,$(subst 5,,$(subst 6,,$(subst 7,,$(subst 8,,$(subst 9,,$(1))))))))))),,ok),$(if $(subst x$(strip $(1))x,,x$(1)x),,ok),$(if $(filter 0%,$(1)),,ok),$(if $(word 10,$(subst 0,x ,$(subst 1,x ,$(subst 2,x ,$(subst 3,x ,$(subst 4,x ,$(subst 5,x ,$(subst 6,x ,$(subst 7,x ,$(subst 8,x ,$(subst 9,x ,$(1)))))))))))),,ok))
+
+issue-dump: ## Write an issue as JSON to .scratch/issue-<N>.json: make issue-dump N=<issue number>
+	$(if $(call issue-number-ok,$(value N)),,$(error Usage: make issue-dump N=<issue number>))
+	@mkdir -p .scratch
+	@if gh issue view "$(N)" --json number,title,body,state,labels,author,comments > ".scratch/issue-$(N).json.tmp" 2>/dev/null && python3 -B -m json.tool ".scratch/issue-$(N).json.tmp" > /dev/null 2>&1; then mv ".scratch/issue-$(N).json.tmp" ".scratch/issue-$(N).json" && echo ".scratch/issue-$(N).json"; else rm -f ".scratch/issue-$(N).json.tmp"; echo "issue-dump: gh could not return valid JSON for issue $(N)" >&2; exit 1; fi
 
 sweep-due: ## Say whether a sweep is due (read-only; the sweep interval is set in the script)
 	@python3 -B _docs/agent-kit/scripts/sweep-due.py
@@ -80,3 +95,5 @@ typecheck: ## Run the type checker
 	for i in 1 2 3 4 5 6 7 8 9 10; do kill -0 "$$pid" 2>/dev/null || break; sleep 1; done; \
 	if kill -0 "$$pid" 2>/dev/null; then echo "<name> (pid $$pid) did not stop within 10 s"; exit 1; fi; \
 	rm -f .scratch/<name>.pid; echo "<name> stopped"
+
+# --- Project targets (this project's own; add below) -------------------------
