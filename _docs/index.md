@@ -19,6 +19,7 @@ By folder: "no doc without an index entry" can't work for hundreds of entries. N
 | Type | Folder | Template | Filename pattern |
 |---|---|---|---|
 | Measurement (sweep) | `_docs/measurements/` | `agent-kit/templates/measurement.md`, plus the sections in `agent-kit/procedures/sweep.md` | `<timestamp>-measure-pm-sweep.md` |
+| Human task | `_human-tasks/` | `agent-kit/templates/human-task.md` | `<timestamp>-human-task-<id>-<role>-<slug>.md` |
 
 ## Canonical docs
 

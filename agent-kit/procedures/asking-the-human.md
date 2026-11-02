@@ -44,7 +44,7 @@ Every field is required. Write "none" or "no" rather than leaving one out.
 
 - **Current values.** Take addresses, IDs, ports and paths from a check you ran just now, not from an earlier session or summary. Docker networks, process IDs and similar values change when things are recreated.
 - **System changes.** Offer the human running the command themselves as an option, and run commands with `sudo` only if the human chooses that.
-- **When the human runs it.** Give numbered steps: where to run each command (for example, a separate terminal), any check to run first, what success looks like, and what to tell you afterwards. Don't assume they know your tool's shortcuts; if you suggest one, say what it does.
+- **When the human runs it.** Put the steps in a task file (`process.md`, Human tasks) and name it in "What will run or change"; don't copy its steps into the request.
 - **Recurring problems.** If the same approval came up in an earlier issue, say so. Propose a runbook entry for it (see Known environment issues in `blueprints.md`), so next time the request can point to it.
 
 Example:

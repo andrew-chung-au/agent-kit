@@ -55,6 +55,8 @@ It asks the human mid-issue only when the work can't continue without an answer.
 
 Every question to the human, from any role, follows `_docs/agent-kit/procedures/asking-the-human.md`: an approval request or a decision question, each with the reason, the alternatives and a recommendation. When a subagent returns with a request, the orchestrator passes it on in full, adding anything the human needs from other roles' work, and doesn't shorten it to a yes/no question. It then resumes the same role with the answer, or relaunches it with the answer and a note of what's done.
 
+**Human tasks.** Anything the human must run or check by hand, beyond a one-line command, goes in a task file in `_human-tasks/`, from `templates/human-task.md`, written before the human is asked; the message links it instead of repeating the steps. This covers by-hand checks of tool behaviour, pushes from the clean clone, label commands and protected-file commits the human performs (not the Engineer's `HUMAN_APPROVED=1` commit, which keeps its approval request). The orchestrator writes it, or the role drafts it and returns it, since a subagent can't ask the human.
+
 ## When a role's actions are blocked
 
 If the tool blocks a role's action as risky, or blocks several in a row, the orchestrator stops that role before it continues. It shows the human each blocked command and what the role was trying to do, and checks whether anything was changed or deleted, including git-ignored files and Docker volumes.

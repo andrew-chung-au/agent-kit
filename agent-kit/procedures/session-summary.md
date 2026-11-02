@@ -40,7 +40,8 @@ Rules:
 | `measure` | measurement | absent | optional |
 | `source` | source or input | absent | optional |
 | `runbook` | runbook | absent | optional |
+| `human-task` | human task file, in `_human-tasks/` (`templates/human-task.md`) | optional: three-digit issue number, absent when the task has no issue | required: the role that wrote it |
 
 Roles: `orchestrator`, `pm`, `engineer`, `qa`. Session summaries use `orchestrator` unless the human says otherwise.
 
-To parse a name, read the timestamp, then the kind. Only `issue` has an id (digits). The next token is the role if it is in the role list, otherwise it starts the slug. So a slug must not begin with a role word.
+To parse a name, read the timestamp, then the kind (`human-task` contains a hyphen). Only `issue` and `human-task` have an id (digits), and for `human-task` it may be absent. The next token is the role if it is in the role list, otherwise it starts the slug. So a slug must not begin with a role word, and must not be only digits.

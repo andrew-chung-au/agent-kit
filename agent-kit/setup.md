@@ -82,6 +82,7 @@ Wait for approval. Apply only what the human approves.
 - Tell the human where `make hooks` needs running once: each codespace, dev container or local checkout where agents commit, and never a clean clone (`environments.md`).
 - If the Claude Code layer was installed, tell the human to restart Claude Code, accept the workspace trust prompt, and run the checks in `claude-code/START.md` (Install, step 6).
 - If the project's tasks are GitHub issues, tell the human to create the labels `tier:light`, `tier:standard` and `tier:heavy` (agents never create labels), and to list the paths a Light change may touch in `LIGHT_ALLOWED` in `agent-kit.conf`.
+- Tell the human that from now on, anything they must run or check by hand is written as a task file in `_human-tasks/` (`process.md`, Human tasks); the folder appears with the first one.
 - Hand over with the next step from `process.md`: planning if there's no spec, otherwise building or reviewing the backlog.
 
 Done when:
