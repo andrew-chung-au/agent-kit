@@ -8,23 +8,25 @@ Start here if you run the agent kit with OpenCode. OpenCode reads `AGENTS.md` di
 |---|---|---|
 | `agents/pm.md`, `agents/software-engineer.md`, `agents/qa-engineer.md` | `.opencode/agents/` | Role definitions (subagents), each pointing to its file in `team/`. PM and QA can edit files only in `.scratch/`; OpenCode enforces that. The file name is the agent's name. |
 | `skills/sweep/SKILL.md` | `.opencode/skills/sweep/SKILL.md` | The sweep skill, pointing at `procedures/sweep.md`. OpenCode lists its one-line description to every agent; the body loads only when the skill is called. |
-| `opencode.json` | Merged into `opencode.json` in the project folder | Blocks `.env` files (not `.env.example`) in its file tools and, as a text pattern, in shell commands; asks before edits to protected files; allows `make`, read-only commands and plain commits; asks before anything else; blocks broad staging, `-a`, `-n`, `--no-verify`, `git push`, `core.hooksPath` changes and token-printing commands |
+| `opencode.json` | Merged into `opencode.json` in the project folder | Blocks `.env` files (not `.env.example`), in shell commands by text pattern; asks before protected-file edits and unlisted commands; allows `make`, read-only commands and plain commits; blocks broad staging, `-a`, `-n`, `--no-verify`, `git push` and token-printing commands |
 
 ## Permission rules
 
-In OpenCode's permission rules, the last matching rule wins. So the `bash` list is ordered: the general `*` ask, then the allows, then the metacharacter asks (`$`, backtick, `;`, `&`, `|`, `>`, `<`, newline; absolute paths, `..` and `~` arguments; recursive `grep`), then the specific asks and denies, and last the `*.env*` deny. An ask placed after a deny would downgrade it.
+The last matching rule wins, so the `bash` list is ordered: `*` ask, the allows, the metacharacter and path asks, the specific asks and denies, and last the `*.env*` deny. An ask after a deny would downgrade it.
 
-These are text patterns. They catch mistakes and cut prompts; they are not a security boundary. The boundary is the sandbox, a read-only-code token and your review before push. Restart OpenCode after editing the config.
+These are text patterns that catch mistakes and cut prompts, not a security boundary. The boundary is the sandbox, a read-only-code token and your review before push. Restart OpenCode after editing the config.
 
-- **Allow read-only commands in the config; turn repeated tasks into `make` targets whose variables are validated before use; keep ad-hoc code at ask.** Don't click "Allow always" for interpreter commands. Put permanent approvals in `opencode.json`: it is versioned and reviewable, while a click-through approval leaves no record and its scope is not documented.
-- **Left out on purpose:** `echo *` (`echo $GITHUB_TOKEN` prints a token); `jq *` (`jq -n 'env'` prints every environment variable); `rg *` (`--pre` runs a command); `date*` (`date -s` sets the clock); `pgrep *` (`-a` and `-f` print other processes' command lines); `git add *` (broad staging no check blocks); `git fetch*` (`--upload-pack` runs a command; only `git fetch` and `git fetch origin` are allowed); interpreters (`python3`, `node`, `bash`, `sh`). Raw `gh issue` writes and `gh api*` stay at ask.
-- **Commits:** `git commit *` runs without a prompt, `--amend` asks, and `-n`, `-a`, `--all` and `--no-verify` are denied. `HUMAN_APPROVED=1 git commit` starts with a variable, so it prompts: that is your approval point. A protected-file commit without it is stopped by the pre-commit hook, not by these patterns.
-- **Tokens:** `gh auth token`, `gh auth status` with `--show-token` or `-t`, `gh auth git-credential`, `git credential` and `git config` with `credential` are denied. `git config --list` and `--get-regexp` ask. `gh api`, `gh config`, interpreters and shell indirection can reach the same data.
-- **The token can write issues** (`environments.md`), so it can also edit or close issues and add labels, including `approved`. The `AGENTS.md` rule that agents never add that label is a text rule the token does not enforce; raw `gh issue` writes stay at ask for that reason.
-- **Remote URLs:** `git remote -v` and `get-url *` are allowed because the sandbox's git credentials come from a credential helper, not the URL. A project whose remote URL embeds credentials must not copy those two.
-- **Over-prompts:** commit messages, `--jq` and `grep -E` expressions containing `|`, `;`, `&`, `$`, `<` or `>` ask, as does `2>&1`; a prompt is cheap, a slipped chain is not. `*.env*` also denies `cat my.env.txt`, `ls .envrc`, `cat .environment` and `git commit -m "document the .env rule"`. Read `.env.example` with the read tool.
-- **Residual gaps:** short-flag clusters such as `-mn` and `grep -nr`, globs such as `head .e*`, and symlinks are not matched.
-- **Not verified:** whether OpenCode 1.19.5 splits a command on `;`, `&&` and `|` before matching, and whether it checks bash path arguments (`external_directory`). The patterns don't depend on either. By hand: run `ls ; touch .scratch/marker`, `head -n 1 /proc/self/environ` and `ls /`, and note whether each prompted and which rule asked.
+- **Allow read-only commands in the config; turn repeated tasks into `make` targets whose variables are validated before use; keep ad-hoc code at ask.** Don't click "Allow always" for interpreters; put permanent approvals in `opencode.json`: versioned and reviewable, unlike a click-through approval, which leaves no record and has no documented scope.
+- **Left out on purpose:** `echo *` (`echo $GITHUB_TOKEN` prints a token); `jq *` (`jq -n 'env'` prints every variable); `rg *` (`--pre` runs a command); `date*` (`date -s` sets the clock); `pgrep *` (`-a` prints others' command lines); `git add *` (broad staging); `git fetch*` (`--upload-pack` runs a command); interpreters. Raw `gh issue` writes and `gh api*` ask.
+- **Commits:** `git commit *` runs silently, `--amend` asks, and `-n`, `-a`, `--all`, `--no-verify` are denied. Git accepts any unambiguous option prefix, so `--no-v` is denied and `--am` asks too; a message containing either is over-blocked. `HUMAN_APPROVED=1 git commit` prompts (it starts with a variable): your approval point. The pre-commit hook, not these patterns, stops unapproved protected commits.
+- **Sibling subcommands:** `git diff` and `git show` are allowed bare and as `git diff *`, `git show *`, never `git diff*`, which also matches `git difftool` (`--extcmd` runs a command) and `git show-ref`. `git diff --ext-diff` and `git log --textconv` run a driver only if the repo's config or attributes name one: those files are a trust root, as with `make *`.
+- **Chains (by hand: OpenCode 1.19.5, 2026-11-02, one model, one session):** OpenCode checks each command of a chain on its own. Allowed commands chained run silently; an unallowed one prompts alone. The `*;*`, `*&*` and `*|*` asks are belt and braces: they can fire only on those characters inside quotes (untested). The `$` and `>` asks fired.
+- **Tokens:** `gh auth token`, `gh auth status` with `--show-token` or `-t`, `gh auth git-credential`, `git credential` and `git config` with `credential` are denied; `git config --list` and `--get-regexp` ask. `gh api`, `gh config` and shell indirection reach the same data.
+- **The token can write issues** (`environments.md`): it can edit or close issues and add labels, including `approved`. The `AGENTS.md` rule against that is text the token does not enforce, so raw `gh issue` writes ask.
+- **Remote URLs:** `git remote -v` and `get-url *` are allowed because sandbox git credentials come from a helper, not the URL. A project whose remote URL embeds credentials must not copy them.
+- **Over-prompts:** commit messages, `--jq` and `grep -E` expressions containing `|`, `;`, `&`, `$`, `<` or `>` ask, as does `2>&1`. `*.env*` also denies `cat my.env.txt`, `ls .envrc`, `cat .environment` and `git commit -m "document the .env rule"`; read `.env.example` with the read tool.
+- **Residual gaps:** short-flag clusters where `n` or `a` is not first (`-mn`, `-qn`), `grep -nr`, globs such as `head .e*` and symlinks. The pre-push check, CI and your review still catch a skipped hook.
+- **Not verified:** whether the path prompts (`ls /`, `ls ..`) came from the bash path asks or `external_directory`. Untested: backticks, `<`, newlines, quoted operators.
 
 ## Install
 
@@ -44,7 +46,7 @@ Setup does this when you say you use OpenCode (`setup.md`, step 4). To do it by 
 ## Limits
 
 - **No hooks yet.** The Claude Code layer stops the Engineer finishing while `make verify` fails; OpenCode has no such check here. The Engineer runs **Verify** because its role file says so, and the git hooks, your push check and CI catch what it misses.
-- **Pattern matching only.** The git rules match how a command is written, so a variant can get past them (see Residual gaps above). The kit's git hooks and your review still apply.
+- **Pattern matching only.** The rules match how a command is written, so a variant can get past them.
 - **Settings apply only inside OpenCode.** The core kit's git hooks still cover every tool.
 
 ## Projects that already have an OpenCode setup

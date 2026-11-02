@@ -29,6 +29,14 @@ class EnvRuleTest(unittest.TestCase):
         self.assertNotIn("OpenCode does not", line)
         self.assertNotIn("(not shell commands)", line)
 
+    def test_no_doc_says_opencode_lacks_a_shell_guard_until_13(self):
+        files = ("README.md", "opencode/START.md", "templates/AGENTS.md.template",
+                 "../AGENTS.md", "environments.md")
+        for rel in files:
+            text = read(rel)
+            for stale in ("no shell guard until #13", "not blocked until #13"):
+                self.assertNotIn(stale, text, (rel, stale))
+
     def test_claude_code_still_denies_env_read_and_edit(self):
         deny = json.loads(read("claude-code/settings.json"))["permissions"]["deny"]
         for rule in ("Read(.env)", "Edit(.env)"):

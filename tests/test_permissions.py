@@ -286,6 +286,124 @@ EDIT_ASKS = ["AGENTS.md", "CLAUDE.md", "Makefile", "agent-kit.conf", "_docs/spec
              "_docs/agent-kit/*", "opencode.json", ".opencode/*", ".claude/*"]
 
 
+# ---- Issue #47, revision: sibling subcommands, option abbreviations, chain wording ----
+# Every `git <sub>` name from `git help -a` (git 2.5x, the sandbox's version).
+GIT_SUBCOMMANDS = """
+add am archive backfill bisect branch bundle checkout cherry-pick citool clean clone commit
+describe diff fetch format-patch gc gitk grep gui history init log maintenance merge mv notes
+pull push range-diff rebase reset restore revert rm scalar shortlog show sparse-checkout stash
+status submodule switch tag worktree config fast-export fast-import filter-branch mergetool
+pack-refs prune reflog refs remote repack replace annotate blame bugreport count-objects
+diagnose difftool fsck gitweb help instaweb merge-tree rerere show-branch verify-commit
+verify-tag version whatchanged apply checkout-index commit-graph commit-tree hash-object
+index-pack merge-file merge-index mktag mktree multi-pack-index pack-objects prune-packed
+read-tree replay symbolic-ref unpack-objects update-index update-ref write-tree cat-file
+cherry diff-files diff-index diff-pairs diff-tree for-each-ref for-each-repo format-rev
+get-tar-commit-id last-modified ls-files ls-remote ls-tree merge-base name-rev pack-redundant
+repo rev-list rev-parse show-index show-ref unpack-file var verify-pack check-attr
+check-ignore check-mailmap check-ref-format column credential credential-cache
+credential-store fmt-merge-msg hook interpret-trailers mailinfo mailsplit merge-one-file
+patch-id stripspace url-parse
+""".split()
+SIBLING_REFUSED = [
+    "git difftool", "git difftool --extcmd=touch HEAD~1", "git difftool -x touch",
+    "git show-ref", "git diff-tree HEAD",
+]
+ABBREV_DENY = ["git commit -m x --no-veri", "git commit -m x --no-verif", "git commit --no-v -m x"]
+ABBREV_ASK = ["git commit --amen -m x", "git commit -m x --am"]
+ABBREV_ALLOW = [
+    "git commit --dry-run -m x", "git commit -m x --no-edit",
+    "git commit --allow-empty-message -m x", 'git commit -m "fix the amendment text"',
+]
+
+
+def trailing_star_git_allows(bash):
+    return [k for k, v in bash.items() if v == "allow" and k.startswith("git ") and k.endswith("*")]
+
+
+def sibling_matches(bash):
+    """(allow pattern, command) pairs where a trailing-star git allow matches a refused sibling."""
+    hits = []
+    for pattern in trailing_star_git_allows(bash):
+        own = pattern[len("git "):-1].rstrip()
+        for name in GIT_SUBCOMMANDS:
+            if name != own and wildcard(pattern, "git " + name):
+                hits.append((pattern, "git " + name))
+        for command in SIBLING_REFUSED:
+            if wildcard(pattern, command):
+                hits.append((pattern, command))
+    return hits
+
+
+class SiblingAndAbbreviationTest(unittest.TestCase):
+    def decide(self, command):
+        return opencode_decision("bash", command)
+
+    def test_no_trailing_star_git_allow_matches_a_sibling_subcommand(self):
+        self.assertEqual(sibling_matches(BASH), [])
+
+    def test_diff_and_show_are_paired_not_trailing_star(self):
+        for key in ("git diff", "git diff *", "git show", "git show *"):
+            self.assertEqual(BASH.get(key), "allow", key)
+        for key in ("git diff*", "git show*"):
+            self.assertNotIn(key, BASH)
+
+    def test_refused_siblings(self):
+        for command in SIBLING_REFUSED:
+            self.assertNotEqual(self.decide(command), "allow", command)
+
+    def test_allowed_diff_and_show(self):
+        for command in ("git diff", "git diff --stat HEAD~1", "git show HEAD", "git show"):
+            self.assertEqual(self.decide(command), "allow", command)
+
+    def test_abbreviated_no_verify_denied(self):
+        for command in ABBREV_DENY:
+            self.assertEqual(self.decide(command), "deny", command)
+
+    def test_abbreviated_amend_asks(self):
+        for command in ABBREV_ASK:
+            self.assertEqual(self.decide(command), "ask", command)
+
+    def test_ordinary_commits_stay_allowed(self):
+        for command in ABBREV_ALLOW:
+            self.assertEqual(self.decide(command), "allow", command)
+
+    def test_abbreviation_rules_sit_in_the_right_group(self):
+        last_allow = max(KEYS.index(k) for k in ALLOW_KEYS)
+        self.assertEqual(BASH["git commit *--am*"], "ask")
+        self.assertGreater(KEYS.index("git commit *--am*"), last_allow)
+        self.assertLess(KEYS.index("git commit *--am*"), FIRST_DENY)
+        self.assertEqual(BASH["git commit *--no-v*"], "deny")
+        self.assertGreater(KEYS.index("git commit *--no-v*"), last_allow)
+
+
+START = (KIT / "opencode" / "START.md").read_text(encoding="utf-8")
+
+
+def chain_claim_problems(text: str) -> list:
+    """Why START.md misstates how OpenCode 1.19.5 treats chains (it checks each command)."""
+    problems = []
+    if "checks each command of a chain on its own" not in text:
+        problems.append("missing the per-command statement")
+    if "1.19.5" not in text or "one model" not in text:
+        problems.append("missing the one-version, one-model evidence")
+    for needle in (r"(?:chain|operator)s?\s+(?:always\s+)?prompts?\b",
+                   r"slipped chain", r"splits a (?:command|chain)", r"because it is a chain"):
+        if re.search(needle, text, re.I):
+            problems.append("claims operators prompt: " + needle)
+    return problems
+
+
+class StartMdChainWordingTest(unittest.TestCase):
+    def test_start_md_states_per_command_checking_and_makes_no_operator_claim(self):
+        self.assertEqual(chain_claim_problems(START), [])
+
+    def test_check_refuses_the_old_claims(self):
+        self.assertNotEqual(chain_claim_problems(START + " A slipped chain is not cheap."), [])
+        self.assertNotEqual(chain_claim_problems(START + " Chains prompt."), [])
+        self.assertNotEqual(chain_claim_problems(START.replace("checks each command of a chain on its own", "x")), [])
+
+
 class BashTemplateOrderTest(unittest.TestCase):
     def test_bash_object_is_ordered(self):
         self.assertEqual(KEYS[0], "*")
