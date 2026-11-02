@@ -34,6 +34,7 @@ What a project using this kit should have, when each piece applies, and how to c
 | Ignore rules | Always, at setup | Project `.gitignore` | See Ignore rules below |
 | Product spec | Planning; written or approved by the human | `_docs/specs.md` | Human-owned; see `process.md` |
 | Session summaries folder | The first session summary | `_session-summaries/` | `procedures/session-summary.md`, `templates/session-summary.md` |
+| Human task files | The first time the human must run or check something by hand beyond a one-line command | `_human-tasks/` at the project root | `templates/human-task.md`, `procedures/session-summary.md` |
 | Issue task format | Always, at setup | Every groomed issue | `templates/task-template.md` |
 | Docs index | The first doc beyond the README and `AGENTS.md` | `_docs/index.md` | `templates/docs-index.md` |
 | Entry-type folders | The first decision, measurement, source or runbook; the project names each folder and lists it in the index | One folder per entry type under `_docs/` | `templates/docs-index.md` |

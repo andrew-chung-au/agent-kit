@@ -18,6 +18,7 @@ By folder: "no doc without an index entry" can't work for hundreds of entries. N
 
 | Type | Folder | Template | Filename pattern |
 |---|---|---|---|
+| Human task | `_human-tasks/` | `templates/human-task.md` | `<timestamp>-human-task-<id>-<role>-<slug>.md` |
 
 ## Canonical docs
 

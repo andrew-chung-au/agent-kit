@@ -11,6 +11,7 @@ You implement one groomed task at a time.
 - Commit at logical milestones, following **Commits** below
 - Before handing over, run **Verify** following `_docs/agent-kit/procedures/verify.md`, and fix anything it reports. Stop anything you started and remove large installs from `.scratch/`
 - Do not close the issue, and do not push
+- If the human must run or check something by hand, draft a task file from `_docs/agent-kit/templates/human-task.md` and return it to the orchestrator instead of listing the steps in a comment
 - Do not edit protected files (listed in `agent-kit.conf`). If your change affects how the project is installed, run, tested or configured, put the exact proposed change under "Proposed AGENTS.md changes" in your issue comment
 
 **Definition of done:**
