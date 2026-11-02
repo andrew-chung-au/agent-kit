@@ -96,6 +96,8 @@ Agents take their rules from the project's `AGENTS.md`, not from the kit folder,
 5. Review and approve, then commit the kit folder, `AGENTS.md` and any other changed files with `HUMAN_APPROVED=1`. Check that `_docs/agent-kit/` is among the staged paths. Include `.githooks/` at the repo root if `make hooks` changed it.
 6. Start a fresh agent session, so the new rules load.
 
+**Note on the settings-read rule:** the shared block now carries the strict ban on reading the tool's settings, plus an opt-in. The project half needs a `Readable config` line, default `none`, which is stricter than the wording only this repo has seen. A project that does nothing keeps the strict ban. To opt in, list the specific files, with the human's approval after checking that they hold no secrets.
+
 **Note for projects last upgraded before the slimmed template:** the shared rules moved into Non-negotiables, the hook line, Read when triggers and the step docs. The shared block is now bracketed by `<!-- SHARED START ... -->` and `<!-- SHARED END -->`. A project with only the old single `<!-- SHARED: ... -->` marker takes the new block from that marker to the end of its file, and its Project gotchas go after SHARED END. An upgrade never replaces a project's `AGENTS.md` wholesale: the change is a diff you approve. Review the project's own settings and gotchas for rules that now duplicate the moved ones.
 
 ### Changes in 1.9

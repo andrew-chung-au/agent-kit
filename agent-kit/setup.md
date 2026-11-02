@@ -44,6 +44,7 @@ For every row in `blueprints.md`, record **now**, **later** (with its trigger) o
 
 - A shared block in `AGENTS.md` (between SHARED START and SHARED END) that differs from `templates/AGENTS.md.template`.
 - Command slots in `AGENTS.md` that don't match Makefile targets.
+- No `Readable config` line in the project half of `AGENTS.md` (report it; the default proposal is `none`).
 - A long-running process (a server, a watcher) without `<name>-start` and `<name>-stop` targets.
 - Hooks not active in this clone (`git config core.hooksPath` isn't `.githooks`).
 - A newer kit hook version than the one installed at the repo root.
@@ -52,6 +53,8 @@ For every row in `blueprints.md`, record **now**, **later** (with its trigger) o
 **Tool layers.** Find out which AI coding tools the human uses: from `CLAUDE.md`, `.claude/`, `opencode.json` or `.opencode/`, or ask. For Claude Code, include the files from `claude-code/START.md` (Install, steps 2 to 5) in the proposal, with the `ask` rules matched to `PROTECTED`. For OpenCode, do the same from `opencode/START.md` (Install, steps 2 to 4).
 
 **Environment.** Find out which profile in `environments.md` applies, from a `.devcontainer/` folder, a codespace, or by asking, and fill in the **Environment** setting in `AGENTS.md`, including what isn't available there (for example Docker in the local sandbox). For the local sandbox, also propose adding `.devcontainer/` and `.github/` at the repo root if they're missing, from `environments/local-sandbox/` and `templates/ci-verify.yml.template`; the human copies them in the clean clone. Existing `.claude/` files are classified like any other agent setup (step 3).
+
+**Readable config.** Set the **Readable config** setting in `AGENTS.md` to `none`. List project config files there only if the human asks, after you check that each holds no secrets.
 
 **Issue form.** If the repository is public or takes issues from outside reporters, propose `templates/github/ISSUE_TEMPLATE/intake.yml`; the human decides whether to install it as `.github/ISSUE_TEMPLATE/intake.yml` at the repo root, like the CI file.
 
