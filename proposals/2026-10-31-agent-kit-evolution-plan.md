@@ -1,6 +1,6 @@
 # Agent kit evolution plan
 
-**Status:** proposal only. Nothing in this plan has been implemented.
+**Status:** proposal only. Nothing in this plan has been implemented. Decision 2026-11-02: the 'Approved-by' commit trailer (G9) is dropped as redundant with `HUMAN_APPROVED` plus the issue comment.
 **Date:** 2026-10-31
 **Scope:** what to take from `vuln-triage/agent-kit`, how to make permission
 auditing work, how to speed the process up without losing its controls, and
