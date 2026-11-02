@@ -13,6 +13,8 @@ Closed this session, each with QA PASS and its own summary: #40, #45, #38, #46, 
 
 **#50** (human task files in `_human-tasks/`; the human's learning from vuln-triage: every by-hand instruction goes in a reviewable file as copy-paste steps with expected output) is approved with the PM's four defaults and its hash recorded (`d7a5577ac4ca87f8d0a03b2ef3bd2c24b11b3c32707f13c32d846f3f3ef0d45d`). An Engineer was launched and stopped within seconds at the human's request; it changed nothing (checked: clean tree, no commits). The next orchestrator relaunches the Engineer from the issue body and the PM comment; do not rely on the stopped run.
 
+**#51** (tests inherit MAKEFLAGS from the push check's make) is done and has QA PASS: the human's first `git push` (about 68 commits) was blocked by the push check, which failed one test (`test_an_unreachable_base_is_dropped_not_fatal`) in the throwaway container only. The fix is f39478b (tests only; summary `_session-summaries/2026-11-02T1205Z-issue-051-orchestrator-makeflags-test-leak.md`). The human re-runs `git push` from the clean clone as the real check; if it still fails, send the output to the PM as a new small issue. **Possible secret exposure:** the #51 Engineer reports that one failing assertion printed the whole environment, including a messaging token, in its tool output; the human may want to rotate that token (the committed test no longer prints the environment).
+
 ## Reflection
 
 unknown (planning session; roles not asked)
