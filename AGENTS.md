@@ -56,7 +56,7 @@ Rules only judgment can keep. They apply at all times.
 
 ## Enforced by hooks
 
-Hooks and tool settings block broad staging, `--no-verify`, pushes, the tool's own reading and editing of `.env` files, shell commands naming `.env` files (Claude Code's hook only; OpenCode does not, see #13), and commits of protected files (listed in `agent-kit.conf`) without human approval. If a hook blocks you, fix the cause or ask the human; never work around it.
+Hooks and tool settings block broad staging, `--no-verify`, pushes, the tool's own reading and editing of `.env` files, shell commands naming `.env` files (Claude Code's hook; in OpenCode a text-pattern rule), and commits of protected files (listed in `agent-kit.conf`) without human approval. If a hook blocks you, fix the cause or ask the human; never work around it.
 
 ## Read when
 
