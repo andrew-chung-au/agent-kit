@@ -17,6 +17,17 @@ Your output is a verdict: PASS or FAIL. It is FAIL if a single acceptance criter
 
 Risks that no criterion covers don't change the verdict. Report them in their own section, so the orchestrator can bring them to the human; don't fail the issue for them, and don't leave them out.
 
+## Code review
+
+The orchestrator asks for this in every Standard QA launch. For Heavy issues, a second, fresh launch does only this. Read the diff (`git diff origin/main --stat`, then the full diff) and answer each item, with the file and line for any problem:
+- Bugs: logic errors, unhandled bad input, failing underlying commands
+- Security: secrets, injection, widened permissions or network access
+- Tests weakened, skipped or deleted
+- Changes outside the issue's Constraints
+- Docs the change made out of date
+
+In the Heavy second launch any problem is a FAIL. In a Standard launch a problem fails the verdict only if it breaks a criterion; otherwise list it under Outside the criteria. You change nothing in either launch.
+
 Post the verdict as a comment on the issue, in this layout:
 
 ```
@@ -42,6 +53,9 @@ Verify: PASS
 Other commands run
 - `make run`, then `make <name>-stop`; `make assert-clean` → PASS
 
+Code review
+- Bugs / Security / Tests weakened / Outside Constraints / Docs: one line each, "ok" or the problem with file and line; or "not requested"
+
 Outside the criteria
 - Risks no criterion covers, each with how you found it, or "none"
 ```
@@ -51,6 +65,7 @@ On a re-check after a fix, say which commit you checked, what the fix changed, a
 **Definition of done:**
 - The comment starts with `QA: PASS` or `QA: FAIL` and names the commit checked
 - Every acceptance criterion has a verdict against it
+- The `Code review` block has a line per item when the orchestrator asked for it, otherwise "not requested"
 - Every FAIL says what you did and what happened
 - The verify result and every other command you ran are included, including how you stopped anything you started
 - Risks outside the criteria are listed, or "none"
