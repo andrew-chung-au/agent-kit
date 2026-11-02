@@ -27,14 +27,28 @@ Related smoke checks, run earlier in this session on the human's request (no cri
 
 ## Reflection
 
-PM: unknown (role not asked)
-Engineer: unknown (role not asked; none launched)
-QA: pending, added after the QA check.
+### PM
+
+1. Slowed down: checking one stale fact took several reads. The body cited `agent-kit/environments.md` for "this sandbox cannot run OpenCode", and a grep of that file for "opencode" found nothing, so I had to say so in a correction.
+2. Nearly went wrong: the `approved` label was added before any hash was recorded (`Recorded sha256: none`), so the approval was not tied to a known body. I flagged it and asked the human to re-read the body.
+3. Proposed change: in `agent-kit/templates/task-template.md`, add a rule that a Constraints claim about the environment must link the file and line that states it. Expected effect: fewer stale citations at grooming. Measure: count groomed issues where a PM comment corrects a cited fact, over the next ten issues.
+
+### Engineer
+
+unknown (role not asked; none launched)
+
+### QA
+
+1. Slowed: `make verify` printed a 91-file diff against origin/main from unrelated uncommitted work, so I had to work out the #38 diff separately (one summary file).
+2. Nearly wrong: the second quote was only the first sentence of line 45; a plain grep of the whole line would have looked like a mismatch unless I used `grep -F` on the excerpt.
+3. Proposal: in `agent-kit/team/qa-engineer.md`, add "for quote-matching checks, state whether the quote is a full line or an excerpt". Effect: fewer ambiguous word-for-word verdicts. Measure: count QA comments that need a note about partial quotes.
 
 ## Launch usage
 
 - PM (record hash, short launch): 28.7 s, 10 tool uses
-- QA: pending, added after the QA check.
+- QA (check #38 at 267ca72): 58.6 s, 12 tool uses
+- QA (reflection, resumed): 75.8 s, 15 tool uses (as the notification reported it; may include the earlier run)
+- PM (reflection, resumed): 14.0 s, 3 tool uses
 
 ## Files created or modified
 
