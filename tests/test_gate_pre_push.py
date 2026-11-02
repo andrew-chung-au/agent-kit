@@ -3,8 +3,9 @@
 Run as git runs it: `pre-push <remote> <url>` with the refs on stdin, cwd inside
 the repo. Each project's `make verify` is a stub Makefile that appends the
 project folder and BASE to a record file. A bare `origin` lives next to the repo.
-The git-lfs cases build a PATH holding only the tools the hook needs, so a real
-git-lfs can never be found.
+Every hook run uses a PATH holding only the tools the hook needs (no_lfs_path, the
+default in hook()), so a real git-lfs can never be found; the git-lfs cases swap in
+a stub.
 """
 from __future__ import annotations
 
@@ -62,7 +63,8 @@ class PrePushTest(KitTestCase):
 
     def hook(self, *lines, env=None):
         stdin = "".join(l + "\n" for l in lines)
-        e = {"RECORD": str(self.record), "LFS_RECORD": str(self.lfs_record)}
+        e = {"RECORD": str(self.record), "LFS_RECORD": str(self.lfs_record),
+             "PATH": self.no_lfs_path()}
         e.update(env or {})
         return self.run_cmd(["bash", HOOK, "origin", str(self.origin)], env=e, stdin=stdin)
 
@@ -214,7 +216,7 @@ class PrePushTest(KitTestCase):
         sha = self.git("rev-parse", "HEAD", cwd=fresh).stdout.strip()
         empty_tree = self.git("hash-object", "-t", "tree", "/dev/null", cwd=fresh).stdout.strip()
         r = self.run_cmd(["bash", HOOK, "origin", "none"], cwd=fresh,
-                         env={"RECORD": str(self.record)},
+                         env={"RECORD": str(self.record), "PATH": self.no_lfs_path()},
                          stdin=self.update(sha, ZERO, ref="refs/heads/main") + "\n")
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         self.assertEqual(self.verified(), ["proj_a BASE=" + empty_tree])
