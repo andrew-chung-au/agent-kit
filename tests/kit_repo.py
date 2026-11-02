@@ -54,7 +54,8 @@ def build_env(work: Path, extra: dict | None = None) -> dict:
     env = {
         k: v for k, v in os.environ.items()
         if not k.startswith(("GIT_", "AGENT_PUSH_CHECK_", "AGENT_KIT_"))
-        and k not in ("HUMAN_APPROVED", "FORCE", "BASE", "BUNDLE", "WORK", "SHA", "PROJECTS")
+        and k not in ("HUMAN_APPROVED", "FORCE", "BASE", "BUNDLE", "WORK", "SHA", "PROJECTS",
+                     "MAKEFLAGS", "MFLAGS", "MAKELEVEL")
     }
     home = work / "home"
     tmp = work / "tmp"

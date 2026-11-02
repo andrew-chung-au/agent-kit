@@ -7,10 +7,12 @@ no test needs Docker; a stub `docker` fails any test that reaches it.
 """
 from __future__ import annotations
 
+import os
 import re
 import unittest
+from unittest import mock
 
-from kit_repo import KIT, KitTestCase
+from kit_repo import KIT, KitTestCase, build_env
 
 PUSH_CHECK = KIT / "environments" / "local-sandbox" / "pre-push"
 ZERO = "0" * 40
@@ -219,6 +221,19 @@ class ContainerScriptTest(PushCheckCase):
         self.write("Makefile", "verify:\n\t@echo base-is-[$(BASE)]\n")
         self.commit_files("src.txt")
         r = self.run_in_container(".", base="1" * 40)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("base-is-[]", r.stdout)
+
+    def test_make_variables_in_the_parent_makeflags_do_not_reach_children(self):
+        # The push check runs `make verify BASE=<sha>`; make hands that to child makes via MAKEFLAGS.
+        self.write("Makefile", "show:\n\t@echo base-is-[$(BASE)]\n")
+        with mock.patch.dict(os.environ, {"MAKEFLAGS": " -- BASE=" + "1" * 40, "MFLAGS": "-w", "MAKELEVEL": "1"}):
+            env = build_env(self.work)
+        for name in ("MAKEFLAGS", "MFLAGS", "MAKELEVEL"):
+            self.assertFalse(name in env, name + " was inherited")  # not assertNotIn: it would print the whole env
+        self.env = env
+        with mock.patch.dict(os.environ, {"MAKEFLAGS": " -- BASE=" + "1" * 40}):
+            r = self.run_cmd(["make", "--no-print-directory", "show"])
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         self.assertIn("base-is-[]", r.stdout)
 

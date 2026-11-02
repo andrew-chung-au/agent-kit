@@ -81,7 +81,7 @@ class Base(unittest.TestCase):
         return log.read_text().splitlines() if log.exists() else []
 
     def env(self):
-        env = dict(os.environ)
+        env = {k: v for k, v in os.environ.items() if k not in ("MAKEFLAGS", "MFLAGS", "MAKELEVEL")}
         env["PATH"] = f"{self.bin}{os.pathsep}{env['PATH']}"
         return env
 
