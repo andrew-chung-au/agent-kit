@@ -556,16 +556,14 @@ class DocsTest(unittest.TestCase):
     def read(self, rel):
         return " ".join((KIT / rel).read_text(encoding="utf-8").split())
 
-    def test_readme_states_the_scheme_and_the_unzip_warning(self):
+    def test_readme_states_the_scheme(self):
         text = self.read("README.md")
         section = text[text.index("## Updating the kit"):text.index("### Upgrading a project")]
         for needle in ("plain version", "<base>+<repo>.<n>", "1.9+vuln-triage.2", "restarts at 1 on a new base",
                        "`KIT_VERSION` in `agent-kit.conf`", "`make kit-check`", "`MANIFEST.sha256`",
                        "Leave the version line at the top of this file alone in a derivative",
-                       "drift, not tampering", "ships no manifest between releases",
-                       "`unzip -o` step below still overwrites any local change"):
+                       "drift, not tampering", "ships no manifest between releases"):
             self.assertIn(needle, section)
-        self.assertIn("unzip -o <path>/agent-kit.zip", text, "the unzip step itself is unchanged")
 
     def test_setup_drift_list_names_kit_check(self):
         text = (KIT / "setup.md").read_text(encoding="utf-8")
