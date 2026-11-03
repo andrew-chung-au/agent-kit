@@ -20,7 +20,7 @@ Live effect: `agent-kit/scripts/` runs live from the working tree. All five scri
 
 Not verified: a real `issue-create` (it would file a real issue; checked against the fake `gh` only, as the issue says; the first real use is the next PM-filed issue); OpenCode's real matcher for writes (not exercised, and OpenCode has since been upgraded to 2.2.5); GitHub CI on the merged result (the PR run was green).
 
-**What I learned:** the secret scanner's env-file pattern refuses any comment that names an env file, so QA verdicts and Engineer reports that discuss env files get blocked and must be reworded; and the wrapper accepts only the four role prefixes, so it refuses a comment that starts with `Reflection:`, which is what the process asks roles to post.
+**What I learned:** the secret scanner's env-file pattern refuses any comment that names an env file, so QA verdicts and Engineer reports that discuss env files get blocked and must be reworded; and the wrapper accepts only the four role prefixes as a first line, so a comment starting with `Reflection:` is refused. That is not a conflict with the process: `procedures/session-summary.md` says a role's comment *ends in* a `Reflection:` block, so `QA: Reflection on ...` is a valid comment (corrected after the PM's check on #63; this summary first said the process asks for a `Reflection:` first line, which was wrong).
 
 ## Reflection
 
@@ -80,7 +80,7 @@ The cloud session first reported the work staged but not committed, with no bran
 
 - **Secret patterns miss common shapes** (findings, not failures: the issue lists exactly eight patterns): dashed `sk-proj-` and `sk-ant-` keys, `gho_` and `ghs_` tokens, bearer headers in other letter cases and `Authorization: Basic`, a PGP key block header, AWS secret keys, JWTs, `password=` values, Slack webhook URLs, bare base64 blobs, and a key split across a line break.
 - **The env-file pattern refuses text that names an env file**, which blocks QA verdicts and Engineer reports that discuss them (workaround: describe them in words).
-- **The wrapper refuses a `Reflection:` first line** (only `PM:`, `Engineer:`, `QA:` and `Orchestrator:` are accepted), although `process.md` asks roles to post `Reflection:` comments.
+- **The wrapper refuses a `Reflection:` first line** (only `PM:`, `Engineer:`, `QA:` and `Orchestrator:` are accepted). This is not a defect: the process asks for a comment that ends in a `Reflection:` block (`procedures/session-summary.md`), so the role-prefixed form is right. #63 changes only the session-summary wording to say so.
 - **The repo's own `.claude/settings.json` lacks the new `ask` rules**; only the kit copy has them. Claude Code still prompts for raw `gh` writes because no allow rule matches.
 - A small symlink gap between the symlink check and reading FILE by path (only a local actor could use it).
 - `make issue-hash` and `make issue-create` and `issue-comment` do not work in the Kiro cloud sandbox, where `gh issue view` fails (it needs GraphQL).
@@ -89,6 +89,6 @@ The cloud session first reported the work staged but not committed, with no bran
 
 ## Follow-ups for the next session
 
-- A PM follow-up issue (unlabelled, the human has been asked) for the pattern misses, the repo `.claude/settings.json` sync, the symlink gap, the env-file wording and the `Reflection:` prefix.
+- A PM follow-up issue (unlabelled, the human has been asked) for the pattern misses, the repo `.claude/settings.json` sync, the symlink gap, the env-file wording and the `Reflection:` wording (filed as #63).
 - Push from the clean clone; PR #60 shows merged after the push.
 - #57 (approved, now unblocked), #20 stage 2 after a working OpenCode, #36, #56.
