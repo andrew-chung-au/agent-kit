@@ -61,6 +61,9 @@ kit-compare: ## List how the kit folder differs from another kit copy under .scr
 	$(if $(call kit-other-ok,$(value OTHER)),,$(error Usage: make kit-compare OTHER=.scratch/<folder> - one word under .scratch/ with letters digits . _ / - only))
 	@python3 -B agent-kit/scripts/kit-compare.py "$$OTHER"
 
+dup-report: ## Report repeated sentences and decision keys with differing status in the docs (read-only; never a gate)
+	@python3 -B agent-kit/scripts/dup-report.py --exclude .scratch/ --exclude _session-summaries/ --exclude _docs/records/ --exclude vuln-triage/ --exclude proposals/ .
+
 permission-days-ok = $(and $(filter 1,$(words $(1))),$(if $(subst 0,,$(subst 1,,$(subst 2,,$(subst 3,,$(subst 4,,$(subst 5,,$(subst 6,,$(subst 7,,$(subst 8,,$(subst 9,,$(1))))))))))),,ok),$(if $(subst x$(strip $(1))x,,x$(1)x),,ok),$(if $(filter 0%,$(1)),,ok),$(if $(word 5,$(subst 0,x ,$(subst 1,x ,$(subst 2,x ,$(subst 3,x ,$(subst 4,x ,$(subst 5,x ,$(subst 6,x ,$(subst 7,x ,$(subst 8,x ,$(subst 9,x ,$(1)))))))))))),,ok))
 
 permission-report: ## Summarise the permission logs of all tools: make permission-report [SINCE=<YYYY-MM-DD>]
