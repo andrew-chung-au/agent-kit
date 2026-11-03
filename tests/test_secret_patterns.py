@@ -10,6 +10,7 @@ from __future__ import annotations
 import re
 import shutil
 import subprocess
+import sys
 import unittest
 from pathlib import Path
 
@@ -18,6 +19,8 @@ from secret_fixtures import MATCH, NON_MATCH, PATTERN_COUNT
 
 REPO = Path(__file__).resolve().parent.parent
 PATTERNS_FILE = REPO / "agent-kit" / "scripts" / "secret-patterns.txt"
+sys.path.insert(0, str(REPO / "agent-kit" / "scripts"))
+import permission_log_lib  # noqa: E402  (the redaction the Claude Code logger uses)
 
 # Things outside the shared subset: lookaround and groups with `(?`, backreferences,
 # class escapes, word-boundary escapes, lazy quantifiers.
@@ -169,6 +172,54 @@ class FixtureTest(unittest.TestCase):
                 self.assertFalse(any(line and re.search(line, texts[name]) for line in patterns))
         split = "ghp_" + "A1b2" * 4 + "\n" + "A1b2" * 5
         self.assertFalse(any(line and any(re.search(line, part) for part in split.split("\n")) for line in patterns))
+
+
+class RedactionTailTest(unittest.TestCase):
+    """The redactors replace only the matched span, so a match that stops early leaves a visible tail (#86).
+
+    The failing case before #86: the redacted text of a command naming a production variant of the
+    env file ended in the leftover word. The check is on every tail of the variant suffix of three
+    characters or more, not only on the whole suffix.
+    """
+
+    ENV_FIXTURES = [m for m in MATCH if m[2] == 8]
+
+    @staticmethod
+    def tails(suffix):
+        return [suffix[i:] for i in range(max(1, len(suffix) - 2))]
+
+    def test_there_are_fixtures_for_each_variant_shape(self):
+        names = [name for name, *_ in self.ENV_FIXTURES]
+        for needed in ("bare env file name", "env file name after a folder", "production variant",
+                       "local variant", "staging variant with a backup suffix",
+                       "variant at the end of a longer command"):
+            self.assertIn(needed, names)
+
+    def test_the_logger_redaction_leaves_no_part_of_the_variant(self):
+        for name, text, _, suffix in self.ENV_FIXTURES:
+            with self.subTest(name=name):
+                out = permission_log_lib.redact(text)
+                self.assertIn("[redacted]", out)
+                for part in self.tails(suffix):
+                    self.assertNotIn(part, out)
+
+    def test_the_scanner_pattern_consumes_the_whole_file_name_token(self):
+        work = new_workdir(prefix="patterns-")
+        self.addCleanup(shutil.rmtree, work, ignore_errors=True)
+        pattern = read_patterns()[7]
+        pattern_file = work / "env-pattern.txt"
+        pattern_file.write_text(pattern + "\n", encoding="utf-8")
+        for name, text, _, suffix in self.ENV_FIXTURES:
+            with self.subTest(name=name):
+                done = subprocess.run(["grep", "-E", "-o", "-f", str(pattern_file)], input=text + "\n",
+                                      capture_output=True, text=True, env={"LC_ALL": "C", "PATH": "/usr/bin:/bin"})
+                self.assertEqual(done.returncode, 0)
+                self.assertTrue(done.stdout.rstrip("\n").rstrip().endswith(suffix), done.stdout)
+
+    def test_the_example_forms_are_left_alone(self):
+        for text in ("cp .en" + "v.example .en" + "v.example.bak", "see .en" + "v.example."):
+            with self.subTest(text=text):
+                self.assertEqual(permission_log_lib.redact("x " + text), "x " + text)
 
 
 class EmptyMatchTest(unittest.TestCase):
