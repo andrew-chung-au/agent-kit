@@ -74,6 +74,6 @@ permission-logs-prune: ## Delete permission logs older than DAYS days (the human
 test: ## Syntax checks, the kit's claims check, and the unit tests in tests/
 	@for f in agent-kit/scripts/*.sh agent-kit/githooks/* agent-kit/environments/local-sandbox/setup.sh agent-kit/environments/local-sandbox/pre-push; do bash -n "$$f" || exit 1; done; echo "shell: OK"
 	@python3 -B -c 'import ast, sys; [ast.parse(open(f).read(), f) for f in sys.argv[1:]]' agent-kit/claude-code/hooks/*.py agent-kit/scripts/*.py tests/*.py && echo "python: OK"
-	@for f in agent-kit/claude-code/settings.json agent-kit/opencode/opencode.json agent-kit/environments/local-sandbox/devcontainer.json; do python3 -m json.tool "$$f" > /dev/null || exit 1; done; echo "json: OK"
+	@for f in agent-kit/claude-code/settings.json agent-kit/opencode/opencode.json agent-kit/environments/local-sandbox/devcontainer.json agent-kit/environments/local-sandbox/compose/devcontainer.json; do python3 -m json.tool "$$f" > /dev/null || exit 1; done; echo "json: OK"
 	@python3 -B agent-kit/scripts/check-claims.py
 	@python3 -B -m unittest discover tests
