@@ -1,0 +1,10 @@
+{
+  "env": {
+    "AGENT_KIT_CLOUD_PUSH": "1"
+  },
+  "permissions": {
+    "ask": [
+      "Bash(git push -u origin *)"
+    ]
+  }
+}

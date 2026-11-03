@@ -1,0 +1,79 @@
+#!/usr/bin/env bash
+# agent-kit-hooks-version: 2
+# Repo-wide pre-push dispatcher, installed at <repo root>/.githooks by `make hooks`.
+# For each folder with changes in the commits being pushed that has adopted the
+# agent kit (contains agent-kit.conf), runs `make verify` and blocks the push on
+# failure. Other folders are left alone. Then hands the push to Git LFS, when the
+# repo uses it. Agents must never bypass this with --no-verify.
+set -uo pipefail
+root="$(git rev-parse --show-toplevel)"
+cd "$root" || exit 1
+zero="0000000000000000000000000000000000000000"
+empty_tree="$(git hash-object -t tree /dev/null)"
+
+find_project() {
+  local dir
+  dir="$(dirname "$1")"
+  while :; do
+    if [ -f "$dir/agent-kit.conf" ]; then echo "$dir"; return; fi
+    [ "$dir" = "." ] && return
+    dir="$(dirname "$dir")"
+  done
+}
+
+uses_lfs() { git grep -q 'filter=lfs' -- .gitattributes '*/.gitattributes' 2>/dev/null; }
+
+refs="$(cat)" # git passes the refs being pushed on stdin; Git LFS needs them too
+fail=0
+head="$(git rev-parse HEAD)"
+while read -r local_ref local_sha remote_ref remote_sha; do
+  [ -z "$local_sha" ] && continue
+  [ "$local_sha" = "$zero" ] && continue # deleting a remote branch
+
+  if [ "$remote_sha" != "$zero" ] && git cat-file -e "$remote_sha^{commit}" 2>/dev/null; then
+    base="$remote_sha"
+  else # new branch: start from the parent of the oldest commit not yet on any remote
+    oldest="$(git rev-list "$local_sha" --not --remotes | tail -1)"
+    [ -z "$oldest" ] && continue # nothing new to push
+    base="$(git rev-parse -q --verify "$oldest^" || echo "$empty_tree")"
+  fi
+
+  projects="$(git diff --name-only --no-renames "$base" "$local_sha" |
+    while IFS= read -r f; do find_project "$f"; done | sort -u)"
+  [ -z "$projects" ] && continue
+
+  if [ "$local_sha" != "$head" ]; then
+    echo "agent-kit: pushing $local_ref, which isn't checked out, so it can't be verified." >&2
+    echo "  Check it out and push from there." >&2
+    fail=1
+    continue
+  fi
+
+  while IFS= read -r p; do
+    [ -z "$p" ] && continue
+    if [ -n "$(git status --porcelain --untracked-files=no -- "$p")" ]; then
+      echo "agent-kit [$p]: uncommitted changes. Commit or stash them so verify tests what you push." >&2
+      fail=1
+      continue
+    fi
+    echo "agent-kit [$p]: running make verify before push..." >&2
+    if ! make -C "$p" verify BASE="$base" </dev/null >&2; then
+      echo "agent-kit [$p]: verify failed, push blocked." >&2
+      fail=1
+    fi
+  done <<< "$projects"
+done <<< "$refs"
+
+[ "$fail" -ne 0 ] && exit "$fail"
+
+# Git LFS: upload LFS objects, as the standard LFS pre-push hook would.
+if command -v git-lfs >/dev/null 2>&1; then
+  if [ -n "$refs" ]; then
+    printf '%s\n' "$refs" | git lfs pre-push "$@" || exit 1
+  fi
+elif uses_lfs; then
+  echo "agent-kit: this repo tracks files with Git LFS, but git-lfs isn't installed," >&2
+  echo "  so LFS files wouldn't upload. Install git-lfs, then push again." >&2
+  exit 1
+fi
+exit 0

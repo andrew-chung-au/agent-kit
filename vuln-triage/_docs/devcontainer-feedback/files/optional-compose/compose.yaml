@@ -1,0 +1,46 @@
+# Optional Compose variant: the dev container plus a sibling Postgres service.
+#
+# The agent reaches Postgres at the hostname `db` but cannot control Docker: no
+# Docker socket is mounted, and only the workspace is mounted from the host.
+# The human starts, stops and rebuilds the stack.
+#
+# Replace <repo> with the repository folder name. The database name and
+# credentials are dev-only placeholders; change them with the app.
+#
+# Reversible: revert this file, Dockerfile and the devcontainer.json change,
+# then rebuild. Remove the pgdata volume from the host for a clean slate.
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    # Keep the container running so the dev container attaches to it.
+    command: sleep infinity
+    # Only the workspace is mounted from the host. The path must match
+    # devcontainer.json's workspaceFolder.
+    volumes:
+      - ..:/workspaces/<repo>:cached
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    # Pin an exact minor version, never `latest`.
+    image: postgres:16.4
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app
+      POSTGRES_DB: app
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app -d app"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    # Not published to the host; only the app service reaches it on the Compose
+    # network by the hostname `db`.
+
+volumes:
+  pgdata:
