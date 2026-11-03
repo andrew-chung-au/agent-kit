@@ -58,6 +58,7 @@ Hooks and tool settings block broad staging, `--no-verify`, pushes, the tool's o
 - Before asking the human anything, including an approval -> `_docs/agent-kit/procedures/asking-the-human.md`.
 - Before committing -> `_docs/agent-kit/team/software-engineer.md#commits`.
 - Before commenting on or editing an issue -> `_docs/agent-kit/process.md#issue-comments`.
+- Before writing a claim, release, confirm or close comment on an issue -> `_docs/agent-kit/procedures/orchestrator-comments.md` (start with `Orchestrator:`, post with `make issue-comment`).
 - Before starting a server or watcher -> `_docs/agent-kit/procedures/processes.md`.
 - Before changing or reading the spec (`_docs/specs.md`) -> `_docs/agent-kit/process.md#planning`.
 - Before testing an injection or bypass attempt -> `_docs/agent-kit/process.md#lifecycle`.
