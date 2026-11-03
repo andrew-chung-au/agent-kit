@@ -48,6 +48,20 @@ As the human stated it from the token settings (2026-11-02): repository permissi
 
 With no Docker, the sandbox can't run the push check end to end; it runs on your machine.
 
+### The push-check image
+
+The push check runs `make install verify` in a throwaway container. Its image comes from `AGENT_PUSH_CHECK_IMAGE` in the shell you push from, and defaults to `python:3.12`, which has git and make but no Node and no uv. A project whose `make install` runs `npm ci` or `uv sync` fails there with exit 127 before `verify` runs.
+
+`environments/local-sandbox/push-check.Dockerfile` is a reference image with Node and uv at the same pins as the dev container recipe (all unverified until you build it). Build it on your machine from the clean clone's copy, never from a sandbox, with no build context, then point the push check at it:
+
+```
+docker build -t agent-push-check:node24-uv0.13.6 - < agent-kit/environments/local-sandbox/push-check.Dockerfile
+export AGENT_PUSH_CHECK_IMAGE=agent-push-check:node24-uv0.13.6
+AGENT_PUSH_CHECK_PLAN=1 git push
+```
+
+With `AGENT_PUSH_CHECK_PLAN=1` the push check prints what it would check, runs nothing and lets the push go on, so run the dry run first and push for real without it. The variable is per shell, so one image serves every project you push from that shell; a monorepo with different stacks needs one image that holds all of them. A project that needs more (Terraform, `pip-audit`, `libpq-dev`) adds it to its own copy of the Dockerfile. The image holds no credentials and no project files. `pre-push` is unchanged: the image is your choice, on your side, and nothing in a pushed commit can pick it. Services such as a database are not available in the push check: the throwaway container has none.
+
 ### Rules for the local sandbox
 
 - **Never run `make` in a clean clone.** That includes `make hooks`, `make verify` and `make test`. The Makefile is repo code that an agent may have changed, and in a clean clone it would run on your machine with your login. `make hooks` refuses in a clean clone (it spots the `sandbox` remote or the push check), but that's only a convenience: by the time it refuses, `make` has already run.
@@ -65,7 +79,13 @@ With no Docker, the sandbox can't run the push check end to end; it runs on your
   Keep git on your machine up to date, because fetching from a local folder has had security fixes.
 - **Open the clean clone in VS Code's Restricted Mode,** and don't let direnv or mise load settings there. `.vscode/tasks.json`, `.envrc` and `mise.toml` can run commands when a folder opens. The pre-commit hook asks for approval when an agent changes `.vscode/`, `.envrc` or `.gitmodules` at the repo root, but your review is what catches them.
 - **One Claude login volume per repo is safer.** The reference recipe shares one `claude-config` volume across all sandboxes, so an agent in one sandbox could change Claude settings that every other sandbox uses. Naming the volume `claude-config-${devcontainerId}` gives each repo its own; you then log in once per repo.
-- **Docker isn't available in the container.** A project whose checks need Docker can't run them there, and running them from Ubuntu would run agent code outside the sandbox. Either put that project in a codespace, or give it a Compose-based container recipe, so its services run as separate containers that the agent can reach but can't control.
+- **Docker isn't available in the container.** A project whose checks need Docker can't run them there, and running them from Ubuntu would run agent code outside the sandbox. Either put that project in a codespace, or give it a Compose-based container recipe, so its services run as separate containers that the agent can reach but can't control (see "The Compose variant" below).
+
+### The Compose variant (an app plus a database)
+
+Use `environments/local-sandbox/compose/` when the project's checks need a database. Copy its `devcontainer.json`, `compose.yaml` and `Dockerfile` into `.devcontainer/` from a clean clone, next to the standard `setup.sh`, and replace the placeholders for the sandbox folder, database name, user and password. The agent reaches the Postgres service `db` by name and cannot control Docker: the recipe has no Docker socket and no privileged mode, ever, and the database is not published to the host. The data volume persists on the host until you remove it; you run `docker compose` from the host, after reading the files, never the agent. The Postgres tag and the Compose behaviour are unverified until your first rebuild (the steps are in `_human-tasks/`).
+
+In the push check, the throwaway container has no `db`. Tests that need the database must skip when `DATABASE_URL` is unset, or run in CI against a Postgres service. The trade-off: a skipped test proves nothing locally.
 
 ### Upgrading the kit in the local sandbox
 

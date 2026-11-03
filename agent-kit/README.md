@@ -104,7 +104,9 @@ Agents take their rules from the project's `AGENTS.md`, not from the kit folder,
 
 ### Unreleased (the human cuts the version)
 
+- **Push-check image** (`environments/local-sandbox/push-check.Dockerfile`, `environments.md`): a reference image with Node and uv at the dev container recipe's pins, and the first documentation of `AGENT_PUSH_CHECK_IMAGE`. Existing projects need nothing unless their push check lacks an image with the tools `make install` needs.
 - **Dev container recipe for Python plus frontend projects** (`environments/local-sandbox/`): Node and uv at pinned versions (all unverified until you rebuild and check), the `claude` and `opencode` folders on `PATH`, a container named after its folder, and `setup.sh` that refuses early in a clean clone. The CI template shows the same Node and uv pins, and the Makefile blueprint has a `tool-versions` target. Existing projects: copy the recipe changes into your `.devcontainer/` from a clean clone, then rebuild; commit the lock file the rebuild creates.
+- **Optional Compose variant** (`environments/local-sandbox/compose/`): an `app` plus Postgres `db` recipe for projects whose checks need a database, with its limits pinned by tests. Existing projects need nothing.
 
 ### Changes in 1.9
 
