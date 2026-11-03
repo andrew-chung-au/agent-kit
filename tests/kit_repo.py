@@ -106,13 +106,35 @@ class KitTestCase(unittest.TestCase):
 
     # running things
 
-    def run_cmd(self, args, cwd=None, env=None, stdin=None):
+    # Seconds any helper command may run before the test fails (#59). The whole suite takes
+    # about 20 seconds, so a command that needs a minute is hung, not slow.
+    CMD_TIMEOUT = 60
+
+    def run_cmd(self, args, cwd=None, env=None, stdin=None, timeout=None):
+        """Run a command in the throwaway repo.
+
+        Standard input is /dev/null unless `stdin` text is given, so a command that reads
+        stdin ends instead of waiting on the caller's terminal or socket. A command that runs
+        longer than `timeout` (default CMD_TIMEOUT) fails the test with the command line and
+        whatever it printed, never an unhandled TimeoutExpired. The environment is not shown.
+        """
         e = dict(self.env)
         e.update(env or {})
-        return subprocess.run(
-            [str(a) for a in args], cwd=str(cwd or self.repo), env=e, input=stdin,
-            capture_output=True, text=True, encoding="utf-8", errors="replace",
-        )
+        argv = [str(a) for a in args]
+        stdin_args = {"stdin": subprocess.DEVNULL} if stdin is None else {"input": stdin}
+        try:
+            return subprocess.run(
+                argv, cwd=str(cwd or self.repo), env=e, **stdin_args,
+                capture_output=True, text=True, encoding="utf-8", errors="replace",
+                timeout=self.CMD_TIMEOUT if timeout is None else timeout,
+            )
+        except subprocess.TimeoutExpired as expired:
+            def shown(data):
+                if isinstance(data, bytes):
+                    data = data.decode("utf-8", "replace")
+                return (data or "")[-2000:]
+            self.fail("command timed out after %s s: %s\nstdout: %s\nstderr: %s" % (
+                expired.timeout, " ".join(argv), shown(expired.stdout), shown(expired.stderr)))
 
     def git(self, *args, cwd=None, env=None, check=True):
         r = self.run_cmd(["git", *args], cwd=cwd, env=env)
