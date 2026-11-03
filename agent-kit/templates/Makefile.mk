@@ -52,6 +52,11 @@ tier-check: ## Check a change against its tier's path limit: make tier-check TIE
 	$(if $(findstring $$,$(value BASE)),$(error Usage: make tier-check TIER=<light|standard|heavy> [BASE=<commit>] - BASE must not contain $$))
 	@bash _docs/agent-kit/scripts/check-tier.sh "$$TIER" "$$BASE"
 
+# --- When the kit came with a MANIFEST.sha256 (a released kit) -------------
+
+kit-check: ## Say whether the kit folder is pristine or a derivative of KIT_VERSION (read-only)
+	@python3 -B _docs/agent-kit/scripts/kit-check.py
+
 # --- When the stack is known (wrap the project's own commands) -------------
 
 install: ## Install dependencies

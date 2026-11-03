@@ -8,6 +8,10 @@
 # Where the kit lives, relative to this folder.
 KIT_DIR="_docs/agent-kit"
 
+# The kit version this folder claims, checked by `make kit-check`: plain (1.9) for a
+# pristine kit, <base>+<repo>.<n> (1.9+myrepo.2) once its files are changed here.
+# KIT_VERSION=""
+
 # Commands the verification gate runs. Leave TEST_CMD empty only before any
 # code exists (verify then warns). Leave LINT_CMD / TYPECHECK_CMD empty until
 # the project has them and the existing code passes (see blueprints.md).
