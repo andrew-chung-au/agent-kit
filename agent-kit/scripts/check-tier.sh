@@ -5,7 +5,8 @@
 # unset or empty means nothing qualifies), no changed path is on the fixed escalation
 # list, and the changed lines total at most LIGHT_MAX_LINES (default 20).
 # Standard and heavy have no path limit. Exit 0 = allowed, 1 = needs a higher tier,
-# 2 = bad usage. Nothing here sets a tier: only the human's label does.
+# 2 = bad usage. Nothing here sets a tier: it comes from the human's label or an approved
+# Standard or Heavy proposal (process.md, Tiers).
 set -uo pipefail
 
 usage() {
@@ -133,7 +134,7 @@ if [ "$lines" -gt "$LIGHT_MAX_LINES" ]; then
 fi
 
 if [ "$fail" -ne 0 ]; then
-  echo "tier-check: FAIL. This change needs at least Standard; the human must set the tier label."
+  echo "tier-check: FAIL. This change needs at least Standard; run it as Standard or Heavy (the human's tier label, or an approved proposal)."
   exit 1
 fi
 echo "tier-check: PASS for light ($lines changed lines since $BASE)."
