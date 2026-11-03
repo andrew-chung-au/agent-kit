@@ -11,6 +11,7 @@ import json
 import os
 import re
 import shutil
+import stat
 import subprocess
 import sys
 import unittest
@@ -325,6 +326,29 @@ class CapTest(HookCase):
             self.run_and_size("{bad json")
         self.assertEqual(path.read_bytes(), frozen)
         self.assertEqual(self.markers(path), 1)
+
+    def one_record_size(self) -> int:
+        """Bytes one ask record takes for the fixed payload (the time field has a fixed width)."""
+        self.run_and_size()
+        size = self.today_file().stat().st_size
+        self.today_file().unlink()
+        return size
+
+    def test_the_cap_boundary_a_record_that_exactly_fits_is_appended_and_one_byte_over_is_not(self):
+        line = self.one_record_size()
+        path = self.seed(CAP - line)
+        self.assertEqual(self.run_and_size(), CAP)
+        self.assertEqual(self.markers(path), 0)
+        self.assertIn('"event":"ask"', path.read_text(encoding="utf-8").splitlines()[-1])
+        path = self.seed(CAP - line + 1)
+        self.run_and_size()
+        last = json.loads(path.read_text(encoding="utf-8").splitlines()[-1])
+        self.assertEqual((last["event"], self.markers(path)), ("truncated", 1))
+        self.assertFalse(any('"event":"ask"' in x for x in path.read_text(encoding="utf-8").splitlines()))
+
+    def test_a_new_log_file_is_created_with_mode_0600(self):
+        self.assertEqual(self.run_hook(ask()).returncode, 0)
+        self.assertEqual(stat.S_IMODE(self.today_file().stat().st_mode), 0o600)
 
     def test_a_marker_far_from_the_cap_still_stops_appending(self):
         # The file is well under the cap, so the small record would fit: only the marker stops it.

@@ -35,7 +35,7 @@ Setup does this when you say you use Claude Code (`setup.md`, step 4). To do it 
 
    To test the guard, ask Claude to run `git add .`. It should be blocked with the message "Stage explicit paths only".
 
-   To test the permission log, allow one prompt and deny another. `.agent-kit/logs/permissions/<today>.jsonl` should hold an `ask` line for each, and the prompts should look as before. Add `.agent-kit/logs/` to `.gitignore`. `make permission-report` summarises the log; you run `make permission-logs-prune DAYS=<n>` to delete old files.
+   To test the permission log, allow one prompt and deny another. `.agent-kit/logs/permissions/<today>.jsonl` should hold an `ask` line for each, and the prompts should look as before. Add `.agent-kit/logs/` to `.gitignore`. `make permission-report` summarises the log; `make permission-logs-prune DAYS=<n>` deletes old files and asks for your approval first.
 
 ## Limits
 
