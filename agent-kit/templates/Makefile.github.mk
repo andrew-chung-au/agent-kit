@@ -29,7 +29,12 @@ issue-comment: ## Post a file under .scratch/ as one comment (first line PM: Eng
 	$(if $(call issue-file-ok,$(value FILE)),,$(error Usage: make issue-comment N=<issue number> FILE=.scratch/<name>.md - one word under .scratch/ with letters digits . _ / - only))
 	@bash _docs/agent-kit/scripts/issue-comment.sh "$(N)" "$(FILE)"
 
+# REASON: empty, or exactly one word that is completed or not-planned, with no stray
+# whitespace. Checked through $(value ...) and passed to the script as "$$REASON" from the
+# environment, so make never expands its text and the shell never sees it unquoted.
+issue-reason-ok = $(and $(filter 1,$(words $(1))),$(filter completed not-planned,$(1)),$(if $(filter-out completed not-planned,$(1)),,ok),$(if $(subst x$(strip $(1))x,,x$(1)x),,ok))
+
 issue-close: ## Close one issue when its recorded history shows the process was followed (the orchestrator only): make issue-close N=<issue number> [REASON=not-planned]
 	$(if $(call issue-number-ok,$(value N)),,$(error Usage: make issue-close N=<issue number> [REASON=not-planned]))
-	$(if $(value REASON),$(if $(filter completed not-planned,$(value REASON)),,$(error Usage: make issue-close N=<issue number> [REASON=completed|not-planned])))
-	@bash _docs/agent-kit/scripts/issue-close.sh "$(N)" $(if $(value REASON),"$(REASON)")
+	$(if $(value REASON),$(if $(call issue-reason-ok,$(value REASON)),,$(error Usage: make issue-close N=<issue number> [REASON=completed|not-planned])))
+	@bash _docs/agent-kit/scripts/issue-close.sh "$(N)" $(if $(value REASON),"$$REASON")

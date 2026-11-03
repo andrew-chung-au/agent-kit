@@ -9,7 +9,10 @@
 # comment. It prints one line on success.
 #
 # What it reads (all from the comments of the REPOSITORY OWNER's account; a comment from
-# any other account is ignored for every check):
+# any other account, or from a deleted account (null author), is ignored for every check).
+# A QA verdict is the first line: FAIL if it says FAIL anywhere, PASS only if it starts
+# `QA: PASS` (team/qa-engineer.md). An Engineer comment reports a commit when it says
+# "commit" and holds any 7 to 40 hex characters, all-digit short hashes included:
 #   completed, Standard or Heavy: the issue is open and has `approved`; the latest `QA:`
 #     verdict is PASS; at least one `QA:` PASS (two for `tier:heavy`) was posted at or
 #     after the last `Engineer:` comment that reports a commit; an `Orchestrator:` Close
@@ -67,7 +70,10 @@ command -v gh > /dev/null 2>&1 || die 4 "cannot check issue $number: gh was not 
 issue_json=$(gh issue view "$number" --json state,labels,author,comments 2> /dev/null) || die 4 "cannot read issue $number with gh; nothing was closed"
 repo_json=$(gh repo view --json owner 2> /dev/null) || die 4 "cannot read the repository owner with gh; nothing was closed"
 
-verdict=$(python3 -B - "$issue_json" "$repo_json" "$reason" << 'PY'
+# The checker reads the issue JSON on standard input, not as an argument, so a long
+# comment history cannot hit the argument-length limit and make the issue unclosable.
+# `read -d ''` returns 1 at the end of the here-document; that is expected.
+read -r -d '' checker << 'PY' || true
 import json, re, sys
 
 # Exit 0: allowed to close. 1: refused (the reason is printed). 2: could not tell.
@@ -76,20 +82,27 @@ def refuse(why):
     sys.exit(1)
 
 try:
-    issue = json.loads(sys.argv[1])
-    repo = json.loads(sys.argv[2])
-    reason = sys.argv[3]
+    issue = json.loads(sys.stdin.read())
+    repo = json.loads(sys.argv[1])
+    reason = sys.argv[2]
     state = issue["state"]
     names = [label["name"] for label in issue["labels"]]
-    author = issue["author"]["login"]
+    issue_author = issue["author"]  # must be present (fail closed); null means a deleted account
+    if issue_author is not None and not isinstance(issue_author["login"], str):
+        sys.exit(2)
     owner = repo["owner"]["login"]
     raw = issue["comments"]
     if not (isinstance(state, str) and isinstance(raw, list) and all(isinstance(n, str) for n in names)
-            and isinstance(author, str) and author and isinstance(owner, str) and owner):
+            and isinstance(owner, str) and owner):
         sys.exit(2)
     comments = []
     for index, item in enumerate(raw):
-        body, login, stamp = item["body"], item["author"]["login"], item["createdAt"]
+        body, author, stamp = item["body"], item["author"], item["createdAt"]
+        # A deleted account's comment has a null author: it is not the owner's, so it is
+        # skipped like any other non-owner comment instead of blocking the whole issue.
+        if author is None:
+            continue
+        login = author["login"]
         if not (isinstance(body, str) and isinstance(login, str) and isinstance(stamp, str) and stamp):
             sys.exit(2)
         if login == owner:
@@ -111,12 +124,13 @@ def prefixed(prefix):
     return [c for c in comments if c[2].startswith(prefix)]
 
 def verdict_of(body):
-    first = body.split("\n", 1)[0][len("QA:"):]
-    has_fail = re.search(r"\bFAIL\b", first) is not None
-    has_pass = re.search(r"\bPASS\b", first) is not None
-    if has_fail:
+    # team/qa-engineer.md: the comment starts with `QA: PASS` or `QA: FAIL`. A first line
+    # that says FAIL anywhere is FAIL; PASS only when the line starts `QA: PASS`, so
+    # "QA: NOT PASS" or "QA: did not PASS" is no verdict.
+    first = body.split("\n", 1)[0]
+    if re.search(r"\bFAIL\b", first):
         return "FAIL"
-    return "PASS" if has_pass else None
+    return "PASS" if re.match(r"QA: PASS\b", first) else None
 
 if reason == "not-planned":
     for stamp, _, body in prefixed("Orchestrator: Close as not planned"):
@@ -163,7 +177,7 @@ if verdicts[-1][1] == "FAIL":
     refuse("the latest owner QA verdict is FAIL")
 engineer = [c for c in prefixed("Engineer:")
             if re.search(r"(?i)\bcommit", c[2])
-            and re.search(r"(?=[0-9a-f]*[0-9])(?=[0-9a-f]*[a-f])\b" + HEX + r"\b", c[2])]
+            and re.search(r"\b" + HEX + r"\b", c[2])]  # any 7 to 40 hex, all-digit included
 floor = engineer[-1][0] if engineer else ""
 passes = [c for c, v in verdicts if v == "PASS" and c[0] >= floor]
 needed = 2 if tier == "heavy" else 1
@@ -179,7 +193,7 @@ if named not in latest[2]:
     refuse("the QA PASS commit named in the Close comment does not appear in the latest owner QA PASS comment")
 sys.exit(0)
 PY
-)
+verdict=$(printf '%s' "$issue_json" | python3 -B -c "$checker" "$repo_json" "$reason")
 code=$?
 case "$code" in
   0) ;;

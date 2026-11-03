@@ -280,6 +280,45 @@ class RefusalTest(CloseBase):
     def test_a_fail_from_a_non_owner_does_not_block(self):
         self.close_ok([engineer(1), qa_pass(2), qa_fail(3, login=OTHER), close_comment(4)])
 
+    def test_pass_older_than_an_all_digit_short_sha_commit_comment(self):
+        # QA on #119 at 3af2c57: "commit 1234567" was not read as a commit, so the floor
+        # stayed low and the stale PASS closed the issue.
+        later = comment("Engineer: fix, commit 1234567", 3)
+        self.refuse_view([engineer(1), qa_pass(2), later, close_comment(4)], "found 0")
+
+    def test_not_pass_and_did_not_pass_are_no_verdict(self):
+        for first in ("QA: NOT PASS", "QA: did not PASS", "QA: no PASS yet", "QA:PASS", "QA: passed"):
+            with self.subTest(first=first):
+                self.refuse_view([engineer(1), comment(first + "\n\nChecked abc1234.", 2), close_comment(3)],
+                                 "no owner QA comment with a PASS verdict")
+
+    def test_a_pass_comment_with_more_on_the_first_line_still_counts(self):
+        self.close_ok([engineer(1), comment("QA: PASS (launch 1 of 1)\n\nChecked abc1234.", 2), close_comment(3)])
+
+    def test_deleted_account_comments_are_skipped_not_blocking(self):
+        ghost = {"author": None, "body": "QA: FAIL\n\nfrom a deleted account", "createdAt": at(3)}
+        self.close_ok([engineer(1), qa_pass(2), ghost, close_comment(4)])
+
+    def test_deleted_account_pass_does_not_count(self):
+        ghost = {"author": None, "body": "QA: PASS\n\nChecked abc1234.", "createdAt": at(2)}
+        self.refuse_view([engineer(1), ghost, close_comment(3)], "no owner QA comment")
+
+    def test_deleted_issue_author_is_not_blocking(self):
+        view = json.loads(issue(STANDARD))
+        view["author"] = None
+        self.config(view=json.dumps(view))
+        self.assertEqual(self.run_script("7").returncode, 0)
+
+    def test_large_comment_history_is_read_from_stdin(self):
+        # QA on #119: over about 128 KB as one argument gave "Argument list too long".
+        filler = [comment("Engineer: notes\n" + "x" * 4000, n) for n in range(1, 60)]
+        view = issue([engineer(0)] + filler + [qa_pass(70), close_comment(71)])
+        self.assertGreater(len(view), 200_000)
+        self.config(view=view)
+        done = self.run_script("7")
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertEqual(len(self.closes()), 1)
+
     def test_pass_and_fail_in_one_first_line_is_fail(self):
         both = comment("QA: PASS and FAIL mixed up", 2)
         self.refuse_view([engineer(1), both, close_comment(3)], "FAIL")
@@ -430,6 +469,51 @@ class MakeTargetTest(CloseBase):
                 self.assertEqual(done.stdout, "")
                 self.assertIn("Usage: make issue-close", done.stderr)
                 self.assertEqual(self.calls(), [])
+
+    def assert_injection_refused(self, reason, marker_name):
+        marker = self.work / marker_name
+        rel = os.path.relpath(marker, REPO)
+        done = self.make("issue-close", "N=7", "REASON=" + reason.replace("MARKER", rel))
+        self.assertNotEqual(done.returncode, 0)
+        self.assertEqual(done.stdout, "")
+        self.assertIn("Usage: make issue-close", done.stderr)
+        self.assertNotIn("INJECTED", done.stdout + done.stderr)
+        self.assertEqual(self.calls(), [], "gh was run")
+        self.assertFalse(marker.exists(), "an injected command ran")
+
+    def test_injection_through_reason_is_refused(self):
+        # QA on #119 at 3af2c57: one valid word let the rest through to make and the shell.
+        for name, reason in (
+                ("multi-word", "completed not-planned"),
+                ("valid word then junk", "completed junk"),
+                ("info", "completed $(info INJECTED)"),
+                ("shell", "completed $(shell touch MARKER)"),
+                ("shell alone", "$(shell touch MARKER)"),
+                ("quote and semicolon", 'completed " ; touch MARKER ; "'),
+                ("semicolon no space", "completed;touch MARKER"),
+                ("backticks", "completed `touch MARKER`"),
+                ("dollar paren", "completed $$(touch MARKER)"),
+                # A leading space is not tested: make strips it from a command-line
+                # assignment, so the value is exactly "completed", which is valid.
+                ("trailing space", "completed "),
+                ("newline", "completed\ntouch MARKER")):
+            with self.subTest(name=name):
+                self.assert_injection_refused(reason, f"pwn-{name.replace(' ', '-')}")
+
+    def test_dry_run_passes_reason_from_the_environment_never_expanded(self):
+        done = self.make("-n", "issue-close", "N=7", "REASON=not-planned")
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertIn('issue-close.sh "7" "$REASON"', done.stdout)
+        self.assertEqual(self.calls(), [])
+
+    def test_both_makefiles_share_the_reason_check(self):
+        for path in (REPO / "Makefile", KIT / "templates" / "Makefile.github.mk"):
+            text = path.read_text(encoding="utf-8")
+            with self.subTest(path=path.name):
+                self.assertIn("issue-reason-ok = $(and $(filter 1,$(words $(1)))", text)
+                self.assertIn("$(call issue-reason-ok,$(value REASON))", text)
+                self.assertIn('"$$REASON"', text)
+                self.assertNotIn('"$(REASON)"', text)
 
     def test_refused_by_the_script_closes_nothing(self):
         self.config(view=issue([engineer(1)]))
