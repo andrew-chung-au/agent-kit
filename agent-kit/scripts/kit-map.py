@@ -24,7 +24,8 @@ human on their own machine, outside this folder). allowed-to-differ is one of
 
 Refused, always the whole read (MapError, never a skipped line): a wrong number of
 fields, an unknown kind, an unknown allowed rule, a duplicate install path, a control
-character, a source path that is absolute, holds `..` or starts with `~`, and, for a
+character or line break other than newline anywhere in the file (comments included; the
+text is split on newline only), an empty root argument, a source path that is absolute, holds `..` or starts with `~`, and, for a
 `repo` entry, an install path that is absolute, holds `..`, starts with `~`, resolves
 outside the repo, or resolves through a symlink (the path or any parent).
 
@@ -44,7 +45,11 @@ MAP_NAME = "installed-files.txt"
 KINDS = ("repo", "human-machine")
 LOCAL_BEGIN = "agent-kit: local-begin"
 LOCAL_END = "agent-kit: local-end"
-CONTROL = re.compile(r"[\x00-\x08\x0a-\x1f\x7f]")
+# Anywhere in the map, comments included: every control character but tab and newline
+# (so a bare CR, VT, FF and FS/GS/RS too), DEL, and the Unicode line breaks NEL, LS and PS.
+# They are refused before the text is split, because str.splitlines() would treat them
+# as line ends, and a line that reads as a comment could then parse as an entry.
+CONTROL = re.compile("[\x00-\x08\x0b-\x1f\x7f\x85\u2028\u2029]")
 
 
 class MapError(Exception):
@@ -105,8 +110,8 @@ def parse_map(kit_root, repo_root) -> list[Entry]:
     run. `repo` install paths are checked against repo_root; `human-machine` install
     paths are returned untouched and never opened, stat'ed or expanded.
     """
-    if kit_root is None or repo_root is None:
-        raise MapError("a kit root and a repo root are both required")
+    if kit_root is None or repo_root is None or str(kit_root) == "" or str(repo_root) == "":
+        raise MapError("a kit root and a repo root are both required, and neither may be empty")
     kit_root, repo_root = Path(kit_root), Path(repo_root)
     if not kit_root.is_dir() or kit_root.is_symlink():
         raise MapError(f"the kit root is not a plain folder: {kit_root}")
@@ -116,18 +121,24 @@ def parse_map(kit_root, repo_root) -> list[Entry]:
     if path.is_symlink() or not path.is_file():
         raise MapError(f"{MAP_NAME} is missing or not a regular file in {kit_root}")
     try:
-        text = path.read_text(encoding="utf-8")
+        # Raw bytes, decoded here: read_text() would translate a bare CR into a newline
+        # before the control check below could refuse it.
+        text = path.read_bytes().decode("utf-8")
     except (OSError, UnicodeDecodeError) as exc:
         raise MapError(f"{MAP_NAME} cannot be read as UTF-8 text: {exc}") from None
 
+    bad = CONTROL.search(text)
+    if bad:
+        number = text.count("\n", 0, bad.start()) + 1
+        raise MapError(f"line {number}: control character or line break other than newline "
+                       f"(U+{ord(bad.group()):04X})")
+
     entries: list[Entry] = []
     seen: set[str] = set()
-    for number, raw in enumerate(text.splitlines(), start=1):
-        line = raw.strip()
+    for number, raw in enumerate(text.split("\n"), start=1):
+        line = raw.strip(" \t")
         if not line or line.startswith("#"):
             continue
-        if CONTROL.search(raw):
-            raise MapError(f"line {number}: control character in an entry")
         fields = [f.strip() for f in line.split("|")]
         if len(fields) != 4:
             raise MapError(f"line {number}: expected 4 fields, found {len(fields)}")

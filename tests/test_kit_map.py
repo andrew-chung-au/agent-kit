@@ -79,6 +79,15 @@ class ParseTest(Base):
         with self.assertRaises(kit_map.MapError):
             kit_map.parse_map(self.kit, None)
 
+    def test_empty_roots_are_refused(self):
+        # QA on #113: Path("") is the current folder, which would be a silent default.
+        self.write("a | x | repo | none\n")
+        for kit, repo in (("", self.repo), (self.kit, ""), ("", "")):
+            with self.subTest(kit=kit, repo=repo):
+                with self.assertRaises(kit_map.MapError) as ctx:
+                    kit_map.parse_map(kit, repo)
+                self.assertIn("may be empty", str(ctx.exception))
+
     def test_missing_map(self):
         with self.assertRaises(kit_map.MapError):
             kit_map.parse_map(self.kit, self.repo)
@@ -138,6 +147,23 @@ class RefusalTest(Base):
 
     def test_control_character(self):
         self.refused("a | x\x01 | repo | none\n", "control character")
+
+    def test_line_break_inside_a_comment_cannot_smuggle_an_entry(self):
+        # QA on #113: splitlines() split on these before the control check saw them, so a
+        # line that reads as a comment parsed as a real entry. Each is now refused.
+        for sep in ("\x0b", "\x0c", "\x1c", "\x1d", "\x1e", "\r", "\x85", "\u2028", "\u2029"):
+            with self.subTest(sep=repr(sep)):
+                self.refused(f"# harmless{sep}s | x | repo | none\n", "control character")
+
+    def test_nul_in_a_comment_is_refused(self):
+        self.refused("# a\x00b\nok.txt | ok.txt | repo | none\n", "line 1: control character")
+
+    def test_refusal_names_the_right_line(self):
+        self.refused("# one\n# two\n# th\x0bree\n", "line 3:")
+
+    def test_tab_is_still_allowed(self):
+        entries = self.parse("a\t| x |\trepo | none\n")
+        self.assertEqual((entries[0].source, entries[0].kind), ("a", "repo"))
 
     def test_map_that_is_a_symlink(self):
         (self.kit / "real.txt").write_text("a | x | repo | none\n")
