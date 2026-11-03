@@ -171,17 +171,17 @@ If different: any result is recorded. If a tool shows no row for the subagent pr
 
 **Part C: label the dry-run issues for #56** (steps 14 and 15)
 
-The orchestrator first posts the short PM comment on #12 (hash and proposed tier) before you label it; wait for that comment. #12 is the Light candidate (doc-only, `agent-kit/environments.md`, one of the Light allowed paths); #77 is the Standard one. Both edit `environments.md`, so they run one after the other, not together.
+The short PM launch comment is already on #94 (hash, `Proposed tier: light`, the expected path); read it before you label. #94 is the Light candidate: it says why a clean clone is never opened in a container, carved out of #12, which was too big for Light (more than 20 changed lines). It edits only `agent-kit/environments.md`, one of the Light allowed paths. #77 is the Standard one. Both edit `environments.md`, so they run one after the other, not together: #94 first.
 
-### Step 14: Label #12 approved and Light
+### Step 14: Label #94 approved and Light
 
 ```
-gh issue edit 12 --add-label approved --add-label tier:light
+gh issue edit 94 --add-label approved --add-label tier:light
 ```
 
 Expected: the issue URL is printed.
 If different: stop, and tell the orchestrator what was printed.
-Risk: lets the dry run start. Undo: `gh issue edit 12 --remove-label approved --remove-label tier:light`.
+Risk: lets the dry run start. Undo: `gh issue edit 94 --remove-label approved --remove-label tier:light`.
 
 ### Step 15: Label #77 Standard
 
