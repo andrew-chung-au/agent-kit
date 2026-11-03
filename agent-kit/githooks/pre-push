@@ -6,10 +6,26 @@
 # failure. Other folders are left alone. Then hands the push to Git LFS, when the
 # repo uses it. Agents must never bypass this with --no-verify.
 set -uo pipefail
-root="$(git rev-parse --show-toplevel)"
+# Fails closed: a git command that fails, or a pushed sha that is not a commit, blocks
+# the push with a reason on stderr. Nothing is ever skipped as "nothing to verify"
+# because git failed.
+root="$(git rev-parse --show-toplevel)" && [ -n "$root" ] || {
+  echo "agent-kit: git rev-parse --show-toplevel failed, push blocked." >&2
+  exit 1
+}
 cd "$root" || exit 1
 zero="0000000000000000000000000000000000000000"
-empty_tree="$(git hash-object -t tree /dev/null)"
+empty_tree="$(git hash-object -t tree /dev/null)" && [ -n "$empty_tree" ] || {
+  echo "agent-kit: git hash-object failed, push blocked." >&2
+  exit 1
+}
+
+# is_sha VALUE: 40 or 64 hex digits, nothing else, so git never reads it as an option.
+is_sha() {
+  case "$1" in *[!0-9a-fA-F]*) return 1 ;; esac
+  case "${#1}" in 40 | 64) return 0 ;; esac
+  return 1
+}
 
 find_project() {
   local dir
@@ -25,24 +41,45 @@ uses_lfs() { git grep -q 'filter=lfs' -- .gitattributes '*/.gitattributes' 2>/de
 
 refs="$(cat)" # git passes the refs being pushed on stdin; Git LFS needs them too
 fail=0
-head="$(git rev-parse HEAD)"
 while read -r local_ref local_sha remote_ref remote_sha; do
   [ -z "$local_sha" ] && continue
   [ "$local_sha" = "$zero" ] && continue # deleting a remote branch
 
-  if [ "$remote_sha" != "$zero" ] && git cat-file -e "$remote_sha^{commit}" 2>/dev/null; then
+  # The pushed sha must be a commit this repository has. Checked as plain hex first, so
+  # a value such as --stat or -h is refused here and never reaches a git command.
+  if ! is_sha "$local_sha" || ! git cat-file -e "$local_sha^{commit}" 2>/dev/null; then
+    echo "agent-kit: pushing $local_ref: $local_sha is not a valid commit in this repository, push blocked." >&2
+    fail=1
+    continue
+  fi
+
+  if [ "$remote_sha" != "$zero" ] && is_sha "$remote_sha" && git cat-file -e "$remote_sha^{commit}" 2>/dev/null; then
     base="$remote_sha"
   else # new branch: start from the parent of the oldest commit not yet on any remote
-    oldest="$(git rev-list "$local_sha" --not --remotes | tail -1)"
-    [ -z "$oldest" ] && continue # nothing new to push
+    if ! oldest="$(git rev-list "$local_sha" --not --remotes | tail -1)"; then
+      echo "agent-kit: pushing $local_ref: git rev-list failed, push blocked." >&2
+      fail=1
+      continue
+    fi
+    [ -z "$oldest" ] && continue # nothing new to push (rev-list worked and printed nothing)
     base="$(git rev-parse -q --verify "$oldest^" || echo "$empty_tree")"
   fi
 
-  # -z: NUL-delimited, so a name git would quote (non-ASCII, double quote) is the real path
-  projects="$(git diff --name-only --no-renames -z "$base" "$local_sha" |
-    while IFS= read -r -d '' f; do find_project "$f"; done | sort -u)"
+  # -z: NUL-delimited, so a name git would quote (non-ASCII, double quote) is the real path.
+  # pipefail makes a failing git diff fail this assignment too.
+  if ! projects="$(git diff --name-only --no-renames -z "$base" "$local_sha" |
+    while IFS= read -r -d '' f; do find_project "$f"; done | sort -u)"; then
+    echo "agent-kit: pushing $local_ref: git diff failed, push blocked." >&2
+    fail=1
+    continue
+  fi
   [ -z "$projects" ] && continue
 
+  if ! head="$(git rev-parse HEAD)" || [ -z "$head" ]; then
+    echo "agent-kit: pushing $local_ref: git rev-parse HEAD failed, push blocked." >&2
+    fail=1
+    continue
+  fi
   if [ "$local_sha" != "$head" ]; then
     echo "agent-kit: pushing $local_ref, which isn't checked out, so it can't be verified." >&2
     echo "  Check it out and push from there." >&2
@@ -52,7 +89,12 @@ while read -r local_ref local_sha remote_ref remote_sha; do
 
   while IFS= read -r p; do
     [ -z "$p" ] && continue
-    if [ -n "$(git status --porcelain --untracked-files=no -- "$p")" ]; then
+    if ! dirty="$(git status --porcelain --untracked-files=no -- "$p")"; then
+      echo "agent-kit [$p]: git status failed, push blocked." >&2
+      fail=1
+      continue
+    fi
+    if [ -n "$dirty" ]; then
       echo "agent-kit [$p]: uncommitted changes. Commit or stash them so verify tests what you push." >&2
       fail=1
       continue

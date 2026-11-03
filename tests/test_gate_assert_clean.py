@@ -7,9 +7,11 @@ the folder and git-ignored files are not reported.
 """
 from __future__ import annotations
 
+import os
 import unittest
 
-from kit_repo import KitTestCase
+import git_stub
+from kit_repo import KitTestCase, KIT
 
 SCRIPT = "agent-kit/scripts/assert-clean.sh"
 
@@ -92,6 +94,78 @@ class AssertCleanSubfolderTest(AssertCleanBase):
         self.write("outside.txt", "changed\n")
         self.write("inside.txt", base=self.project)
         self.failed(self.check(), "inside.txt", absent=("outside.txt",))
+
+
+class AssertCleanFailClosedTest(AssertCleanBase):
+    """When git itself fails, assert-clean must never print PASS (issue #43).
+
+    Decision recorded here: in a repository with no commits there is no HEAD to compare
+    the folder against, so the script fails closed (exit 1, FAIL, a reason) instead of
+    passing or printing an empty `HEAD is `.
+    """
+
+    def standalone(self, name):
+        """An empty folder away from the kit's own repo (the script is run by path)."""
+        folder = self.work / name
+        folder.mkdir()
+        return folder
+
+    def run_there(self, folder, env=None):
+        # GIT_CEILING_DIRECTORIES stops git looking above self.work, which sits inside the kit repo.
+        e = {"GIT_CEILING_DIRECTORIES": str(self.work)}
+        e.update(env or {})
+        return self.run_cmd(["bash", KIT / "scripts" / "assert-clean.sh"], cwd=folder, env=e)
+
+    def assert_fails_closed(self, r, reason):
+        everything = r.stdout + r.stderr
+        self.assertNotEqual(r.returncode, 0, everything)
+        self.assertNotIn("PASS", everything)
+        self.assertNotIn("HEAD is", everything)
+        self.assertTrue(everything.strip(), "a reason is printed")
+        self.assertIn("ASSERT-CLEAN: FAIL", r.stdout)
+        self.assertIn(reason, r.stdout)
+
+    def test_a_folder_that_is_not_a_git_repository_fails(self):
+        r = self.run_there(self.standalone("not-a-repo"))
+        self.assert_fails_closed(r, "git status failed")
+
+    def test_a_git_dir_that_does_not_exist_fails(self):
+        r = self.run_cmd(["bash", SCRIPT], cwd=self.project,
+                         env={"GIT_DIR": str(self.work / "missing.git")})
+        self.assert_fails_closed(r, "git status failed")
+
+    def test_a_repository_with_no_commits_fails_closed_and_says_why(self):
+        folder = self.standalone("no-commits")
+        self.git("init", "-q", "-b", "main", cwd=folder)
+        r = self.run_there(folder)
+        self.assert_fails_closed(r, "no HEAD commit")
+        self.assertEqual(r.returncode, 1)
+
+    def test_a_failing_git_status_fails(self):
+        stub, log = git_stub.install(self.work)
+        env = {"PATH": stub + os.pathsep + self.env["PATH"], "GIT_STUB_FAIL": "status *"}
+        r = self.run_cmd(["bash", SCRIPT], cwd=self.project, env=env)
+        self.assert_fails_closed(r, "git status failed")
+        self.assertTrue(any(c.startswith("status ") for c in git_stub.calls(log)), "the stub was not reached")
+
+    def test_a_failing_git_rev_parse_fails_even_though_git_status_works(self):
+        stub, log = git_stub.install(self.work)
+        env = {"PATH": stub + os.pathsep + self.env["PATH"], "GIT_STUB_FAIL": "rev-parse --short HEAD"}
+        r = self.run_cmd(["bash", SCRIPT], cwd=self.project, env=env)
+        self.assert_fails_closed(r, "no HEAD commit")
+        self.assertIn("rev-parse --short HEAD", git_stub.calls(log))
+
+    def test_the_stub_passes_everything_through_when_no_pattern_matches(self):
+        stub, log = git_stub.install(self.work)
+        r = self.run_cmd(["bash", SCRIPT], cwd=self.project, env={"PATH": stub + os.pathsep + self.env["PATH"]})
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("ASSERT-CLEAN: PASS", r.stdout)
+        self.assertIn(self.base[:7], r.stdout)
+        self.assertTrue(git_stub.calls(log))
+
+    def test_a_dirty_tree_still_fails_with_the_changes_listed(self):
+        self.write("new.txt", base=self.project)
+        self.failed(self.check(), "new.txt")
 
 
 if __name__ == "__main__":

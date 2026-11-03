@@ -13,6 +13,7 @@ import os
 import shutil
 import unittest
 
+import git_stub
 from kit_repo import KitTestCase, KIT, DEFAULT_CONF
 
 HOOK = KIT / "githooks" / "pre-push"
@@ -265,6 +266,101 @@ class PrePushTest(KitTestCase):
         r = self.hook(env={"PATH": self.lfs_stub_path()})
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         self.assertFalse(self.lfs_record.exists())
+
+    # fail closed (#43): bad input and failing git commands block the push
+
+    def assert_blocked(self, r, *needles):
+        """Non-zero exit, a reason from the hook on stderr, and no verify ran."""
+        self.assertNotEqual(r.returncode, 0, "the push went through:\n" + r.stdout + r.stderr)
+        self.assertEqual(self.verified(), [], "verify ran")
+        self.assertIn("agent-kit", r.stderr, "no reason from the hook:\n" + r.stderr)
+        for needle in needles:
+            self.assertIn(needle, r.stderr)
+
+    def failing_git(self, patterns, *lines):
+        """Run the hook with a stub git that fails for `patterns` (one glob per line)."""
+        stub, log = git_stub.install(self.work)
+        env = {"PATH": stub + os.pathsep + self.no_lfs_path(), "GIT_STUB_FAIL": patterns}
+        r = self.hook(*lines, env=env)
+        return r, git_stub.calls(log)
+
+    def test_a_local_sha_that_is_not_a_valid_commit_blocks(self):
+        tree = self.git("rev-parse", "HEAD^{tree}").stdout.strip()
+        blob = self.git("rev-parse", "HEAD:README.md").stdout.strip()
+        for token in ("nothex", "1" * 40, "0" * 39, "f" * 41, "NULL", "-", "abc", "zz" * 20, tree, blob):
+            for remote in (self.base, ZERO):
+                with self.subTest(local=token, remote=remote):
+                    r = self.hook(self.update(token, remote))
+                    self.assert_blocked(r, "refs/heads/main", "not a valid commit")
+
+    def test_an_option_like_local_sha_blocks_and_is_not_read_as_an_option(self):
+        self.commit_change("proj_a/file.txt")
+        for token in ("--stat", "-h", "--help", "-x", "--output=" + str(self.work / "out.txt")):
+            for remote in (self.base, ZERO):
+                with self.subTest(local=token, remote=remote):
+                    r = self.hook(self.update(token, remote))
+                    self.assert_blocked(r, "refs/heads/main")
+                    self.assertNotIn("usage:", (r.stdout + r.stderr).lower())
+        self.assertFalse((self.work / "out.txt").exists(), "git treated the sha as an option")
+
+    def test_an_option_like_remote_sha_falls_through_to_a_normal_verify(self):
+        for token in ("--stat", "-h", "--help", "-x"):
+            with self.subTest(remote=token):
+                # subTest resets the repo, so the commit is made inside it.
+                new = self.commit_change("proj_a/file.txt")
+                self.record.unlink(missing_ok=True)
+                r = self.hook(self.update(new, token))
+                self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+                self.assertEqual(self.verified(), ["proj_a BASE=" + self.base])
+
+    def test_a_failing_git_rev_list_blocks_a_new_branch(self):
+        new = self.commit_change("proj_a/file.txt")
+        r, calls = self.failing_git("rev-list *", self.update(new, ZERO, ref="refs/heads/feature"))
+        self.assert_blocked(r, "refs/heads/feature", "git rev-list")
+        self.assertTrue(any(c.startswith("rev-list ") for c in calls), "the stub was not reached")
+
+    def test_a_failing_git_diff_blocks(self):
+        new = self.commit_change("proj_a/file.txt")
+        r, calls = self.failing_git("diff *", self.update(new, self.base))
+        self.assert_blocked(r, "refs/heads/main", "git diff")
+        self.assertTrue(any(c.startswith("diff ") for c in calls), "the stub was not reached")
+
+    def test_a_failing_git_status_blocks_without_running_verify(self):
+        new = self.commit_change("proj_a/file.txt")
+        r, calls = self.failing_git("status *", self.update(new, self.base))
+        self.assert_blocked(r, "proj_a", "git status")
+        self.assertTrue(any(c.startswith("status ") for c in calls), "the stub was not reached")
+
+    def test_a_failing_git_rev_parse_head_blocks(self):
+        new = self.commit_change("proj_a/file.txt")
+        r, calls = self.failing_git("rev-parse HEAD", self.update(new, self.base))
+        self.assert_blocked(r, "git rev-parse HEAD")
+        self.assertIn("rev-parse HEAD", calls)
+
+    def test_a_failing_git_rev_parse_show_toplevel_blocks(self):
+        new = self.commit_change("proj_a/file.txt")
+        r, calls = self.failing_git("rev-parse --show-toplevel", self.update(new, self.base))
+        self.assert_blocked(r, "git rev-parse --show-toplevel")
+
+    def test_a_failing_git_hash_object_blocks(self):
+        new = self.commit_change("proj_a/file.txt")
+        r, calls = self.failing_git("hash-object *", self.update(new, self.base))
+        self.assert_blocked(r, "git hash-object")
+
+    def test_the_git_stub_is_transparent_when_nothing_matches(self):
+        new = self.commit_change("proj_a/file.txt")
+        r, calls = self.failing_git("", self.update(new, self.base))
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertEqual(self.verified(), ["proj_a BASE=" + self.base])
+        self.assertTrue(any(c.startswith("diff ") for c in calls))
+
+    def test_nothing_new_to_push_is_still_a_pass_when_rev_list_works(self):
+        stub, log = git_stub.install(self.work)
+        r = self.hook(self.update(self.base, ZERO, ref="refs/heads/copy"),
+                      env={"PATH": stub + os.pathsep + self.no_lfs_path()})
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertEqual(self.verified(), [])
+        self.assertTrue(any(c.startswith("rev-list ") for c in git_stub.calls(log)))
 
 
 if __name__ == "__main__":
