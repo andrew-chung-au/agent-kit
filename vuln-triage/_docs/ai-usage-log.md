@@ -2188,7 +2188,7 @@ Copy this template for each new entry:
 
 #### date: 2026-10-24 — task/issue: #137 (task 15) — one-command Compose stack, incl. the /api prefix move (Option B
 
-- date: 2026-10-24 
+- date: 2026-10-24
 - agent role: Engineer (Kiro, Vibe session)
 - model: not recorded
 - prompt or instruction given (or link to a file in `_docs/prompts/`): human asked to start #137, then (on hitting the SPA/API path collision) preferred Option B and asked for an impact analysis + proposal before changes; then approved the recommendations (Option B, root_path=/api, /api/health).
@@ -2198,7 +2198,7 @@ Copy this template for each new entry:
 
 #### date: 2026-10-24 — task/issue: #137 follow-up — document the Compose stack in _docs/verify-locally.md
 
-- date: 2026-10-24  
+- date: 2026-10-24
 - agent role: Engineer (Kiro, Vibe session)
 - model: not recorded
 - prompt or instruction given (or link to a file in `_docs/prompts/`): human asked that the verify steps live in _docs/verify-locally.md.
@@ -2246,7 +2246,7 @@ Copy this template for each new entry:
 - human review (what I checked or corrected, or `none`): none yet; follow-up fix to the merged #138, discovered by #139's CI.
 
 #### date: 2026-10-24 — fix/111-vite-advisory
-  
+
 - date: 2026-10-24
 - task/issue: #111 — upgrade Vite from 8.1.5 to 8.1.6 for GHSA-587h-7wmj-h5pm
 - agent role: Engineer (OpenCode, software-engineer role)
@@ -2811,7 +2811,7 @@ Copy this template for each new entry:
 - verification (tests run, reviewer verdict): `make verify`: PASS WITH WARNINGS (frontend 89, backend 542, responder 85 passed; the warning is the fixture files changed, reason: one advisory, one querybatch entry and one KEV row were added, nothing loosened, 0 assertion lines removed). `make backend-test` before and after adding the fixture: the 532 existing cases unchanged, plus the 2 new fixture cases. A read-only collection of the compose-marked cases found the new case. NOT RUN: the compose-marked case `test_p_demo_be_full_stub_loop_runs_twice_on_one_finding` (no Docker daemon in this session); so no [D] criterion has been observed passing, and the Grafana `resolved` notification is unverified. No reviewer verdict; no QA run.
 - new dependencies: none.
 
-- date: 2026-10-26  
+- date: 2026-10-26
 - task/issue: #241 real agent in the background, with a retry cap (follow-up to #221), on `claude/241-background-run` (from `claude/f4-real-runner-followup`)
 - agent role: Engineer (Claude Code subagent)
 - model: claude-sonnet-5-5
