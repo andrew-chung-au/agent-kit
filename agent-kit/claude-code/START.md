@@ -13,7 +13,8 @@ The process, roles, verify gate and git hooks are the core kit's and apply uncha
 | `skills/sweep/SKILL.md` | `.claude/skills/sweep/SKILL.md` | The sweep skill: `/sweep` points at `procedures/sweep.md`. Only you can run it, by typing `/sweep`; Claude can't call it. The orchestrator starts a sweep by launching the PM with `sweep.md` in the prompt. |
 | `hooks/guard_git.py` | Runs in place from the kit | Before any shell command: blocks `git add .`/`-A`/`-u`, `git commit -a`, `--no-verify`, `git commit -n`, `git push` and changes to `core.hooksPath`, with the reason and the allowed alternative |
 | `hooks/verify_on_stop.py` | Runs in place from the kit | When the Engineer tries to finish: runs `make verify` and sends it back to fix any failure, up to three times, then lets it stop and warns you |
-| `settings.json` | Merged into `.claude/settings.json` | Pre-approves `make` targets and read-only git; asks before edits to protected files; blocks reading `.env` files and `git push`; registers the git guard, which also blocks shell commands naming `.env` files; sets commit attribution |
+| `hooks/log_permission.py` | Runs in place from the kit | When Claude Code asks you to approve something: appends one record (tool, type, a redacted pattern, session) to `.agent-kit/logs/permissions/`. It only observes; the prompt and your decision are unchanged. Format: `procedures/permission-log.md` |
+| `settings.json` | Merged into `.claude/settings.json` | Pre-approves `make` targets and read-only git; asks before edits to protected files; blocks reading `.env` files and `git push`; registers the git guard, which also blocks shell commands naming `.env` files, and the permission logger; sets commit attribution |
 
 The hooks run from `_docs/agent-kit/claude-code/hooks/`, so upgrading the kit upgrades them too.
 
@@ -24,17 +25,21 @@ Setup does this when you say you use Claude Code (`setup.md`, step 4). To do it 
 1. **Start Claude Code in the project folder**, not the repository root. The hooks find the kit through `$CLAUDE_PROJECT_DIR`, which is the folder the session started in.
 2. **`CLAUDE.md`:** copy `claude-code/CLAUDE.md.template` as `CLAUDE.md`, or merge its two lines into an existing `CLAUDE.md`.
 3. **Role definitions:** copy the three files in `claude-code/agents/` into `.claude/agents/`, and `claude-code/skills/sweep/` into `.claude/skills/sweep/`.
-4. **Settings:** merge `claude-code/settings.json` into `.claude/settings.json`, keeping any settings already there. Then make the `ask` list match the project's `PROTECTED` list in `agent-kit.conf`: one `Edit(/<pattern>)` rule per entry. For example, `incident-response/probe.py` becomes `Edit(/incident-response/probe.py)`. A folder pattern ending in `/*` becomes `/**`, because in these rules `*` doesn't cross into subfolders: `_docs/agent-kit/*` becomes `Edit(/_docs/agent-kit/**)`. If the project's secrets use other names, add a `Read(...)` deny rule for each one.
+4. **Settings:** merge `claude-code/settings.json` into `.claude/settings.json`, keeping any settings already there. This installs the permission logger too (its `PermissionRequest` entry); leave that entry out if you don't want the log. Then make the `ask` list match the project's `PROTECTED` list in `agent-kit.conf`: one `Edit(/<pattern>)` rule per entry. For example, `incident-response/probe.py` becomes `Edit(/incident-response/probe.py)`. A folder pattern ending in `/*` becomes `/**`, because in these rules `*` doesn't cross into subfolders: `_docs/agent-kit/*` becomes `Edit(/_docs/agent-kit/**)`. If the project's secrets use other names, add a `Read(...)` deny rule for each one.
 5. **Protection:** add `'.claude/*'` to `PROTECTED` in `agent-kit.conf`. These files decide what agents may do.
 6. **Check it.** Restart Claude Code and accept the workspace trust prompt; the Engineer's hook only runs in a trusted folder. Then check:
    - `/agents` lists `pm`, `software-engineer` and `qa-engineer`;
    - `/hooks` lists the git guard;
-   - `/permissions` shows the rules.
+   - `/permissions` shows the rules;
+   - `/hooks` also lists the permission logger under `PermissionRequest`.
 
    To test the guard, ask Claude to run `git add .`. It should be blocked with the message "Stage explicit paths only".
 
+   To test the permission log, allow one prompt and deny another. `.agent-kit/logs/permissions/<today>.jsonl` should hold an `ask` line for each, and the prompts should look as before. Add `.agent-kit/logs/` to `.gitignore`. `make permission-report` summarises the log; `make permission-logs-prune DAYS=<n>` deletes old files and asks for your approval first.
+
 ## Limits
 
+- The permission log has asks only: the `PermissionRequest` event carries no outcome and no call id, so the report shows "-" for allowed, always and denied. It is complete for OpenCode and, for Claude Code, only to that extent. Tested against payloads from the hooks reference and a capture on 2.1.221 (anthropics/claude-code#83748); no real session has run it yet. Note your version here after the check in Install, step 6.
 - The hooks and rules apply only inside Claude Code. The core kit's git hooks still cover every tool, and your review of the diff is still the real control.
 - Rules and the git guard match the commands Claude usually writes. They aren't a security boundary: a command written another way can get past them. For example, a push run through a script. The git hooks and your review catch what gets past.
 - PM and QA have the Write tool, and the PM the Edit tool, so they can use `.scratch/`. Their role text limits them to `.scratch/`; no hook or path rule enforces it, so the tools themselves don't stop a write elsewhere; **Assert clean** after QA catches any change to the project's files.

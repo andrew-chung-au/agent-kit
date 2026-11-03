@@ -65,6 +65,23 @@ kit-compare: ## List how the kit folder differs from another kit copy under .scr
 	$(if $(call kit-other-ok,$(value OTHER)),,$(error Usage: make kit-compare OTHER=.scratch/<folder> - one word under .scratch/ with letters digits . _ / - only))
 	@python3 -B _docs/agent-kit/scripts/kit-compare.py "$$OTHER"
 
+# --- When the project keeps the permission log (procedures/permission-log.md) ---
+
+# Both targets follow the validation rule above. permission-report passes SINCE on and the
+# script accepts only a real YYYY-MM-DD date (an empty SINCE means no limit).
+# permission-logs-prune checks DAYS here (1 to 4 digits, no leading zero) and the script
+# checks the 3650 limit, so a bad value deletes nothing.
+
+permission-days-ok = $(and $(filter 1,$(words $(1))),$(if $(subst 0,,$(subst 1,,$(subst 2,,$(subst 3,,$(subst 4,,$(subst 5,,$(subst 6,,$(subst 7,,$(subst 8,,$(subst 9,,$(1))))))))))),,ok),$(if $(subst x$(strip $(1))x,,x$(1)x),,ok),$(if $(filter 0%,$(1)),,ok),$(if $(word 5,$(subst 0,x ,$(subst 1,x ,$(subst 2,x ,$(subst 3,x ,$(subst 4,x ,$(subst 5,x ,$(subst 6,x ,$(subst 7,x ,$(subst 8,x ,$(subst 9,x ,$(1)))))))))))),,ok))
+
+permission-report: ## Summarise the permission logs of all tools: make permission-report [SINCE=<YYYY-MM-DD>]
+	$(if $(findstring $$,$(value SINCE)),$(error Usage: make permission-report [SINCE=<YYYY-MM-DD>] - SINCE must not contain $$))
+	@python3 -B _docs/agent-kit/scripts/permission-report.py "$$SINCE"
+
+permission-logs-prune: ## Delete permission logs older than DAYS days (the human runs it): make permission-logs-prune DAYS=<1 to 3650>
+	$(if $(call permission-days-ok,$(value DAYS)),,$(error Usage: make permission-logs-prune DAYS=<1 to 3650>))
+	@python3 -B _docs/agent-kit/scripts/permission-logs-prune.py "$$DAYS"
+
 # --- When the stack is known (wrap the project's own commands) -------------
 
 install: ## Install dependencies

@@ -813,5 +813,41 @@ class RepoClaudeGhAskTest(unittest.TestCase):
                         "the repo copy asks only by default, not because a rule asks")
 
 
+# ---- Issue #36: deleting old permission logs asks; the read-only report stays allowed ----
+
+PRUNE_COMMANDS = ["make permission-logs-prune DAYS=30", "make permission-logs-prune", "make permission-logs-prune DAYS=1"]
+REPORT_COMMANDS = ["make permission-report", "make permission-report SINCE=2026-11-01"]
+
+
+class PermissionLogsPruneAskTest(unittest.TestCase):
+    def test_opencode_asks_for_prune_and_allows_the_report(self):
+        for command in PRUNE_COMMANDS:
+            self.assertEqual(opencode_decision("bash", command), "ask", command)
+        for command in REPORT_COMMANDS:
+            self.assertEqual(opencode_decision("bash", command), "allow", command)
+
+    def test_claude_code_asks_for_prune_and_allows_the_report(self):
+        self.assertIn("Bash(make permission-logs-prune*)", CLAUDE["ask"])
+        self.assertNotIn("Bash(make permission-logs-prune*)", CLAUDE["allow"])
+        for command in PRUNE_COMMANDS:
+            self.assertEqual(claude_decision("Bash", command), "ask", command)
+        for command in REPORT_COMMANDS:
+            self.assertEqual(claude_decision("Bash", command), "allow", command)
+
+    def test_the_pattern_sits_between_the_last_allow_and_the_first_deny(self):
+        self.assertEqual(BASH["make permission-logs-prune*"], "ask")
+        self.assertGreater(KEYS.index("make permission-logs-prune*"), max(KEYS.index(k) for k in ALLOW_KEYS))
+        self.assertLess(KEYS.index("make permission-logs-prune*"), FIRST_DENY)
+
+    def test_the_template_and_this_repos_bash_blocks_stay_identical(self):
+        repo = json.loads((KIT.parent / "opencode.json").read_text(encoding="utf-8"))["permission"]["bash"]
+        self.assertEqual(list(repo.items()), list(BASH.items()))
+        self.assertEqual(repo["make permission-logs-prune*"], "ask")
+
+    def test_no_allow_rule_names_the_prune_target(self):
+        for rule in list(CLAUDE["allow"]) + ALLOW_KEYS:
+            self.assertNotIn("permission-logs-prune", rule)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -131,6 +131,7 @@
       "gh issue reopen*": "ask",
       "gh issue delete*": "ask",
       "gh api*": "ask",
+      "make permission-logs-prune*": "ask",
       "git remote add *": "deny",
       "git remote remove *": "deny",
       "git remote rename *": "deny",
