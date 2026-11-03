@@ -21,6 +21,14 @@ clean-scratch: ## Empty .scratch/ at the end of an issue (refuses while a starte
 	@for f in .scratch/*.pid; do if [ -f "$$f" ] && kill -0 "$$(cat "$$f")" 2>/dev/null; then echo "$$f: process $$(cat "$$f") is still running; stop it first"; exit 1; fi; done
 	@mkdir -p .scratch && find .scratch -mindepth 1 -delete && echo ".scratch/ is now empty"
 
+# tool-versions prints one line per tool: "<tool>: <its first --version line>" or
+# "<tool>: missing". The list is fixed in the recipe and no variable is pasted
+# into the shell. To add a tool, give the project section below its own
+# `tool-versions::` recipe (double colon, so both recipes run); do not edit this one.
+# It uses `command -v` and each tool's own --version: no network, no sudo.
+tool-versions:: ## Print each tool's version, or "<tool>: missing"
+	@for t in git gh node npm python3 uv docker; do if command -v "$$t" >/dev/null 2>&1; then "$$t" --version 2>&1 | { read -r first; echo "$$t: $$first"; }; else echo "$$t: missing"; fi; done
+
 # --- When the project's tasks are GitHub issues --------------------------------
 
 # Rule for every target that takes a variable: validate it with make functions
