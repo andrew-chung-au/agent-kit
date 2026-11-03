@@ -66,11 +66,15 @@ With no Docker, the sandbox can't run the push check end to end; it runs on your
 
 ### Upgrading the kit in the local sandbox
 
-1. Unzip the new kit in the clean clone, then review, commit and push it yourself. Don't run `make` there.
-2. In the container: `git pull`, then `make hooks`.
-3. Give the agent the README's upgrade prompt for the `AGENTS.md` and blueprint changes. Review and push its commits as usual.
+The container reviews and commits the new kit; you fetch the result and push, as in `procedures/kit-import.md`. The new kit is untrusted data until you have read its diff.
 
-If the new kit changes `environments/local-sandbox/pre-push`, copy it from the clean clone to `~/.agent-hooks/pre-push` and refresh each clean clone's copy.
+1. **Drop the zip into the container.** In the dev container's VS Code window, drop the new kit zip into the workspace's `.scratch/`. Don't copy it in from Ubuntu's file manager or a terminal on your machine: that would break the rule above about touching the sandbox folder from Ubuntu.
+2. **The agent unpacks and reviews it in the container.** It unpacks the zip into a new, empty folder under `.scratch/`, never over the kit folder or into the clean clone, and follows `procedures/kit-import.md`. `make kit-check` and `make kit-compare` run in the container. Read the agent's list of every file and its outcome before anything is staged.
+3. **The agent commits in the container, after your approval.** It stages explicit paths and sends you the approval request with `git diff --cached --stat`. The kit folder is protected, so it commits with `HUMAN_APPROVED=1` only after you approve. Then the agent runs `make hooks` in the container.
+4. **Give the agent the README's upgrade prompt** for the `AGENTS.md` and blueprint changes. Its commits wait for your approval in the same way.
+5. **Fetch and push from the clean clone.** Run `git fetch sandbox`, read the full diff, then merge and push, as in "Pushing" above. Don't run `make` in the clean clone.
+
+If the new kit changes `environments/local-sandbox/pre-push`, copy it from the clean clone, after the fetch and merge, to `~/.agent-hooks/pre-push` and refresh each clean clone's copy. Never copy it from the container's `.scratch/` copy. These steps don't touch `.devcontainer/` or the CI template.
 
 ## Local, no sandbox
 
