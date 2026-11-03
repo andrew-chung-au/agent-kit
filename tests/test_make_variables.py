@@ -357,13 +357,89 @@ class TemplateOnlyTargetsTest(MakeCase):
 def block(text: str, name: str) -> list:
     """The lines of one make target (header and recipe) or definition, up to the blank line."""
     lines = text.splitlines()
-    start = next(i for i, line in enumerate(lines) if line.startswith(name + ":") or line.startswith(name + " ="))
+    start = next(i for i, line in enumerate(lines) if line.startswith(name + ":") or line.startswith(name + " =") or line.startswith(name + " :="))
     out = []
     for line in lines[start:]:
         if not line.strip():
             break
         out.append(line)
     return out
+
+
+class KitTargetsTest(TargetCase):
+    """kit-check and kit-compare (issue #88): the repo Makefile carries the template's targets.
+
+    The stubs stand in for kit-check.py and kit-compare.py and record what they received.
+    """
+
+    CRAFTED = ["$(shell touch MARKER)", "$(file >MARKER,x)", ".scratch/$(shell touch MARKER)", "$$", "${HOME}",
+               ".scratch/x;touch MARKER", ".scratch/`touch MARKER`", ".scratch/a b", ".scratch/a\ntouch MARKER",
+               ".scratch/../x", ".scratch/a/../b", "..", ".scratch/..", "x", "other", "/etc", "/abs/path",
+               ".scratch", "tmp/.scratch/x", "../.scratch/x", ".scratch/x'y", '.scratch/x"y', ".scratch/x*", "", " "]
+
+    def kit_project(self, kind: str) -> Path:
+        folder = self.project(kind)
+        scripts = folder / ("agent-kit" if kind == "repo" else "_docs/agent-kit") / "scripts"
+        for name in ("kit-check.py", "kit-compare.py"):
+            (scripts / name).write_text(RECORDER_PY, encoding="utf-8")
+        return folder
+
+    def each_kit_kind(self):
+        for kind in self.kinds:
+            with self.subTest(kind=kind):
+                yield kind, self.kit_project(kind)
+
+    def test_both_targets_are_listed_by_make_help(self):
+        for kind, folder in self.each_kit_kind():
+            done = self.make(folder, "help")
+            self.assertEqual(done.returncode, 0, done.stderr)
+            self.assertRegex(done.stdout, r"(?m)^  kit-check +Say whether the kit folder is pristine")
+            self.assertRegex(done.stdout, r"(?m)^  kit-compare +List how the kit folder differs.*make kit-compare OTHER=")
+
+    def test_kit_check_runs_the_script_with_no_arguments(self):
+        for kind, folder in self.each_kit_kind():
+            done = self.make(folder, "kit-check")
+            self.assertEqual(done.returncode, 0, done.stderr)
+            self.assertEqual(self.received(folder), [[]])
+
+    def test_kit_compare_passes_the_folder_as_exactly_one_argument(self):
+        for kind, folder in self.each_kit_kind():
+            for value in (".scratch/other", ".scratch/a-b_c.d/e", ".scratch/x/y/z"):
+                with self.subTest(kind=kind, other=value):
+                    (folder / "args.log").unlink(missing_ok=True)
+                    done = self.make(folder, "kit-compare", "OTHER=" + value)
+                    self.assertEqual(done.returncode, 0, done.stderr)
+                    self.assertEqual(self.received(folder), [[value]])
+
+    def test_a_crafted_other_is_refused_before_any_script_runs(self):
+        for kind, folder in self.each_kit_kind():
+            for value in self.CRAFTED:
+                with self.subTest(kind=kind, other=value):
+                    done = self.make(folder, "kit-compare", "OTHER=" + value)
+                    self.assert_nothing_ran(folder, done)
+                    self.assertIn("Usage: make kit-compare OTHER=.scratch/<folder>", done.stderr)
+
+    def test_a_missing_other_is_refused(self):
+        for kind, folder in self.each_kit_kind():
+            done = self.make(folder, "kit-compare")
+            self.assert_nothing_ran(folder, done)
+            self.assertIn("Usage: make kit-compare", done.stderr)
+
+    def test_an_other_from_the_environment_is_also_safe(self):
+        for kind, folder in self.each_kit_kind():
+            env = {k: v for k, v in os.environ.items() if k not in ("MAKEFLAGS", "MFLAGS", "MAKELEVEL")}
+            env["OTHER"] = "$(shell touch MARKER)"
+            done = subprocess.run(["make", "--no-print-directory", "kit-compare"], cwd=str(folder), env=env,
+                                  stdin=subprocess.DEVNULL, capture_output=True, text=True)
+            self.assert_nothing_ran(folder, done)
+
+    def test_the_kit_targets_never_expand_other(self):
+        for path in (REPO_MAKEFILE, TEMPLATE):
+            with self.subTest(file=path.name):
+                body = "\n".join(block(path.read_text(encoding="utf-8"), "kit-compare"))
+                self.assertIsNone(re.search(r"\$\(OTHER\)", body), body)
+                self.assertIn("$(value OTHER)", body)
+                self.assertIn('"$$OTHER"', body)
 
 
 class SameInBothFilesTest(unittest.TestCase):
@@ -375,6 +451,14 @@ class SameInBothFilesTest(unittest.TestCase):
         template = self.normalized(TEMPLATE, "_docs/agent-kit/scripts")
         for name in ("issue-hash", "issue-number-ok", "issue-dump", "verify", "tier-check"):
             with self.subTest(name=name):
+                self.assertEqual(block(repo, name), block(template, name))
+
+    def test_the_kit_targets_and_their_validators_are_the_same_in_the_repo_and_the_template(self):
+        repo = self.normalized(REPO_MAKEFILE, "agent-kit/scripts")
+        template = self.normalized(TEMPLATE, "_docs/agent-kit/scripts")
+        for name in ("kit-check", "kit-other-chars", "kit-other-strip", "kit-other-ok", "kit-compare"):
+            with self.subTest(name=name):
+                self.assertTrue(block(repo, name), name + " is missing from the repo Makefile")
                 self.assertEqual(block(repo, name), block(template, name))
 
     def test_no_make_variable_is_expanded_in_a_check_or_pasted_into_a_recipe_line(self):
