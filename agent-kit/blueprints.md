@@ -49,6 +49,7 @@ What a project using this kit should have, when each piece applies, and how to c
 | Local sandbox files | The human uses the local sandbox profile | `.devcontainer/` at the repo root; the push check in `~/.agent-hooks/` | `environments/local-sandbox/`, copied by the human from a clean clone |
 | Claude Code layer | The human uses Claude Code | `CLAUDE.md` and `.claude/` in the project folder | `claude-code/START.md`, with `claude-code/agents/` and `claude-code/hooks/` |
 | OpenCode layer | The human uses OpenCode | `opencode.json` and `.opencode/` in the project folder | `opencode/START.md`, with `opencode/agents/` |
+| Permission log (OpenCode) | The human uses OpenCode and wants a record of what it asked to approve | `.opencode/plugins/permission-log.js`; the log in `.agent-kit/logs/permissions/`, git-ignored | `opencode/plugins/permission-log.js`; the record format in `procedures/permission-log.md`; it reads `scripts/secret-patterns.txt` |
 | Tool-native enforcement for other tools | The human wants hard enforcement in a tool without a layer | That tool's own config folder | Not in the kit; see README |
 | Tool permission allow-list | The human's tool asks for approval on routine commands | That tool's own settings file | See Tool permissions below |
 | Role definitions | The human's tool can define named subagents, and the orchestrator launches roles as subagents | That tool's agents folder, for example `.claude/agents/` | See Role definitions below |
@@ -93,9 +94,10 @@ Agents then cite the entry in their approval request instead of rediscovering th
 .env.*
 !.env.example
 .scratch/
+.agent-kit/logs/
 ```
 
-Add local databases, and build, cache and dependency folders for the stack. Check the result with `git check-ignore .env.example`, which should print nothing (without `-v`; with it, git also prints the `!.env.example` line that un-ignores the file). The pre-commit hook catches these files too, but ignore rules keep them out of `git status`.
+The last line is for projects with the permission log. Add local databases, and build, cache and dependency folders for the stack. Check the result with `git check-ignore .env.example`, which should print nothing (without `-v`; with it, git also prints the `!.env.example` line that un-ignores the file). The pre-commit hook catches these files too, but ignore rules keep them out of `git status`.
 
 **Session summaries.** If the project already has summaries with a naming scheme, keep that scheme and record it in the **Session summaries** setting in `AGENTS.md`.
 

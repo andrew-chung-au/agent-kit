@@ -8,6 +8,7 @@ Start here if you run the agent kit with OpenCode. OpenCode reads `AGENTS.md` di
 |---|---|---|
 | `agents/pm.md`, `agents/software-engineer.md`, `agents/qa-engineer.md` | `.opencode/agents/` | Role definitions (subagents), each pointing to its file in `team/`. PM and QA can edit files only in `.scratch/`; OpenCode enforces that. The file name is the agent's name. |
 | `skills/sweep/SKILL.md` | `.opencode/skills/sweep/SKILL.md` | The sweep skill, pointing at `procedures/sweep.md`. OpenCode lists its one-line description to every agent; the body loads only when the skill is called. |
+| `plugins/permission-log.js` | `.opencode/plugins/permission-log.js` | Optional. Records each permission request and your reply in `.agent-kit/logs/permissions/` (git-ignored), with secrets removed. It only observes and changes no decision. Format: `procedures/permission-log.md`. |
 | `opencode.json` | Merged into `opencode.json` in the project folder | Blocks `.env` files (not `.env.example`), in shell commands by text pattern; asks before protected-file edits and unlisted commands; allows `make`, read-only commands and plain commits; blocks broad staging, `-a`, `-n`, `--no-verify`, `git push` and token-printing commands |
 
 ## Permission rules
@@ -36,10 +37,12 @@ Setup does this when you say you use OpenCode (`setup.md`, step 4). To do it by 
 2. **Role definitions:** copy the three files in `opencode/agents/` into `.opencode/agents/`, and `opencode/skills/sweep/` into `.opencode/skills/sweep/`.
 3. **Settings:** merge `opencode/opencode.json` into the project's `opencode.json`, keeping anything already there. Then make the `edit` rules match the project's `PROTECTED` list in `agent-kit.conf`: one `"<pattern>": "ask"` entry per protected file, kept in sync with that list. If the project's secrets use other names, add `read` deny rules for them.
 4. **Protection:** add `'opencode.json'` and `'.opencode/*'` to `PROTECTED` in `agent-kit.conf`. These files decide what agents may do.
-5. **Check it.** Restart OpenCode, then:
+5. **Permission log (optional):** copy `opencode/plugins/permission-log.js` into `.opencode/plugins/`, and add `.agent-kit/logs/` to `.gitignore`. It reads `scripts/secret-patterns.txt`, so the project needs the GitHub module's pattern file first. Plugins load when OpenCode starts, so restart it.
+6. **Check it.** Restart OpenCode, then:
    - ask it to list its agents: `pm`, `software-engineer` and `qa-engineer` should appear;
    - ask it to run `git add .`: the command should be denied;
-   - ask the `pm` agent to edit `README.md`: the edit should be denied.
+   - ask the `pm` agent to edit `README.md`: the edit should be denied;
+   - with the plugin: trigger one prompt, and `.agent-kit/logs/permissions/<today>.jsonl` should gain one `ask` line, then a `reply` line once you answer.
 
    If a path rule doesn't match as expected, check OpenCode's permissions documentation for how it matches paths. The rules here assume paths relative to the project folder.
 
@@ -48,6 +51,7 @@ Setup does this when you say you use OpenCode (`setup.md`, step 4). To do it by 
 - **No hooks yet.** The Claude Code layer stops the Engineer finishing while `make verify` fails; OpenCode has no such check here. The Engineer runs **Verify** because its role file says so, and the git hooks, your push check and CI catch what it misses.
 - **Pattern matching only.** The rules match how a command is written, so a variant can get past them.
 - **Settings apply only inside OpenCode.** The core kit's git hooks still cover every tool.
+- **The permission log is complete for OpenCode only.** Claude Code arrives with #36. The plugin was written against `@opencode-ai/plugin` 1.19.0 and has not been checked in a real session yet; run the hand check in `procedures/permission-log.md` first.
 
 ## Projects that already have an OpenCode setup
 
