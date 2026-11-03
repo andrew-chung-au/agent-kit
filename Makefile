@@ -42,6 +42,11 @@ issue-comment: ## Post a file under .scratch/ as one comment (first line PM: Eng
 	$(if $(call issue-file-ok,$(value FILE)),,$(error Usage: make issue-comment N=<issue number> FILE=.scratch/<name>.md - one word under .scratch/ with letters digits . _ / - only))
 	@bash agent-kit/scripts/issue-comment.sh "$(N)" "$(FILE)"
 
+issue-close: ## Close one issue when its recorded history shows the process was followed (the orchestrator only): make issue-close N=<issue number> [REASON=not-planned]
+	$(if $(call issue-number-ok,$(value N)),,$(error Usage: make issue-close N=<issue number> [REASON=not-planned]))
+	$(if $(value REASON),$(if $(filter completed not-planned,$(value REASON)),,$(error Usage: make issue-close N=<issue number> [REASON=completed|not-planned])))
+	@bash agent-kit/scripts/issue-close.sh "$(N)" $(if $(value REASON),"$(REASON)")
+
 sweep-due: ## Say whether a sweep is due (read-only; the sweep interval is set in the script)
 	@python3 -B agent-kit/scripts/sweep-due.py
 

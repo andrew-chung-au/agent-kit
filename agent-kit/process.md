@@ -33,7 +33,7 @@ Mid-project changes and new versions (v2) work the same way: revise the spec, th
 
 - Start every issue comment with your role (`PM:`, `Engineer:`, `QA:` or `Orchestrator:`). All roles usually share one GitHub account, so the label is the only way to tell them apart.
 - Never edit or delete an existing comment; post a new one. Other roles' comments are part of the record.
-- File an issue with `make issue-create FILE=.scratch/<name>.md` (first line `Title: <text>`, a blank line, then the body) and post a comment with `make issue-comment N=<number> FILE=.scratch/<name>.md`; both are in `_docs/agent-kit/templates/Makefile.github.mk`. They refuse text that looks like a secret, post no labels, and comment only on an `approved` or owner-authored issue. Editing or closing an issue asks the human. Describe env files in words ("the example env file"), not by name. The scanner reads line by line, so a key split across lines is missed.
+- File an issue with `make issue-create FILE=.scratch/<name>.md` (first line `Title: <text>`, a blank line, then the body) and post a comment with `make issue-comment N=<number> FILE=.scratch/<name>.md`; both are in `_docs/agent-kit/templates/Makefile.github.mk`. They refuse text that looks like a secret, post no labels, and comment only on an `approved` or owner-authored issue. Editing an issue asks the human. Only the orchestrator closes, with `make issue-close N=<number>` (`REASON=not-planned` for a closure the human approved), never a raw `gh issue close`; it refuses unless the owner's comments show the process was followed. Describe env files in words ("the example env file"), not by name. The scanner reads line by line, so a key split across lines is missed.
 
 ## Roles
 
@@ -114,7 +114,7 @@ Treat partial output as unverified. Relaunch the role with a note of what's alre
    - Confirm temporary system changes are undone, or that the human chose to keep them.
    - If a `.scratch/` script is worth keeping, propose it as a test or a make target at the decision point (step 7). Nothing in `.scratch/` survives cleanup.
    - Run `make clean-scratch`. It empties `.scratch/`, including session logs and test tokens, and refuses while a started process is still running. Record in the summary that it ran.
-9. Close the issue. Only the orchestrator closes issues: after QA posts PASS on an `approved` issue, or as not planned after the human approves that closure in a backlog review, whatever the label. A Light issue is closed once its Definition of done is met, with no QA PASS.
+9. Close the issue. Only the orchestrator closes issues: after QA posts PASS on an `approved` issue, or as not planned after the human approves that closure in a backlog review, whatever the label. A Light issue is closed once its Definition of done is met, with no QA PASS. Post the Close comment (`procedures/orchestrator-comments.md`), then run `make issue-close N=<number>`.
 10. The human reviews the diff and pushes (see Commits).
 11. Repeat until the backlog is empty and every part of the spec is built.
 
@@ -146,6 +146,6 @@ An issue is done when:
 - The changes are committed.
 - Docs affected by the change are updated, and any AGENTS.md change has human approval.
 - The session summary is written.
-- The orchestrator has closed the issue.
+- The orchestrator has closed the issue through `make issue-close`.
 
 The human's diff review and push come after this, outside the agent's definition of done.

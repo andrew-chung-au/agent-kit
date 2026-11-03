@@ -22,6 +22,6 @@ Fixed: the human confirmed the new body in this session; the hash re-check ran; 
 
 ## Close
 
-Fixed: the QA PASS commit, who built it, the merge commit, the verify result, what moved or was not done, what is not verified, the summary path.
+Fixed: who built it, what moved or was not done, what is not verified, and these lines, each alone and worded exactly, because `make issue-close` matches them: `QA PASS commit: <7 to 40 hex>` (named in the latest `QA:` PASS; not for Light), `Merge commit: <7 to 40 hex>`, `Verify: <text>`, `Summary: <path>`, and for Light `Human approved diff: yes`.
 **Fact:** every value in those lines.
-Never close without QA PASS. Close as not planned only after the human approved that closure.
+Never close without QA PASS. Post after the last PASS (Light: after `tier-check: PASS`), then `make issue-close N=<n>`. Close as not planned only after the human approved that closure: `Orchestrator: Close as not planned` with `Human approved closure: <YYYY-MM-DD>` and `Backlog review: <path or comment URL>`, then add `REASON=not-planned`.
