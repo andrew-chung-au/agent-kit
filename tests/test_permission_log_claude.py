@@ -368,6 +368,77 @@ class CapTest(HookCase):
         self.assertIn("CAP = 1048576", HOOK.read_text(encoding="utf-8"))
 
 
+class SymlinkTest(HookCase):
+    """The logger writes nothing through a symlink (issue #85): not the folder, an ancestor or the file."""
+
+    def setUp(self):
+        super().setUp()
+        self.outside = self.work / "outside"
+        self.outside.mkdir()
+
+    def assert_refused(self, expect_outside=()):
+        done = self.run_hook(ask())
+        self.assertEqual((done.returncode, done.stdout, done.stderr), (0, b"", b""))
+        self.assertEqual(sorted(p.name for p in self.outside.rglob("*")), sorted(expect_outside))
+        return done
+
+    def test_case_1_a_symlinked_log_folder_writes_nothing_through_it(self):
+        (self.project / ".agent-kit" / "logs").mkdir(parents=True)
+        self.folder.symlink_to(self.outside, target_is_directory=True)
+        self.assert_refused()
+
+    def test_case_2a_a_symlinked_agent_kit_folder_writes_nothing_through_it(self):
+        (self.project / ".agent-kit").symlink_to(self.outside, target_is_directory=True)
+        self.assert_refused()
+
+    def test_case_2b_a_symlinked_logs_folder_writes_nothing_through_it(self):
+        (self.project / ".agent-kit").mkdir()
+        (self.project / ".agent-kit" / "logs").symlink_to(self.outside, target_is_directory=True)
+        self.assert_refused()
+
+    def test_case_3a_a_file_symlink_to_an_existing_file_appends_nothing(self):
+        self.folder.mkdir(parents=True)
+        target = self.outside / "target.jsonl"
+        target.write_text("keep\n", encoding="utf-8")
+        self.today_file().symlink_to(target)
+        self.assert_refused(expect_outside=["target.jsonl"])
+        self.assertEqual(target.read_text(encoding="utf-8"), "keep\n")
+
+    def test_case_3b_a_file_symlink_to_a_missing_target_does_not_create_it(self):
+        self.folder.mkdir(parents=True)
+        target = self.outside / "missing.jsonl"
+        self.today_file().symlink_to(target)
+        self.assert_refused()
+        self.assertFalse(target.exists())
+
+    def test_case_4_a_dangling_folder_symlink_is_not_created_through(self):
+        (self.project / ".agent-kit" / "logs").mkdir(parents=True)
+        target = self.outside / "missing"
+        self.folder.symlink_to(target, target_is_directory=True)
+        self.assert_refused()
+        self.assertFalse(target.exists())
+
+    def test_a_dangling_agent_kit_symlink_is_not_created_through(self):
+        target = self.outside / "missing"
+        (self.project / ".agent-kit").symlink_to(target, target_is_directory=True)
+        self.assert_refused()
+        self.assertFalse(target.exists())
+
+    def test_the_file_is_opened_with_no_follow(self):
+        body = HOOK.read_text(encoding="utf-8")
+        self.assertIn("O_NOFOLLOW", body[body.index("def write("):body.index("def append(")])
+
+    def test_a_project_root_reached_through_a_symlink_still_logs(self):
+        link = self.work / "project-link"
+        link.symlink_to(self.project, target_is_directory=True)
+        done = self.run_hook(ask(), project=link)
+        self.assertEqual((done.returncode, done.stdout, done.stderr), (0, b"", b""))
+        self.assertEqual(len(self.records()), 1)
+
+    def test_with_no_symlinks_it_logs_as_before(self):
+        self.assertEqual(self.logged_once(ask())["type"], "bash")
+
+
 class ScopeTest(unittest.TestCase):
     def test_guard_git_stays_single_purpose(self):
         source = (KIT / "claude-code" / "hooks" / "guard_git.py").read_text(encoding="utf-8")
