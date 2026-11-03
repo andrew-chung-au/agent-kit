@@ -1,31 +1,22 @@
 # Run the sweep
 
-A periodic look across issues at what the roles learned, ending in numbered proposals for the human. Read this file only when asked to run the sweep.
+Numbered proposals for the human, from what the roles learned across issues. Read this only when asked to run the sweep.
 
-## When
+## When and who
 
 Invoked by name ("run the sweep"). The orchestrator proposes one at the decision point, never starts it silently. Triggers: every N closed issues (N = 5, a draft the human sets; the one place it lives is `SWEEP_EVERY_N` in `scripts/sweep-due.py`, and `make sweep-due` says whether it is reached); at a version cut; when the human asks; after two QA FAILs in a row; after an **Assert clean** failure.
 
-## Who
-
-A fresh PM launch. It writes only the sweep entry, under `.scratch/` first; the orchestrator commits it by the usual route. It returns the proposals to the orchestrator for the decision point. It files nothing: an accepted proposal becomes an issue or decision record after the human's ruling.
-
-## Inputs
-
-- The newest sweep entry in `_docs/measurements/` (read only that one; "last sweep" is the newest file name).
-- `## Reflection` and `## Launch usage` of the session summaries since its cutoff.
-- `PM:`, `Engineer:`, `QA:` and `Orchestrator:` issue comments since then.
-- Git history since the cutoff commit.
+A fresh PM launch runs it: the standard PM launch text plus "follow `_docs/agent-kit/procedures/sweep.md`", never just "run the sweep". The PM writes only the entry, in `.scratch/`, and returns it with the proposals. It files nothing; accepted proposals become issues or decision records after the human's ruling. Once the human has seen the proposals, the orchestrator copies the entry into `_docs/measurements/` and commits it.
 
 ## Steps
 
-1. Read the newest entry's Cutoff and Running summary.
-2. Recompute the figures for the period from git and GitHub, for example `git log --oneline <cutoff commit>..HEAD`, `gh issue list --state closed`, and for word counts `git show <commit>:<path> | wc -w` over the always-loaded files (`AGENTS.md`, `process.md` and the three `team/` files) and over all core Markdown (the kit's top-level, `team/`, `procedures/`, `templates/`, tool-layer START.md and role-definition files). Word counts are tracked, never a gate. A figure with no verified source reads `unknown`.
-3. Read the Reflection blocks and Launch usage lines. Draft proposals from the Reflection blocks.
-4. Write `<timestamp>-measure-pm-sweep.md` per `procedures/session-summary.md` (`date -u +%Y-%m-%dT%H%MZ`; a second writer appends `-2`), using the headings of `templates/measurement.md` (Question, Command and commit, Baseline, Result, Caveats) plus three more:
-   - **Cutoff:** commit hash and full UTC time covered.
+1. Read the newest entry in `_docs/measurements/` (read only that one): its Cutoff and Running summary. With no entry (the first sweep), read every session summary, every role comment on closed issues and the whole git history.
+2. Find the summaries added since the cutoff, old names included: `git log <cutoff commit>..HEAD --diff-filter=A --name-only -- _session-summaries/`. Read their Reflection blocks and Launch usage lines, and the role comments since then. Draft proposals from the Reflection blocks.
+3. Recompute the figures from git and GitHub, with word counts from `git show <commit>:<path> | wc -w` over the always-loaded files (`AGENTS.md`, `process.md`, the three `team/` files) and all core Markdown (the kit's top level, `team/`, `procedures/`, `templates/`, tool-layer START.md and role-definition files). Word counts are tracked, never a gate. A figure with no verified source reads `unknown`.
+4. Write `<timestamp>-measure-pm-sweep.md`, named per `procedures/session-summary.md`, with the headings of `templates/measurement.md` plus three more:
+   - **Cutoff:** HEAD at the time of the sweep: commit hash and full UTC time.
    - **Running summary:** about 200 words, rewritten each sweep: open proposals and their status, and what to focus on next.
-   - **Proposals:** numbered. Each gives the evidence in the writer's own words, the file it would touch, the expected effect (and expected word change if it edits a file; the actual is reported after it ships) and how it would be measured, or "unmeasured".
+   - **Proposals:** numbered. Each gives the evidence in the writer's own words, the file it would touch, the expected effect (with the expected word change for a file edit) and how it would be measured, or "unmeasured".
 5. Numbers go in Result, with the commit they were taken at. Never copy a number from the previous entry.
 
 ## Safeguards
