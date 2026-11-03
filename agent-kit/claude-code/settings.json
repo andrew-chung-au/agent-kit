@@ -23,7 +23,14 @@
       "Edit(/agent-kit.conf)",
       "Edit(/_docs/specs.md)",
       "Edit(/_docs/agent-kit/**)",
-      "Edit(/.claude/**)"
+      "Edit(/.claude/**)",
+      "Bash(gh issue create *)",
+      "Bash(gh issue comment *)",
+      "Bash(gh issue edit *)",
+      "Bash(gh issue close *)",
+      "Bash(gh issue reopen *)",
+      "Bash(gh issue delete *)",
+      "Bash(gh api *)"
     ],
     "deny": [
       "Read(.env)",

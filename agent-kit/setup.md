@@ -56,6 +56,8 @@ For every row in `blueprints.md`, record **now**, **later** (with its trigger) o
 
 **Readable config.** Set the **Readable config** setting in `AGENTS.md` to `none`. List project config files there only if the human asks, after you check that each holds no secrets.
 
+**GitHub module.** If the project's tasks are GitHub issues and the human wants agents to file issues and post comments through wrappers, propose merging `templates/Makefile.github.mk` into the Makefile (it needs `issue-number-ok` from `templates/Makefile.mk`). For Claude Code, check that the `ask` rules for raw `gh issue` writes are in the settings file.
+
 **Issue form.** If the repository is public or takes issues from outside reporters, propose `templates/github/ISSUE_TEMPLATE/intake.yml`; the human decides whether to install it as `.github/ISSUE_TEMPLATE/intake.yml` at the repo root, like the CI file.
 
 ## 5. Propose and wait

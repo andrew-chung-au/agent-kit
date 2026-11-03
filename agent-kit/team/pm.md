@@ -34,6 +34,6 @@ If the spec looks wrong or incomplete, don't stop for it: add a "Spec notes" lis
 - For parts of the spec with no issue, propose new issues, one deliverable each, in the order they should be built.
 - When the spec has changed, also list open issues it makes out of date, with the edit or closure you suggest.
 
-Show the human the proposal as a list of titles with a one-line goal or reason each. Create, edit or close issues only after approval. New issues are then groomed as usual before anyone implements them.
+Show the human the proposal as a list of titles with a one-line goal or reason each. Create, edit or close issues only after approval. Create with `make issue-create` (`_docs/agent-kit/templates/Makefile.github.mk`, described in `_docs/agent-kit/process.md#issue-comments`); editing or closing waits for the human. New issues are then groomed as usual before anyone implements them.
 
-If you can't reach GitHub from your tool, write the issue text in your reply for the human to paste.
+If `make issue-create` is missing or can't reach GitHub, write the issue text in your reply for the human to paste.
