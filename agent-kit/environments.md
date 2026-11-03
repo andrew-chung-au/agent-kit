@@ -64,7 +64,13 @@ With no Docker, the sandbox can't run the push check end to end; it runs on your
   Keep git on your machine up to date, because fetching from a local folder has had security fixes.
 - **Open the clean clone in VS Code's Restricted Mode,** and don't let direnv or mise load settings there. `.vscode/tasks.json`, `.envrc` and `mise.toml` can run commands when a folder opens. The pre-commit hook asks for approval when an agent changes `.vscode/`, `.envrc` or `.gitmodules` at the repo root, but your review is what catches them.
 - **One Claude login volume per repo is safer.** The reference recipe shares one `claude-config` volume across all sandboxes, so an agent in one sandbox could change Claude settings that every other sandbox uses. Naming the volume `claude-config-${devcontainerId}` gives each repo its own; you then log in once per repo.
-- **Docker isn't available in the container.** A project whose checks need Docker can't run them there, and running them from Ubuntu would run agent code outside the sandbox. Either put that project in a codespace, or give it a Compose-based container recipe, so its services run as separate containers that the agent can reach but can't control.
+- **Docker isn't available in the container.** A project whose checks need Docker can't run them there, and running them from Ubuntu would run agent code outside the sandbox. Either put that project in a codespace, or give it a Compose-based container recipe, so its services run as separate containers that the agent can reach but can't control (see "The Compose variant" below).
+
+### The Compose variant (an app plus a database)
+
+Use `environments/local-sandbox/compose/` when the project's checks need a database. Copy its `devcontainer.json`, `compose.yaml` and `Dockerfile` into `.devcontainer/` from a clean clone, next to the standard `setup.sh`, and replace the placeholders for the sandbox folder, database name, user and password. The agent reaches the Postgres service `db` by name and cannot control Docker: the recipe has no Docker socket and no privileged mode, ever, and the database is not published to the host. The data volume persists on the host until you remove it; you run `docker compose` from the host, after reading the files, never the agent. The Postgres tag and the Compose behaviour are unverified until your first rebuild (the steps are in `_human-tasks/`).
+
+In the push check, the throwaway container has no `db`. Tests that need the database must skip when `DATABASE_URL` is unset, or run in CI against a Postgres service. The trade-off: a skipped test proves nothing locally.
 
 ### Upgrading the kit in the local sandbox
 
