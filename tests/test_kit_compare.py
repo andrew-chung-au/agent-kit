@@ -427,8 +427,13 @@ class MakeTargetTest(Base):
         self.assertIn("(a released kit)", text[:check].rsplit("# ---", 1)[1])
 
     def test_the_target_is_not_part_of_verify_the_hooks_or_the_repo_makefile(self):
-        for path in (KIT / "scripts" / "verify.sh", KIT / "scripts" / "check-staged.sh", REPO / "Makefile"):
+        for path in (KIT / "scripts" / "verify.sh", KIT / "scripts" / "check-staged.sh"):
             self.assertNotIn("kit-compare", path.read_text(encoding="utf-8"), path.name)
+        # The repo Makefile carries the target itself (issue #88), but the gates must not call it.
+        makefile = (REPO / "Makefile").read_text(encoding="utf-8")
+        # Take out the two kit targets' own blocks; no other line of the Makefile may name them.
+        others = re.sub(r"(?m)^kit-(?:check|compare):[^\n]*\n(?:[^\n]+\n)*", "", makefile)
+        self.assertNotIn("kit-compare", others)
         for folder in ("githooks", "claude-code/hooks"):
             for path in (KIT / folder).rglob("*"):
                 if path.is_file():
