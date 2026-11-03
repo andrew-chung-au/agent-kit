@@ -312,6 +312,15 @@ class MakeTargetTest(Base):
         self.assertNotEqual(done.returncode, 0)
         self.assertEqual(gh.calls(), [])
 
+    def test_template_and_repo_check_n_without_expanding_it(self):
+        for path in (REPO / "Makefile", REPO / "agent-kit" / "templates" / "Makefile.mk"):
+            text = path.read_text()
+            target = text[text.index("issue-hash: ## "):].split("\n\n", 1)[0]
+            self.assertIn("$(call issue-number-ok,$(value N))", target, path.name)
+            self.assertIn("Usage: make issue-hash N=<issue number>", target, path.name)
+            self.assertNotIn("$(N)", target, path.name)
+            self.assertLess(text.index("issue-number-ok = "), text.index("issue-hash: ## "), path.name)
+
     def test_template_has_same_target(self):
         text = (REPO / "agent-kit" / "templates" / "Makefile.mk").read_text()
         self.assertRegex(text, r"(?m)^issue-hash: ## ")
@@ -328,6 +337,61 @@ class MakeTargetTest(Base):
             for path in (REPO / "agent-kit" / folder).rglob("*"):
                 if path.is_file():
                     self.assertNotIn("issue-hash", path.read_text(errors="ignore"), str(path))
+
+
+class CraftedNumberTest(Base):
+    """A crafted N runs nothing (issue #57): make used to expand $(N) in the check itself.
+
+    Each case runs in a throwaway copy of the repo Makefile (and of the template) under .scratch/,
+    with the real issue-hash.py and a fake gh first on PATH. The proof is a side effect: MARKER
+    must not exist and the fake gh log must be empty.
+    """
+
+    def project(self, gh, kind):
+        folder = gh.dir / kind
+        kit = "agent-kit" if kind == "repo" else "_docs/agent-kit"
+        source = REPO / "Makefile" if kind == "repo" else REPO / "agent-kit" / "templates" / "Makefile.mk"
+        (folder / kit / "scripts").mkdir(parents=True)
+        shutil.copy(SCRIPT, folder / kit / "scripts" / "issue-hash.py")
+        (folder / "Makefile").write_text(source.read_text())
+        return folder
+
+    def run_make(self, gh, folder, value):
+        return subprocess.run(["make", "--no-print-directory", "issue-hash", "N=" + value], env=gh.env(),
+                              stdin=subprocess.DEVNULL, capture_output=True, text=True, cwd=folder)
+
+    def test_crafted_numbers_create_no_marker_and_call_no_gh(self):
+        crafted = ["$(shell touch MARKER)", "$(touch MARKER)", "`touch MARKER`", "1; touch MARKER",
+                   "1 $(shell touch MARKER)", "$(file >MARKER,x)", "1$(shell touch MARKER)"]
+        for kind in ("repo", "template"):
+            for value in crafted:
+                with self.subTest(kind=kind, n=value):
+                    gh = self.fake(issue_json())
+                    folder = self.project(gh, kind)
+                    done = self.run_make(gh, folder, value)
+                    self.assertNotEqual(done.returncode, 0)
+                    self.assertIn("Usage: make issue-hash N=<issue number>", done.stderr)
+                    self.assertFalse((folder / "MARKER").exists(), "the crafted N ran a command")
+                    self.assertEqual(gh.calls(), [], "gh was called")
+
+    def test_the_usual_refused_numbers_still_call_no_gh(self):
+        for kind in ("repo", "template"):
+            for value in ("", "0", "007", "-1", "1e3", "1.5", "1 2", "1234567890", "--help"):
+                with self.subTest(kind=kind, n=value):
+                    gh = self.fake(issue_json())
+                    done = self.run_make(gh, self.project(gh, kind), value)
+                    self.assertNotEqual(done.returncode, 0)
+                    self.assertEqual(gh.calls(), [])
+
+    def test_a_valid_number_still_reaches_issue_hash_py(self):
+        for kind in ("repo", "template"):
+            with self.subTest(kind=kind):
+                gh = self.fake(issue_json("Body", "me"), repo_json("me"))
+                done = self.run_make(gh, self.project(gh, kind), "13")
+                self.assertEqual(done.returncode, 0, done.stderr)
+                self.assertRegex(done.stdout, r"(?m)^Body sha256: [0-9a-f]{64}$")
+                self.assertEqual(gh.calls(), ["issue view 13 --json body,author", "repo view --json owner",
+                                              "issue view 13 --json comments"])
 
 
 class PhraseTest(unittest.TestCase):
