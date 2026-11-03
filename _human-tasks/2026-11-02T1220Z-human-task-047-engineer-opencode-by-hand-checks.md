@@ -2,6 +2,8 @@
 
 ## Purpose
 
+**Status (2026-11-03): only steps 10 and 11 are outstanding.** The human already ran steps 1 to 9 on 2026-11-02 (OpenCode 1.19.5); their results are in the "Recorded" lines below and on #47. Do not run them again unless OpenCode has been upgraded since 1.19.5. Steps 10 and 11 have never been run in a real session.
+
 Repeat the by-hand permission checks recorded for #47, plus the two spot-checks that only tests have covered, so a later OpenCode upgrade can be compared with the 2026-11-02 results. Issue: #47 (closed); written under #50. The evidence is in the `Orchestrator:` comments on #47 and `agent-kit/opencode/START.md` ("Permission rules"); this file holds only the steps.
 
 ## Where to run it
