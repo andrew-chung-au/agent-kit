@@ -48,6 +48,16 @@
           }
         ]
       }
+    ],
+    "PermissionRequest": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR\"/agent-kit/claude-code/hooks/log_permission.py"
+          }
+        ]
+      }
     ]
   },
   "attribution": {
