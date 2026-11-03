@@ -43,7 +43,9 @@ class TierCheckBase(KitTestCase):
 
     def append(self, rel, n):
         p = self.repo / rel
-        p.write_text(p.read_text(encoding="utf-8") + "".join("more %d\n" % i for i in range(n)), encoding="utf-8")
+        # A comment line, not a bare word: agent-kit.conf is sourced as shell by check-tier.sh,
+        # and a line like `more 0` there ran the pager, which waited on stdin forever (#59).
+        p.write_text(p.read_text(encoding="utf-8") + "".join("# more %d\n" % i for i in range(n)), encoding="utf-8")
 
     def refused(self, r, *names, absent=()):
         self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
@@ -85,6 +87,15 @@ class TierCheckTest(TierCheckBase):
             with self.subTest(path=path):
                 self.append(path, 1)
                 self.refused(self.tier(), path)
+
+    def test_appended_lines_are_comments_so_the_sourced_conf_runs_nothing(self):
+        # check-tier.sh sources agent-kit.conf as shell; a bare word there ran a command (#59).
+        before = (self.repo / "agent-kit.conf").read_text(encoding="utf-8")
+        self.append("agent-kit.conf", 3)
+        added = (self.repo / "agent-kit.conf").read_text(encoding="utf-8")[len(before):].splitlines()
+        self.assertEqual(len(added), 3)
+        for line in added:
+            self.assertTrue(line.startswith("#"), line)
 
     def test_a_markdown_test_file_is_refused(self):
         self.append("tests/notes.md", 1)
@@ -264,6 +275,35 @@ class TierCheckUsageTest(KitTestCase):
         r = self.run_cmd(["bash", script], env=env)
         self.assertEqual(r.returncode, 2)
         self.assertFalse((self.work / "git-called").exists(), "git ran before the usage check")
+
+
+class RunCmdGuardTest(KitTestCase):
+    """The shared helper cannot hang a test (#59): a timeout, and stdin from /dev/null."""
+
+    def test_a_command_over_the_timeout_fails_naming_the_command(self):
+        with self.assertRaises(self.failureException) as caught:
+            self.run_cmd(["sleep", "5"], timeout=1)
+        message = str(caught.exception)
+        self.assertIn("timed out after 1", message)
+        self.assertIn("sleep 5", message)
+        self.assertNotIn(str(self.env["HOME"]), message, "the environment must not be shown")
+
+    def test_the_timeout_message_carries_what_the_command_printed(self):
+        with self.assertRaises(self.failureException) as caught:
+            self.run_cmd(["sh", "-c", "echo partial-output; sleep 5"], timeout=1)
+        self.assertIn("partial-output", str(caught.exception))
+
+    def test_the_default_timeout_is_sixty_seconds(self):
+        self.assertEqual(self.CMD_TIMEOUT, 60)
+
+    def test_a_command_that_reads_stdin_ends_instead_of_waiting(self):
+        r = self.run_cmd(["cat"])
+        self.assertEqual((r.returncode, r.stdout), (0, ""))
+
+    def test_explicit_stdin_still_works(self):
+        r = self.run_cmd(["cat"], stdin="given text\n")
+        self.assertEqual((r.returncode, r.stdout), (0, "given text\n"))
+
 
 
 if __name__ == "__main__":
