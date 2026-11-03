@@ -32,7 +32,7 @@ What a project using this kit should have, when each piece applies, and how to c
 | `tier-check` target | The project's tasks are GitHub issues and it uses the tiers | Project `Makefile` | `templates/Makefile.mk`, running `scripts/check-tier.sh` |
 | Tier labels `tier:light`, `tier:standard`, `tier:heavy` | The project's tasks are GitHub issues and it uses the tiers | The repository's labels; the human creates them, agents never do | `process.md`, Tiers |
 | Sweep procedure and skill | The project wants periodic reflection and measures | `procedures/sweep.md`; the skill in `.claude/skills/sweep/` or `.opencode/skills/sweep/` | `procedures/sweep.md`, `claude-code/skills/`, `opencode/skills/` |
-| Sweep entries | The first sweep | `_docs/measurements/`, listed in `_docs/index.md` | `procedures/sweep.md`, `templates/measurement.md` |
+| Sweep entries | The first sweep | `_docs/records/`, listed in `_docs/index.md` | `procedures/sweep.md`, `templates/measurement.md` |
 | Long-running process procedure | The project has a long-running process that agents start and stop (see the start and stop targets) | Read through the "Read when" trigger in `AGENTS.md` | `procedures/processes.md` |
 | Orchestrator comment layouts | The project's tasks are GitHub issues and an orchestrator writes claim, release, confirm and close comments | Read through the "Read when" trigger in `AGENTS.md` | `procedures/orchestrator-comments.md` |
 | Stub setting for external processes | The project's code starts a paid or external process (an AI agent, a cloud service) | The project's own configuration | Added by the Engineer with the feature; see below |
