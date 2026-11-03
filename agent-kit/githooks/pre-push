@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# agent-kit-hooks-version: 2
+# agent-kit-hooks-version: 3
 # Repo-wide pre-push dispatcher, installed at <repo root>/.githooks by `make hooks`.
 # For each folder with changes in the commits being pushed that has adopted the
 # agent kit (contains agent-kit.conf), runs `make verify` and blocks the push on
@@ -38,8 +38,9 @@ while read -r local_ref local_sha remote_ref remote_sha; do
     base="$(git rev-parse -q --verify "$oldest^" || echo "$empty_tree")"
   fi
 
-  projects="$(git diff --name-only --no-renames "$base" "$local_sha" |
-    while IFS= read -r f; do find_project "$f"; done | sort -u)"
+  # -z: NUL-delimited, so a name git would quote (non-ASCII, double quote) is the real path
+  projects="$(git diff --name-only --no-renames -z "$base" "$local_sha" |
+    while IFS= read -r -d '' f; do find_project "$f"; done | sort -u)"
   [ -z "$projects" ] && continue
 
   if [ "$local_sha" != "$head" ]; then

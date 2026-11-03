@@ -59,8 +59,9 @@ def main() -> None:
         payload = {}
     os.chdir(os.environ.get("CLAUDE_PROJECT_DIR", "."))
 
-    untracked = [p for p in git("ls-files", "--others", "--exclude-standard", "--", ".").splitlines() if p]
-    changed = [p for p in git("diff", "--name-only", "--relative", base(), "--", ".").splitlines() if p] + untracked
+    # -z: NUL-delimited, so a name git would quote (non-ASCII, double quote) is the real path
+    untracked = [p for p in git("ls-files", "--others", "--exclude-standard", "-z", "--", ".").split("\0") if p]
+    changed = [p for p in git("diff", "--name-only", "--relative", "-z", base(), "--", ".").split("\0") if p] + untracked
     if not changed or all(p.endswith(".md") for p in changed):
         sys.exit(0)
 
