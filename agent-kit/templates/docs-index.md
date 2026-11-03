@@ -13,6 +13,8 @@ No front matter; metadata lives here.
 
 Write once, link elsewhere: log entries link to stable decisions. The README holds one headline result and its limit, no run tables.
 
+A copy is allowed only if the reader would otherwise have to follow a link before acting, and the copy names its source and has a check or a named sync step. Otherwise, link.
+
 Word limits are defaults a project may change: README 300 words; this index 200 words plus one row per entry type.
 
 ## Entry types
