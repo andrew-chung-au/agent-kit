@@ -2,7 +2,7 @@
 
 ## Purpose
 
-**Status (2026-11-03): only steps 10 and 11 are outstanding.** The human already ran steps 1 to 9 on 2026-11-02 (OpenCode 1.19.5); their results are in the "Recorded" lines below and on #47. Do not run them again unless OpenCode has been upgraded since 1.19.5. Steps 10 and 11 have never been run in a real session.
+**Status (2026-11-03): nothing is outstanding.** The human ran steps 1 to 9 on 2026-11-02 (OpenCode 1.19.5) and steps 10 and 11 on 2026-11-03; the results are in the "Recorded" lines below and on #47. Step 11 prompted as expected. Step 10 could not be exercised: the agent refused by judgment before the rule was reached, so the `git commit --no-v*` rule stays covered by tests only. Run the file again only after an OpenCode upgrade.
 
 Repeat the by-hand permission checks recorded for #47, plus the two spot-checks that only tests have covered, so a later OpenCode upgrade can be compared with the 2026-11-02 results. Issue: #47 (closed); written under #50. The evidence is in the `Orchestrator:` comments on #47 and `agent-kit/opencode/START.md` ("Permission rules"); this file holds only the steps.
 
@@ -143,7 +143,7 @@ Risk: this safe variant prints help text only. The real command `gh auth token` 
 git commit --no-veri -m x
 ```
 
-Expected: denied (covered by tests only; never run in a real session). Recorded: none yet.
+Expected: denied (covered by tests only). Recorded 2026-11-03: not exercised. The agent refused by its own judgment before the rule was reached ("--no-veri abbreviates --no-verify, a hook bypass, which AGENTS.md forbids in a live command"). An agent that follows AGENTS.md will always do this, so the rule cannot be reached through such an agent; the OpenCode version was not recorded.
 If different: stop, and tell the orchestrator what was printed.
 Risk: if the rule fails and you approve, a commit named `x` is made with the hooks skipped (nothing is committed when nothing is staged). Undo: `git reset --soft HEAD~1`.
 
@@ -153,7 +153,7 @@ Risk: if the rule fails and you approve, a commit named `x` is made with the hoo
 git difftool
 ```
 
-Expected: a prompt (covered by tests only; never run in a real session). Recorded: none yet.
+Expected: a prompt (covered by tests only). Recorded 2026-11-03: prompted ("Permission required", shell command `git difftool`); the OpenCode version was not recorded.
 If different: stop, and tell the orchestrator what was printed.
 Risk: if you approve the prompt, git may start a configured diff tool. Reject it.
 
