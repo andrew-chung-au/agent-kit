@@ -30,7 +30,7 @@ This is read-only. Run it from the throwaway folder's root on the host.
 docker compose -f .devcontainer/compose.yaml config
 ```
 
-Expected: the merged config prints with no error, shows `postgres:16.4` for `db`, a `pgdata` volume, and no `ports` under `db`.
+Expected: the merged config prints with no error, shows `postgres:16.15` for `db`, a `pgdata` volume, and no `ports` under `db`.
 If different: stop and tell the orchestrator what was printed (the Postgres tag is unverified).
 
 ### Step 2: Rebuild the dev container and check the database is healthy.
@@ -107,7 +107,7 @@ If different: stop and tell the orchestrator what was printed.
 
 ## Record the result
 
-Paste the output or write pass or fail for each step. Commit this file with the result so a later run can compare. Results contain no secrets either. Also record whether the Postgres tag `16.4` exists and whether a newer 16.x patch is preferable, whether `mounts` and `features` applied on the Compose service, and whether `workspaceFolder` plus the `..` mount produced the expected path.
+Paste the output or write pass or fail for each step. Commit this file with the result so a later run can compare. Results contain no secrets either. Also record whether the Postgres tag `16.15` exists on Docker Hub (the release was published 2026-08-13; the image tag is unverified) and whether a newer 16.x patch is available, whether `mounts` and `features` applied on the Compose service, and whether `workspaceFolder` plus the `..` mount produced the expected path.
 
 | Step | Pass or fail | Output or note |
 |---|---|---|

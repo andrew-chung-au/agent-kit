@@ -243,7 +243,7 @@ class ComposeLimitsTest(unittest.TestCase):
         self.assertEqual(sorted(blocks), ["app", "db"])
         self.assertEqual(list_items_under(blocks["app"], "volumes"), ["..:/workspaces/<folder>"])
         self.assertEqual(list_items_under(blocks["db"], "volumes"), ["pgdata:/var/lib/postgresql/data"])
-        self.assertIn("image: postgres:16.4", self.text)
+        self.assertIn("image: postgres:16.15", self.text)
 
     def test_comments_that_name_the_forbidden_things_are_not_flagged(self):
         self.assertIn("privileged", self.text)  # the header comment names it
@@ -274,9 +274,9 @@ class ComposeLimitsTest(unittest.TestCase):
             "workspace mounted elsewhere": t.replace("..:/workspaces/<folder>", "..:/mnt/work"),
             "initializeCommand": t + "initializeCommand: echo hi\n",
             "long-form bind": t.replace("      - ..:/workspaces/<folder>\n", "      - type: bind\n        source: ..\n        target: /w\n"),
-            "bare postgres image": t.replace("image: postgres:16.4", "image: postgres"),
-            "latest postgres image": t.replace("image: postgres:16.4", "image: postgres:latest"),
-            "major-only postgres tag": t.replace("image: postgres:16.4", "image: postgres:16"),
+            "bare postgres image": t.replace("image: postgres:16.15", "image: postgres"),
+            "latest postgres image": t.replace("image: postgres:16.15", "image: postgres:latest"),
+            "major-only postgres tag": t.replace("image: postgres:16.15", "image: postgres:16"),
             "no health check": re.sub(r"    healthcheck:\n(?:      .*\n)+", "", t),
             "no wait for health": t.replace("condition: service_healthy", "condition: service_started"),
             "no data volume declared": t.replace("\nvolumes:\n  pgdata:\n", "\n"),
