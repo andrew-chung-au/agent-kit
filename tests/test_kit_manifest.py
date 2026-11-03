@@ -25,6 +25,26 @@ GENERATOR = KIT / "scripts" / "kit-manifest.py"
 CHECK = KIT / "scripts" / "kit-check.py"
 ENTRY = re.compile(r"[0-9a-f]{64}  (644|755)  .+")
 
+# One file name per character the scan refuses (issue #87). Built from escapes, so no invisible
+# character sits in this file.
+REFUSED_NAMES = {
+    "U+2028 line separator": "a\u2028b.md",
+    "U+2029 paragraph separator": "a\u2029b.md",
+    "U+202E right-to-left override": "a\u202eb.md",
+    "U+202A left-to-right embedding": "a\u202ab.md",
+    "U+2066 left-to-right isolate": "a\u2066b.md",
+    "U+200B zero-width space": "a\u200bb.md",
+    "U+FEFF byte order mark": "a\ufeffb.md",
+    "U+0085 next line (C1)": "a\x85b.md",
+    "U+061C Arabic letter mark": "a\u061cb.md",
+    "U+2060 word joiner": "a\u2060b.md",
+    "U+007F delete": "a\x7fb.md",
+    "in a sub-folder": "sub/folder/a\u202eb.md",
+    "in a folder name": "dir\u2028x/ok.md",
+}
+# Ordinary non-ASCII names stay accepted: accented Latin letters and CJK.
+ACCEPTED_NAMES = ["caf\u00e9.md", "\u65e5\u672c\u8a9e.md", "na\u00efve/r\u00e9sum\u00e9.md"]
+
 
 def sha(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
@@ -204,6 +224,58 @@ class GeneratorRefusalTest(Base):
         done = subprocess.run([sys.executable, "-B", str(GENERATOR), str(self.kit)], capture_output=True, text=True)
         self.assertEqual(done.returncode, 2)
         self.assertFalse((self.kit / "MANIFEST.sha256").exists())
+
+
+class InvisibleNameTest(Base):
+    """A kit file name cannot change how a list or message is read (issue #87).
+
+    The scan is `kit_files` in kit-manifest.py; kit-check and kit-compare call it too.
+    """
+
+    def assert_one_line_refusal(self, done, name):
+        self.assertEqual(done.returncode, 2, done.stdout + done.stderr)
+        self.assertEqual(done.stdout, "")
+        self.assertEqual(done.stderr.count("\n"), 1, done.stderr)
+        self.assertIn("control character", done.stderr)
+        self.assertIn(repr(name), done.stderr)
+        for char in name:
+            if ord(char) > 0x7E or ord(char) < 0x20:
+                self.assertNotIn(char, done.stderr, "the raw character must never be printed")
+
+    def remove(self, name):
+        top = self.kit / name.split("/")[0]
+        shutil.rmtree(top) if "/" in name else top.unlink()
+
+    def test_the_manifest_refuses_each_name_and_writes_nothing(self):
+        for label, name in REFUSED_NAMES.items():
+            with self.subTest(name=label):
+                self.write(name)
+                try:
+                    self.assert_one_line_refusal(self.generate(), name)
+                    self.assertFalse((self.kit / "MANIFEST.sha256").exists())
+                finally:
+                    self.remove(name)
+
+    def test_kit_check_refuses_each_name_and_prints_only_the_reason(self):
+        self.released()
+        self.conf('KIT_VERSION="1.9"\n')
+        for label, name in REFUSED_NAMES.items():
+            with self.subTest(name=label):
+                self.write(name)
+                try:
+                    self.assert_one_line_refusal(self.check(), name)
+                finally:
+                    self.remove(name)
+
+    def test_ordinary_non_ascii_names_are_still_listed_with_their_exact_bytes(self):
+        for name in ACCEPTED_NAMES:
+            self.write(name, "ordinary\n")
+        self.released()
+        entries = {line.split("  ", 2)[2] for line in self.manifest().split("\n")[1:-1]}
+        for name in ACCEPTED_NAMES:
+            with self.subTest(name=name):
+                self.assertIn(name, entries)
+        self.assertIn("caf\u00e9.md".encode("utf-8"), (self.kit / "MANIFEST.sha256").read_bytes())
 
 
 class CheckLinesTest(Base):
