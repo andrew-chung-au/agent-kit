@@ -19,4 +19,4 @@ One or two sentences on what should be true when this is done.
 - Libraries to use
 - Guidelines to follow
 - Fixed text or values, and where each comes from (the spec, outside material, or a grooming decision)
-- Proposed tier: light, standard or heavy, with a one-line reason and the paths the change is expected to touch (a proposal; the human's `tier:` label decides)
+- Proposed tier: light, standard or heavy, with a one-line reason and the paths the change is expected to touch (a proposal; `approved` approves a Standard or Heavy one, a Light one needs the human's `tier:light` label, and a `tier:` label overrides)
