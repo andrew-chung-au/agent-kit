@@ -8,6 +8,7 @@ No front matter; metadata lives here.
 | A choice that may be revisited, with reasons and alternatives | a decision record | a record, a plan |
 | Exact commands, numbers, full tables and caveats | a record | the README |
 | One headline result and its limit, owned by the owner | the README, linking to the record | run tables |
+| Proof for a decision (results, review, discussion) | where it was first recorded (issue, pull request or a record), linked from the decision | a copy in the decision record |
 | Anything stable and long-lived | a canonical doc | a log entry |
 
 Write once, link elsewhere: log entries link to stable decisions. The README holds one headline result and its limit, no run tables.
