@@ -534,5 +534,121 @@ class BashTemplateDecisionTest(unittest.TestCase):
         self.assertEqual(self.decide("git diff --output-indicator-new=x"), "allow")
 
 
+# ---- Issue #44: the issue-create and issue-comment wrappers -------------------
+# No new allow rule is added: `make *` already covers the wrappers, which is why
+# the validation lives in the make targets and scripts. Raw `gh` writes stay
+# approval-gated in both tools, and an explicit `ask` entry keeps them so after a
+# later broad allow. These are configuration checks under this file's models.
+
+WRAPPER_COMMANDS = [
+    "make issue-create FILE=.scratch/x.md",
+    "make issue-comment N=1 FILE=.scratch/x.md",
+]
+RAW_ISSUE_WRITES = [
+    "gh issue create", "gh issue create --title x --body-file -", "gh issue comment 5",
+    "gh issue comment 5 --body-file -", "gh issue edit 5 --title x", "gh issue close 5",
+    "gh issue close 5 --reason completed", "gh issue reopen 5", "gh issue delete 5 --yes",
+    "gh api repos/o/r/issues/5/labels", "gh api -X POST repos/o/r/issues", "gh api graphql",
+]
+CLAUDE_GH_ASKS = [
+    "Bash(gh issue create *)", "Bash(gh issue comment *)", "Bash(gh issue edit *)",
+    "Bash(gh issue close *)", "Bash(gh issue reopen *)", "Bash(gh issue delete *)", "Bash(gh api *)",
+]
+OPENCODE_GH_ASKS = [
+    "gh issue create*", "gh issue comment*", "gh issue edit*", "gh issue close*",
+    "gh issue reopen*", "gh issue delete*", "gh api*",
+]
+
+
+def claude_decision_with(extra_allow: list, tool: str, value: str) -> str:
+    """The Claude Code model with extra allow rules added (a later broad allow)."""
+    for decision, rules in (("deny", CLAUDE.get("deny", [])), ("ask", CLAUDE.get("ask", [])),
+                            ("allow", CLAUDE.get("allow", []) + extra_allow)):
+        if any(claude_matches(rule, tool, value) for rule in rules):
+            return decision
+    return "ask"
+
+
+def opencode_decision_with(broad_allow: str, value: str) -> str:
+    """The OpenCode model with a broad allow inserted right after the general `*` rule."""
+    rules = list(BASH.items())
+    rules.insert(1, (broad_allow, "allow"))
+    decision = "ask"
+    for pattern, action in rules:
+        if wildcard(pattern, value):
+            decision = action
+    return decision
+
+
+class IssueWrapperPermissionTest(unittest.TestCase):
+    def test_wrapper_commands_are_allowed_in_claude_code(self):
+        for command in WRAPPER_COMMANDS:
+            self.assertEqual(claude_decision("Bash", command), "allow", command)
+
+    def test_wrapper_commands_are_allowed_in_opencode(self):
+        for command in WRAPPER_COMMANDS:
+            self.assertEqual(opencode_decision("bash", command), "allow", command)
+
+    def test_the_wrappers_are_covered_by_the_existing_make_rule_not_a_new_one(self):
+        self.assertIn("Bash(make *)", CLAUDE["allow"])
+        self.assertEqual(BASH["make *"], "allow")
+        for command in WRAPPER_COMMANDS:
+            self.assertEqual([r for r in CLAUDE["allow"] if claude_matches(r, "Bash", command)], ["Bash(make *)"])
+            self.assertEqual([p for p, a in BASH.items() if a == "allow" and wildcard(p, command)], ["make *"])
+        for rule in CLAUDE["allow"] + list(BASH):
+            self.assertNotIn("issue-create", rule)
+            self.assertNotIn("issue-comment", rule)
+
+    def test_no_allow_rule_matches_a_raw_issue_write_in_claude_code(self):
+        for command in RAW_ISSUE_WRITES:
+            self.assertEqual([r for r in CLAUDE["allow"] if claude_matches(r, "Bash", command)], [], command)
+            self.assertEqual(claude_decision("Bash", command), "ask", command)
+
+    def test_no_allow_rule_matches_a_raw_issue_write_in_opencode(self):
+        for command in RAW_ISSUE_WRITES:
+            self.assertEqual([p for p, a in BASH.items() if a == "allow" and wildcard(p, command)], [], command)
+            self.assertEqual(opencode_decision("bash", command), "ask", command)
+
+    def test_claude_code_lists_the_raw_writes_under_ask(self):
+        for rule in CLAUDE_GH_ASKS:
+            self.assertIn(rule, CLAUDE["ask"])
+            self.assertNotIn(rule, CLAUDE["allow"])
+            self.assertNotIn(rule, CLAUDE["deny"])
+
+    def test_opencode_lists_the_raw_writes_under_ask_after_the_general_rule_and_every_allow(self):
+        last_allow = max(KEYS.index(k) for k in ALLOW_KEYS)
+        for pattern in OPENCODE_GH_ASKS:
+            self.assertEqual(BASH[pattern], "ask", pattern)
+            self.assertGreater(KEYS.index(pattern), KEYS.index("*"), pattern)
+            self.assertGreater(KEYS.index(pattern), last_allow, pattern)
+
+    def test_the_asks_survive_a_later_broad_allow(self):
+        for command in RAW_ISSUE_WRITES:
+            for broad in ("Bash(gh *)", "Bash(gh issue *)", "Bash(*)"):
+                self.assertEqual(claude_decision_with([broad], "Bash", command), "ask", (broad, command))
+            for broad in ("gh *", "gh issue*", "*"):
+                self.assertEqual(opencode_decision_with(broad, command), "ask", (broad, command))
+
+    def test_the_wrappers_themselves_are_not_caught_by_those_asks(self):
+        for command in WRAPPER_COMMANDS:
+            self.assertEqual(claude_decision_with([], "Bash", command), "allow")
+            for rule in CLAUDE["ask"]:
+                self.assertFalse(claude_matches(rule, "Bash", command), (rule, command))
+            for pattern in OPENCODE_GH_ASKS:
+                self.assertFalse(wildcard(pattern, command), (pattern, command))
+
+    def test_editing_and_closing_an_issue_have_no_allow_rule_in_either_tool(self):
+        words = ("issue create", "issue comment", "issue edit", "issue close", "issue reopen",
+                 "issue delete", "gh api", "gh *", "gh issue *", "gh issue*")
+        allows = list(CLAUDE["allow"]) + [k for k in ALLOW_KEYS]
+        for rule in allows:
+            for word in words:
+                self.assertNotIn(word, rule, rule)
+        self.assertEqual(sorted(r for r in CLAUDE["allow"] if "gh issue" in r),
+                         ["Bash(gh issue list *)", "Bash(gh issue view *)"])
+        self.assertEqual(sorted(k for k in ALLOW_KEYS if k.startswith("gh issue")),
+                         ["gh issue list*", "gh issue view*"])
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -33,6 +33,7 @@ Mid-project changes and new versions (v2) work the same way: revise the spec, th
 
 - Start every issue comment with your role (`PM:`, `Engineer:`, `QA:` or `Orchestrator:`). All roles usually share one GitHub account, so the label is the only way to tell them apart.
 - Never edit or delete an existing comment; post a new one. Other roles' comments are part of the record.
+- File an issue with `make issue-create FILE=.scratch/<name>.md` (first line `Title: <text>`, a blank line, then the body) and post a comment with `make issue-comment N=<number> FILE=.scratch/<name>.md`; both are in `_docs/agent-kit/templates/Makefile.github.mk`. They refuse text that looks like a secret, post no labels, and comment only on an `approved` or owner-authored issue. Editing or closing an issue asks the human.
 
 ## Roles
 
