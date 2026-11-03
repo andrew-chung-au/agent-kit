@@ -41,8 +41,8 @@ class TierProposalTest(unittest.TestCase):
         self.assert_all(self.tiers, [
             "`approved` approves a raising proposal",
             "With `approved` and no tier label, the tier is the highest of Standard and the "
-            "proposal",
-            "no `Proposed tier:` line there means Standard",
+            "`Proposed tier:` line",
+            "none means Standard",
         ])
 
     def test_light_proposal_without_label_is_refused(self):
@@ -55,21 +55,29 @@ class TierProposalTest(unittest.TestCase):
 
     def test_proposal_with_a_different_hash_is_refused(self):
         self.assert_all(self.tiers, [
-            "the proposal in the first owner `PM:` comment that records the approved "
-            "`Body sha256:`",
+            "the `Proposed tier:` line in the first owner `PM:` comment that has one and names "
+            "the approved `Body sha256:`; none means Standard",
         ])
 
     def test_later_pm_comment_cannot_change_the_tier(self):
         self.assert_all(self.tiers, [
-            "Later `PM:` comments, even with the same hash, cannot change it, and a changed "
-            "body needs a new hash record",
+            "later comments change nothing; a changed body needs a new hash record",
         ])
+
+    def test_hash_re_record_without_a_proposal_does_not_erase_it(self):
+        # QA on #92 at 01c2153: the PM re-records the hash on its own line with no
+        # `Proposed tier:` line. Reading "the first comment that records the hash" would
+        # take that re-record and turn an unlabelled Heavy proposal into Standard.
+        self.assert_all(self.tiers, [
+            "Hash re-records without that line and later comments change nothing",
+        ])
+        self.assertNotIn("first owner `PM:` comment that records the approved", self.tiers)
 
     def test_same_hash_rule_does_not_clash_with_latest_hash_line_wins(self):
         # "The latest valid line wins" (Approved text) picks the hash; the proposal is read
-        # from the first comment that records that hash, so the two sentences agree.
+        # from the first comment with a `Proposed tier:` line for that hash, so they agree.
         self.assertIn("the latest valid line wins", self.text)
-        self.assertIn("first owner `PM:` comment that records the approved", self.tiers)
+        self.assertIn("first owner `PM:` comment that has one and names the approved", self.tiers)
         self.assertNotIn("A later comment cannot change it", self.tiers)
 
     def test_tier_in_body_or_other_comment_is_ignored(self):
@@ -111,11 +119,14 @@ class TierProposalTest(unittest.TestCase):
 
     def test_orchestrator_states_the_tier_before_launch(self):
         self.assert_all(self.lifecycle, [
-            "Read the labels and the matching `PM:` comment, state the effective tier in your "
-            "message, and post an `Orchestrator:` comment naming the tier and \"from the PM "
-            "proposal\" when no label sets it",
+            "Read the labels and the matching `PM:` comment, state the effective tier, and when "
+            "the tier comes from the PM proposal rather than a label, post an `Orchestrator:` "
+            "comment naming it \"from the PM proposal\"",
             "The orchestrator reads the effective tier but never decides one",
         ])
+        # Decision 3: no "from the PM proposal" comment for a plain Standard issue with no
+        # proposal, so the trigger is the proposal, not the missing label.
+        self.assertNotIn("\"from the PM proposal\" when no label sets it", self.lifecycle)
 
     def test_no_script_computes_the_tier(self):
         self.assert_all(self.tiers, ["No script or hook computes the tier"])
