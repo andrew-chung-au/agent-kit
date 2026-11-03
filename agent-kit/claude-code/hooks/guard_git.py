@@ -22,8 +22,8 @@ Known gaps in the `.env` block (documented, not fixed): indirection the parser c
 see (globs such as `cat .e*`, variables such as `f=.env; cat $f`, `bash -c "cat .env"`
 and `sh -c` where the name sits inside one quoted token, `python3 -c "open('.env')"`,
 `xargs`, `find -exec`, reading the file through any other tool), and a command that
-never names the file but reads it (`cat *` in a folder that has `.env`). OpenCode has
-no such guard until #13.
+never names the file but reads it (`cat *` in a folder that has `.env`). OpenCode's
+template denies `.env` shell commands by a text pattern instead (not a boundary).
 """
 from __future__ import annotations
 
