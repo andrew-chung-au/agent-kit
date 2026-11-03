@@ -15,7 +15,7 @@ from kit_repo import KIT, new_workdir
 
 TEMPLATE = KIT / "templates" / "Makefile.mk"
 TOOLS = ("git", "gh", "node", "npm", "python3", "uv", "docker")
-MAKE = shutil.which("make")
+MAKE = shutil.which("make") or "make"
 
 
 def recipe_text():
@@ -25,7 +25,6 @@ def recipe_text():
     return "\n".join(ln for ln in block.splitlines() if ln.startswith("\t"))
 
 
-@unittest.skipUnless(MAKE, "make is not installed")
 class ToolVersionsTest(unittest.TestCase):
     def setUp(self):
         self.work = new_workdir(prefix="tool-versions-")

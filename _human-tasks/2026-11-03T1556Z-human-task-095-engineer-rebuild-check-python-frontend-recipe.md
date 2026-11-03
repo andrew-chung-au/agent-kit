@@ -48,7 +48,7 @@ If different: write what was printed in the table; the expected value is only a 
 uv --version
 ```
 
-Expected: `uv 0.13.1`.
+Expected: `uv 0.13.6`.
 If different: stop and tell the orchestrator what was printed.
 
 ### Step 4: Check the nvm version.

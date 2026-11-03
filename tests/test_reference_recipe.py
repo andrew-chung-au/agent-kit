@@ -26,7 +26,7 @@ NODE_FEATURE = "ghcr.io/devcontainers/features/node:2"
 GH_FEATURE = "ghcr.io/devcontainers/features/github-cli:1"
 NODE_PIN = "24.22.0"
 NVM_PIN = "0.40.8"
-UV_PIN = "0.13.1"
+UV_PIN = "0.13.6"
 PATH_VALUE = "${containerEnv:PATH}:/home/vscode/.local/bin:/home/vscode/.opencode/bin"
 
 
@@ -130,6 +130,10 @@ class PinsTest(unittest.TestCase):
         self.assertEqual(pins, {UV_PIN})
         ci = CI_TEMPLATE.read_text(encoding="utf-8")
         self.assertEqual(re.findall(r'(?m)^\s*#\s+version: "([^"]+)"', ci), [UV_PIN])
+
+    def test_the_uv_pin_is_not_older_than_the_tls_root_fix(self):
+        """uv before 0.13.4 bundles a withdrawn TLS root (GHSA-hq85-5cpj-mr62)."""
+        self.assertGreaterEqual(tuple(int(n) for n in UV_PIN.split(".")), (0, 13, 4))
 
     def test_ci_template_node_pin_equals_the_feature_version(self):
         feature = json.loads(RECIPE.read_text(encoding="utf-8"))["features"][NODE_FEATURE]["version"]

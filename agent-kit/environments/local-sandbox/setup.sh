@@ -29,11 +29,12 @@ fi
 command -v opencode >/dev/null || curl -fsSL https://opencode.ai/install | bash
 command -v claude >/dev/null || curl -fsSL https://claude.ai/install.sh | bash
 
-# uv at a pinned version (unverified pin). Safe to re-run on a rebuilt container:
+# uv at a pinned version (unverified pin). Not older than 0.13.4: earlier versions bundle
+# a TLS root that was withdrawn (GHSA-hq85-5cpj-mr62). Safe to re-run on a rebuilt container:
 # the install runs only when uv is missing or is another version.
 case "$(uv --version 2>/dev/null || true)" in
-  "uv 0.13.1"*) ;;
-  *) pipx install --force uv==0.13.1 ;;
+  "uv 0.13.6"*) ;;
+  *) pipx install --force uv==0.13.6 ;;
 esac
 
 # Node at a pinned version. The Node feature installs it under nvm; put its bin

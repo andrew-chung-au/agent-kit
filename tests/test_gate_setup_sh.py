@@ -85,7 +85,7 @@ class AllowedTest(SetupCase):
         self.assertIn("Setup complete", r.stdout)
         # uv is installed with the pinned version, then corepack is disabled, in that order.
         calls = self.calls()
-        pipx = [i for i, c in enumerate(calls) if c.startswith("pipx install") and "uv==0.13.1" in c]
+        pipx = [i for i, c in enumerate(calls) if c.startswith("pipx install") and "uv==0.13.6" in c]
         corepack = [i for i, c in enumerate(calls) if c == "corepack disable"]
         self.assertEqual(len(pipx), 1, calls)
         self.assertEqual(len(corepack), 1, calls)
