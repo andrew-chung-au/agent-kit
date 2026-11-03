@@ -66,7 +66,7 @@ check_number() {
 # no component (the file itself or any parent folder) that is a symlink;
 # the file is a regular file.
 check_file_arg() {
-  local file="$1" rest part path=""
+  local file="$1"
   [ -n "$file" ] || die 2 "FILE is empty"
   case "$file" in
     -*) die 2 "FILE must not start with -" ;;
@@ -79,7 +79,15 @@ check_file_arg() {
   case "$file" in
     *..*) die 2 "FILE must not contain .." ;;
   esac
-  rest="$file"
+  no_symlink_in_path "$file"
+  [ -f "$file" ] || die 2 "FILE is missing or is not a regular file"
+  # The file these checks passed for (device:inode); load_issue_file reads only it.
+  FILE_ID=$(stat -c '%d:%i' -- "$file" 2>/dev/null) && [ -n "$FILE_ID" ] || die 2 "cannot stat FILE"
+}
+
+# no_symlink_in_path FILE: die if FILE or any folder on its path is a symlink.
+no_symlink_in_path() {
+  local rest="$1" part path=""
   while [ -n "$rest" ]; do
     part="${rest%%/*}"
     if [ "$part" = "$rest" ]; then rest=""; else rest="${rest#*/}"; fi
@@ -87,14 +95,27 @@ check_file_arg() {
     path="${path:+$path/}$part"
     [ ! -L "$path" ] || die 2 "FILE or one of its folders is a symlink"
   done
-  [ -f "$file" ] || die 2 "FILE is missing or is not a regular file"
 }
 
 # load_issue_file FILE: read FILE once (see the top of this file), apply the size
 # and content rules, and leave the exact text in CONTENT (B64 holds the same bytes).
+# FILE is opened once, on a file descriptor, and read only from it. After the open
+# the path is checked again, and the descriptor, the path and the file that
+# check_file_arg passed must all be the same file (device and inode). So a path
+# swapped for a symlink or another file between the check and the read is refused
+# (exit 2) and nothing is read from it.
 load_issue_file() {
-  local size
-  read_b64 "$1" "$MAX_POST_BYTES" || die 2 "cannot read FILE"
+  local file="$1" size fd fd_id path_id
+  [ -n "${FILE_ID:-}" ] || die 2 "FILE was not checked before it was opened"
+  { exec {fd}<"$file"; } 2>/dev/null || die 2 "cannot open FILE"
+  fd_id=$(stat -L -c '%d:%i' /dev/stdin <&"$fd" 2>/dev/null) || die 2 "cannot stat the opened FILE"
+  [ -f /dev/stdin ] <&"$fd" || die 2 "the opened FILE is not a regular file; nothing was read"
+  no_symlink_in_path "$file"
+  path_id=$(stat -c '%d:%i' -- "$file" 2>/dev/null) || die 2 "FILE changed after it was checked"
+  [ "$fd_id" = "$FILE_ID" ] && [ "$path_id" = "$FILE_ID" ] \
+    || die 2 "FILE changed after it was checked; nothing was read"
+  B64=$(head -c "$((MAX_POST_BYTES + 1))" <&"$fd" | base64 | tr -d '\n') || die 2 "cannot read FILE"
+  exec {fd}<&-
   size=$(b64_size) || die 2 "cannot measure FILE"
   [ "$size" -gt 0 ] || die 2 "FILE is empty"
   [ "$size" -le "$MAX_POST_BYTES" ] || die 2 "FILE is larger than $MAX_POST_BYTES bytes"

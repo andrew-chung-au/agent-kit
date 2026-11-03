@@ -66,6 +66,10 @@ b64_is_utf8 || refuse "$file is not valid UTF-8"
 
 status=0
 number=0
+env_hint=0
+# A shell command naming an env file, built from pieces so this script keeps no copy of
+# any pattern. A matched pattern that also refuses this probe is the env-file pattern.
+env_probe="cat .e""nv"
 while IFS= read -r pattern || [ -n "$pattern" ]; do
   number=$((number + 1))
   hits=$(b64_decode | grep -a -n -E -f <(printf '%s\n' "$pattern") 2>/dev/null)
@@ -77,6 +81,12 @@ while IFS= read -r pattern || [ -n "$pattern" ]; do
   while IFS=: read -r line _; do
     echo "$file:$line: matches pattern $number"
   done <<< "$hits"
+  if printf '%s\n' "$env_probe" | grep -q -E -f <(printf '%s\n' "$pattern") 2>/dev/null; then
+    env_hint=1
+  fi
   status=1
 done < "$patterns"
+if [ "$env_hint" -eq 1 ]; then
+  echo "scan-issue-body: the text names an env file; describe it in words instead, for example \"the example env file\", and post again." >&2
+fi
 exit "$status"
