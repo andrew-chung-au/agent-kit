@@ -49,6 +49,7 @@ With no Docker, the sandbox can't run the push check end to end; it runs on your
 ### Rules for the local sandbox
 
 - **Never run `make` in a clean clone.** That includes `make hooks`, `make verify` and `make test`. The Makefile is repo code that an agent may have changed, and in a clean clone it would run on your machine with your login. `make hooks` refuses in a clean clone (it spots the `sandbox` remote or the push check), but that's only a convenience: by the time it refuses, `make` has already run.
+- **Never open a clean clone in a container.** A container gets write access to the folder it opens, including its `.git/hooks/pre-push`, which is your push check. Its `setup.sh` and `make hooks` would also run against the clean clone, so repo code runs against the clean clone. Open only the `<repo>-sandbox` folder in the container.
 - **Run `make hooks` in the container only.** `setup.sh` does it on the first build. Run it again in the container after a kit upgrade.
 - **The kit's pre-push hook never fires here.** The agent can't push, and the clean clone doesn't use the kit's hooks. Your push check and CI do that job.
 - **Protected changes are committed in the container,** with `HUMAN_APPROVED=1`, after your approval. Never commit in the sandbox folder from Ubuntu.
