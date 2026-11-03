@@ -426,7 +426,7 @@ class BashTemplateOrderTest(unittest.TestCase):
             self.assertNotIn("example", key)
 
     def test_credential_denies_sit_after_the_allows_they_would_lose_to(self):
-        self.assertLess(KEYS.index("git config --get *"), KEYS.index("git config *credential*"))
+        self.assertLess(KEYS.index("git config --get remote.origin.url"), KEYS.index("git config *credential*"))
         for key in ("gh auth token*", "gh auth status*--show-token*", "gh auth status*-t*",
                     "gh auth git-credential*", "git credential*", "git config *credential*"):
             self.assertEqual(BASH[key], "deny", key)
@@ -456,7 +456,7 @@ class BashTemplateDecisionTest(unittest.TestCase):
     def test_every_listed_allow_exists(self):
         for key in ("make *", "git status*", "git rev-parse*", "git worktree list*", "git fetch",
                     "git fetch origin", "git branch --show-current", "git branch -vv",
-                    "git config --get *", "git commit *", "gh pr view*", "gh repo view*",
+                    "git config --get user.name", "git commit *", "gh pr view*", "gh repo view*",
                     "command -v *", "id", "pwd", "ls *", "date", "date -u", "wc *", "grep *",
                     "head *", "tail *", "diff *", "stat *", "file *", "sha256sum *"):
             self.assertEqual(BASH.get(key), "allow", key)
@@ -532,6 +532,122 @@ class BashTemplateDecisionTest(unittest.TestCase):
         for command in ("git diff --output=x", "git log --output x"):
             self.assertEqual(self.decide(command), "deny", command)
         self.assertEqual(self.decide("git diff --output-indicator-new=x"), "allow")
+
+
+# ---- Issue #49: OpenCode permission patterns, round 2 ------------------------
+# Same model and same limits as #47: structure and order under last-match-wins, not
+# OpenCode's real matcher. Each new ask pattern maps to cases only it catches, so
+# dropping one entry (a mutation) turns a listed case from `ask` to something else.
+
+REPO_OPENCODE = json.loads((KIT.parent / "opencode.json").read_text(encoding="utf-8"))["permission"]
+
+PATTERN_CASES = {
+    "*=/*": ["git commit --file=/proc/self/environ", "wc --files0-from=/proc/self/environ",
+             "diff --from-file=/proc/self/environ x", "grep --file=/proc/self/environ x",
+             "git blame --contents=/proc/self/environ x"],
+    '*"/*': ['head "/proc/self/environ"', 'stat "/etc/hostname"'],
+    "*'/*": ["head '/etc/passwd'"],
+    '*"..*': ['ls ".."'],
+    "*'..*": ["ls '..'"],
+    "*\t/*": ["head\t/proc/self/environ", "grep x\t/proc/self/environ"],
+    "* -F/*": ["git commit -F/proc/self/environ"],
+    "* -f/*": ["grep -f/etc/passwd x"],
+    "* -O/*": ["git diff -O/proc/self/environ"],
+    "grep *-*r*": ["grep -d recurse x .", "grep --directories=recurse x .",
+                   "grep --dereference-recursive x .", "grep -ir x .", "grep -nr x .", "grep -rn x ."],
+    "diff *-*r*": ["diff -r a b", "diff --recursive a b", "diff -ru a b"],
+    "tail -f*": ["tail -f x"], "tail * -f*": ["tail -n 5 -f x"],
+    "tail -F*": ["tail -F x"], "tail * -F*": ["tail -n 5 -F x"], "tail *--follow*": ["tail --follow x"],
+    "file -C*": ["file -C"], "file *--compile*": ["file --compile"],
+    "make *-f *": ["make -f .scratch/x.mk"], "make *--file*": ["make --file=.scratch/x.mk test"],
+    "make *--makefile*": ["make --makefile=.scratch/x.mk"], "make *SHELL=*": ["make test SHELL=touch"],
+    "make *--eval*": ["make --eval=x test"],
+}
+EXACT_CONFIG_GETS = ["git config --get user.name", "git config --get user.email",
+                     "git config --get core.hooksPath", "git config --get remote.origin.url"]
+CONFIG_ASKS = ["git config --get http.https://github.com/.extraheader", "git config --get url.x.insteadof",
+               "git config --get --global http.extraheader", "git config --get-regexp .", "git config --list"]
+STILL_ALLOWED_49 = ["grep -n x file", "grep -i x file", "diff a b", "diff -u a b", "tail x", "tail -n 5 x",
+                    "file x", "make test", "make verify BASE=origin/main", "make issue-comment N=5 FILE=.scratch/x.md",
+                    "make tier-check TIER=light", "git commit --allow-empty -m x"]
+ALL_COMMIT_DENY = ["git commit --all -m x", "git commit -m x --all", "git commit --all"]
+
+
+def decision_with(rules: dict, value: str) -> str:
+    decision = "ask"
+    for pattern, action in rules.items():
+        if wildcard(pattern, value):
+            decision = action
+    return decision
+
+
+class OpenCodeRoundTwoTest(unittest.TestCase):
+    def decide(self, command):
+        return opencode_decision("bash", command)
+
+    def test_every_listed_case_asks(self):
+        for pattern, cases in PATTERN_CASES.items():
+            for command in cases:
+                with self.subTest(command=command):
+                    self.assertEqual(self.decide(command), "ask", command)
+
+    def test_each_new_entry_is_needed_so_dropping_one_fails_a_case(self):
+        for pattern, cases in PATTERN_CASES.items():
+            with self.subTest(pattern=pattern):
+                self.assertEqual(BASH.get(pattern), "ask", pattern)
+                mutated = {k: v for k, v in BASH.items() if k != pattern}
+                self.assertTrue(any(decision_with(mutated, c) != "ask" for c in cases),
+                                "no listed case depends on " + pattern)
+
+    def test_the_new_asks_sit_after_the_allows_and_before_the_denies(self):
+        last_allow = max(KEYS.index(k) for k in ALLOW_KEYS)
+        for pattern in PATTERN_CASES:
+            self.assertGreater(KEYS.index(pattern), last_allow, pattern)
+            self.assertLess(KEYS.index(pattern), FIRST_DENY, pattern)
+
+    def test_still_allowed(self):
+        for command in STILL_ALLOWED_49:
+            self.assertEqual(self.decide(command), "allow", command)
+
+    def test_git_config_get_is_four_exact_keys(self):
+        self.assertNotIn("git config --get *", BASH)
+        self.assertEqual(sorted(k for k in ALLOW_KEYS if k.startswith("git config")), sorted(EXACT_CONFIG_GETS))
+        for command in EXACT_CONFIG_GETS:
+            self.assertEqual(self.decide(command), "allow", command)
+        for command in CONFIG_ASKS:
+            self.assertEqual(self.decide(command), "ask", command)
+
+    def test_the_credential_and_hooks_path_denies_stay(self):
+        for key in ("git config *credential*", "git config core.hooksPath*"):
+            self.assertEqual(BASH[key], "deny", key)
+        self.assertEqual(self.decide("git config core.hooksPath x"), "deny")
+        self.assertEqual(self.decide("git config --get credential.helper"), "deny")
+
+    def test_commit_all_is_denied_and_allow_empty_is_not(self):
+        for command in ALL_COMMIT_DENY:
+            self.assertEqual(self.decide(command), "deny", command)
+        self.assertNotIn("git commit *--all*", BASH)
+        self.assertEqual(self.decide("git commit --allow-empty -m x"), "allow")
+
+    def test_the_template_and_this_repos_bash_blocks_are_identical(self):
+        self.assertEqual(list(REPO_OPENCODE["bash"].items()), list(BASH.items()))
+
+    def test_a_pattern_missing_from_the_repo_copy_would_be_noticed(self):
+        trimmed = {k: v for k, v in REPO_OPENCODE["bash"].items() if k != "*=/*"}
+        self.assertNotEqual(list(trimmed.items()), list(BASH.items()))
+
+
+START_49_NEEDLES = ("`make *` runs any command", "Makefile is the trust root", "`git cat-file -p <hash>`",
+                    'git show HEAD:.e"nv"', "quoted absolute paths", "`--format=/x`", "four exact keys")
+
+
+class StartMdRoundTwoTest(unittest.TestCase):
+    def test_start_md_documents_the_limits_and_over_prompts(self):
+        flat = " ".join(START.split())
+        for needle in START_49_NEEDLES:
+            self.assertIn(needle, flat)
+        self.assertIn("symlinks", flat)
+        self.assertIn("shell indirection", flat)
 
 
 # ---- Issue #44: the issue-create and issue-comment wrappers -------------------
