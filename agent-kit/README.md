@@ -34,7 +34,7 @@ _docs/agent-kit/
   blueprints.md      what a project needs, and when
   process.md         lifecycle: planning, backlog, roles, verification, handover
   team/              pm.md, software-engineer.md, qa-engineer.md
-  procedures/        verify.md, session-summary.md, asking-the-human.md, sweep.md, processes.md, permission-log.md
+  procedures/        verify.md, session-summary.md, asking-the-human.md, sweep.md, processes.md, permission-log.md, kit-import.md
   templates/         AGENTS.md, agent-kit.conf, Makefile, task, session-summary, docs-index, source, measurement, adr, runbook and CI templates
   scripts/           verify.sh, check-staged.sh, assert-clean.sh, install-hooks.sh, lib.sh, sweep-due.py
   githooks/          pre-commit, pre-push and a Git LFS pass-through, installed at the repo root
@@ -85,8 +85,6 @@ The kit's files are protected in every project, so changes need your approval. I
 
 **Versions in a project.** A pristine kit claims a plain version, such as `1.9`. Once a project changes a kit file, its kit is a derivative and claims `<base>+<repo>.<n>`, such as `1.9+vuln-triage.2`: `<n>` rises with each local change and restarts at 1 on a new base. The claim is `KIT_VERSION` in `agent-kit.conf`, and `make kit-check` compares the kit folder with the `MANIFEST.sha256` a released kit ships. Leave the version line at the top of this file alone in a derivative; it is one of the hashed files. The manifest shows drift, not tampering. The kit's own repo ships no manifest between releases.
 
-The `unzip -o` step below still overwrites any local change to the kit's files, so run `make kit-check` first and keep a copy of anything it lists as modified or added.
-
 The git hooks carry their own version number. `make hooks` upgrades an older installed version and leaves an equal or newer one alone, so projects with different kit versions can share one repository.
 
 ### Upgrading a project that already uses the kit
@@ -94,13 +92,13 @@ The git hooks carry their own version number. `make hooks` upgrades an older ins
 Agents take their rules from the project's `AGENTS.md`, not from the kit folder, so replacing the kit files isn't enough on its own. These steps fit Codespaces and a local checkout. In the local sandbox profile, follow "Upgrading the kit in the local sandbox" in `environments.md` instead.
 
 1. Pause at a clean point: finish the current step, commit, and exit the agent session. `git status --short` should show nothing.
-2. From the project folder, unzip the new kit over the old one: `unzip -o <path>/agent-kit.zip`.
+2. Unpack the new kit into a new, empty folder under `.scratch/`, never over the live kit folder, and follow `procedures/kit-import.md` to review it file by file.
 3. Run `make hooks`. It upgrades older hooks and leaves current ones alone.
-4. Start an agent and say: "The agent kit in `_docs/agent-kit/` has been upgraded to <version>. Review this project using `_docs/agent-kit/setup.md` in review mode. Update the shared block in `AGENTS.md` (between SHARED START and SHARED END) to match the template, leaving the project half unchanged (see the note below if it has no marker pair yet), and apply any blueprint changes. Show me the diffs and the exact `git add` paths, including `_docs/agent-kit/`, and wait for my approval."
+4. Start an agent and say: "The agent kit in `_docs/agent-kit/` has been upgraded to <version>. Review this project using `_docs/agent-kit/setup.md` in review mode. Update the shared block in `AGENTS.md` (between SHARED START and SHARED END) to match the template, leaving the project half unchanged (see the note below if it has no marker pair yet), and apply any blueprint changes. The only config files you may read are those listed in the `Readable config` slot of `AGENTS.md`; ask me for anything else. Show me the diffs and the exact `git add` paths, including `_docs/agent-kit/`, and wait for my approval."
 5. Review and approve, then commit the kit folder, `AGENTS.md` and any other changed files with `HUMAN_APPROVED=1`. Check that `_docs/agent-kit/` is among the staged paths. Include `.githooks/` at the repo root if `make hooks` changed it.
 6. Start a fresh agent session, so the new rules load.
 
-**Note on the settings-read rule:** the shared block now carries the strict ban on reading the tool's settings, plus an opt-in. The project half needs a `Readable config` line, default `none`, which is stricter than the wording only this repo has seen. A project that does nothing keeps the strict ban. To opt in, list the specific files, with the human's approval after checking that they hold no secrets.
+**Note on the settings-read rule:** the shared block now carries the strict ban on reading the tool's settings, plus an opt-in. The project half needs a `Readable config` line, default `none`, which is stricter than the wording only this repo has seen. A project that does nothing keeps the strict ban. To opt in, list the specific files, with the human's approval after checking that they hold no secrets. The step 4 prompt names that slot as the only list of config files the agent may read.
 
 **Note for projects last upgraded before the slimmed template:** the shared rules moved into Non-negotiables, the hook line, Read when triggers and the step docs. The shared block is now bracketed by `<!-- SHARED START ... -->` and `<!-- SHARED END -->`. A project with only the old single `<!-- SHARED: ... -->` marker takes the new block from that marker to the end of its file, and its Project gotchas go after SHARED END. An upgrade never replaces a project's `AGENTS.md` wholesale: the change is a diff you approve. Review the project's own settings and gotchas for rules that now duplicate the moved ones.
 

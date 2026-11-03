@@ -49,7 +49,7 @@ For every row in `blueprints.md`, record **now**, **later** (with its trigger) o
 - Hooks not active in this clone (`git config core.hooksPath` isn't `.githooks`).
 - A newer kit hook version than the one installed at the repo root.
 - `LINT_CMD`/`TYPECHECK_CMD` still empty although the lint or type-check target now passes.
-- Kit files that differ from the claimed version, or a `KIT_VERSION` claim that doesn't match them: run `make kit-check` and report its file and verdict lines.
+- Kit files that differ from the claimed version, or a `KIT_VERSION` claim that doesn't match them: run `make kit-check` and report its file and verdict lines. Fix kit-file drift with `procedures/kit-import.md`.
 
 **Tool layers.** Find out which AI coding tools the human uses: from `CLAUDE.md`, `.claude/`, `opencode.json` or `.opencode/`, or ask. For Claude Code, include the files from `claude-code/START.md` (Install, steps 2 to 5) in the proposal, with the `ask` rules matched to `PROTECTED`. For OpenCode, do the same from `opencode/START.md` (Install, steps 2 to 4).
 
