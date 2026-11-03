@@ -48,7 +48,7 @@ What a project using this kit should have, when each piece applies, and how to c
 | Entry-type folders | The first decision, measurement, source or runbook; the project names each folder and lists it in the index | One folder per entry type under `_docs/` | `templates/docs-index.md` |
 | Source entries | The project depends on something external (data, API, vendor doc, standard, tool version) | Source folder from the index | `templates/source.md` |
 | Measurement entries | The project has a repeatable check of quality or cost | Measurement folder from the index | `templates/measurement.md` |
-| Decision records | A choice that may be revisited, and every `tier:heavy` issue (its ADR; one row per ADR in the docs index) | Decision folder from the index | `templates/adr.md` |
+| Decision records | A choice that may be revisited, and every `tier:heavy` issue (its ADR; one row per ADR in the docs index), including one that is Heavy only by an approved proposal | Decision folder from the index | `templates/adr.md` |
 | Runbook entries | A problem needed the same fix twice | Runbook folder from the index | `templates/runbook.md` |
 | CI backstop | The human asks for it, or uses the local sandbox profile | `.github/workflows/` at the repo root | `templates/ci-verify.yml.template` |
 | Issue intake form | The repository is public or takes issues from outside reporters. The form asks for the problem, what they expected and evidence, and applies no label. The PM grooms an intake issue into the `task-template.md` shape, as for any issue | `.github/ISSUE_TEMPLATE/intake.yml` at the repo root | `templates/github/ISSUE_TEMPLATE/intake.yml` |

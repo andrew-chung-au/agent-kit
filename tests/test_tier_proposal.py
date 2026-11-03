@@ -49,29 +49,57 @@ class TierProposalTest(unittest.TestCase):
         self.assert_all(self.tiers, [
             "A Light proposal has no effect without `tier:light`",
             "Light skips QA, and all roles share one GitHub login",
-            "only a Standard or Heavy proposal takes effect without a label",
-            "a Light issue still needs `tier:light`",
+            "Only a Standard or Heavy proposal takes effect without a label; Light still "
+            "needs `tier:light`",
         ])
 
     def test_proposal_with_a_different_hash_is_refused(self):
         self.assert_all(self.tiers, [
-            "the owner's `PM:` comment that records the approved `Body sha256:`",
+            "the proposal in the first owner `PM:` comment that records the approved "
+            "`Body sha256:`",
         ])
 
     def test_later_pm_comment_cannot_change_the_tier(self):
         self.assert_all(self.tiers, [
-            "A later comment cannot change it, and a changed body needs a new hash record",
+            "Later `PM:` comments, even with the same hash, cannot change it, and a changed "
+            "body needs a new hash record",
         ])
+
+    def test_same_hash_rule_does_not_clash_with_latest_hash_line_wins(self):
+        # "The latest valid line wins" (Approved text) picks the hash; the proposal is read
+        # from the first comment that records that hash, so the two sentences agree.
+        self.assertIn("the latest valid line wins", self.text)
+        self.assertIn("first owner `PM:` comment that records the approved", self.tiers)
+        self.assertNotIn("A later comment cannot change it", self.tiers)
 
     def test_tier_in_body_or_other_comment_is_ignored(self):
         self.assert_all(self.tiers, [
-            "A tier named in the issue body or in any other comment, including an "
-            "`Orchestrator:` proposal, is ignored",
+            "A tier named in the issue body or in any other comment is ignored; an "
+            "`Orchestrator:` comment can only raise, as below",
         ])
+
+    def test_proposed_heavy_runs_the_heavy_gates(self):
+        self.assert_all(self.tiers, [
+            "An effective-Heavy issue (a `tier:heavy` label, or an approved Heavy proposal) "
+            "follows the Lifecycle with two added gates",
+        ])
+        self.assertNotIn("A `tier:heavy` issue follows the Lifecycle", self.text)
+
+    def test_blueprints_decision_record_row_covers_proposed_heavy(self):
+        blueprints = flat(KIT / "blueprints.md")
+        self.assertIn("every `tier:heavy` issue (its ADR; one row per ADR in the docs index), "
+                      "including one that is Heavy only by an approved proposal", blueprints)
+
+    def test_check_tier_script_text_matches_the_rule(self):
+        raw = (KIT / "scripts" / "check-tier.sh").read_text()
+        script = " ".join(raw.replace("\n#", " ").split())
+        self.assertNotIn("only the human's label does", script)
+        self.assertNotIn("the human must set the tier label", script)
+        self.assertIn("the human's label or an approved Standard or Heavy proposal", script)
 
     def test_label_overrides_and_two_labels_mean_highest(self):
         self.assert_all(self.tiers, [
-            "A tier label always wins, even when it lowers the proposal",
+            "A tier label always wins, lowering included",
             "Two or more tier labels mean the highest",
         ])
 
