@@ -8,7 +8,8 @@ help: ## List targets
 	@awk 'BEGIN {FS = ":.*## "} /^[a-zA-Z0-9_ -]+:.*## / {printf "  %-20s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
 verify: ## Run the verification gate: make verify [BASE=<commit>]
-	@bash _docs/agent-kit/scripts/verify.sh $(BASE)
+	$(if $(findstring $$,$(value BASE)),$(error Usage: make verify [BASE=<commit>] - BASE must not contain $$))
+	@bash _docs/agent-kit/scripts/verify.sh "$$BASE"
 
 assert-clean: ## Fail if this folder has uncommitted changes (used after QA)
 	@bash _docs/agent-kit/scripts/assert-clean.sh
@@ -27,14 +28,16 @@ clean-scratch: ## Empty .scratch/ at the end of an issue (refuses while a starte
 # variables into shell commands unquoted, so an unchecked variable is an
 # injection point. Free text never goes in a variable (pass a path under
 # .scratch/). issue-dump is the worked example: $(subst) strips the allowed
-# characters and $(error) refuses what is left. Nothing in the tool settings can
+# characters and $(error) refuses what is left. Checks read $(value X), which make
+# does not expand, and refuse a $ in the value; recipes pass "$$X", the shell
+# variable, never $(X). Nothing in the tool settings can
 # check a project's own targets; the Engineer and QA read new ones against this rule.
 
-issue-hash: ## Print an issue body's sha256, author and owner check: make issue-hash N=<issue number>
-	$(if $(and $(filter 1,$(words $(N))),$(if $(strip $(subst 0,,$(subst 1,,$(subst 2,,$(subst 3,,$(subst 4,,$(subst 5,,$(subst 6,,$(subst 7,,$(subst 8,,$(subst 9,,$(N)))))))))))),,x)),,$(error Usage: make issue-hash N=<issue number>))
-	@python3 -B _docs/agent-kit/scripts/issue-hash.py "$(N)"
-
 issue-number-ok = $(and $(filter 1,$(words $(1))),$(if $(subst 0,,$(subst 1,,$(subst 2,,$(subst 3,,$(subst 4,,$(subst 5,,$(subst 6,,$(subst 7,,$(subst 8,,$(subst 9,,$(1))))))))))),,ok),$(if $(subst x$(strip $(1))x,,x$(1)x),,ok),$(if $(filter 0%,$(1)),,ok),$(if $(word 10,$(subst 0,x ,$(subst 1,x ,$(subst 2,x ,$(subst 3,x ,$(subst 4,x ,$(subst 5,x ,$(subst 6,x ,$(subst 7,x ,$(subst 8,x ,$(subst 9,x ,$(1)))))))))))),,ok))
+
+issue-hash: ## Print an issue body's sha256, author and owner check: make issue-hash N=<issue number>
+	$(if $(call issue-number-ok,$(value N)),,$(error Usage: make issue-hash N=<issue number>))
+	@python3 -B _docs/agent-kit/scripts/issue-hash.py "$$N"
 
 issue-dump: ## Write an issue as JSON to .scratch/issue-<N>.json: make issue-dump N=<issue number>
 	$(if $(call issue-number-ok,$(value N)),,$(error Usage: make issue-dump N=<issue number>))
@@ -45,8 +48,9 @@ sweep-due: ## Say whether a sweep is due (read-only; the sweep interval is set i
 	@python3 -B _docs/agent-kit/scripts/sweep-due.py
 
 tier-check: ## Check a change against its tier's path limit: make tier-check TIER=<light|standard|heavy> [BASE=<commit>]
-	$(if $(and $(filter 1,$(words $(TIER))),$(filter light standard heavy,$(TIER))),,$(error Usage: make tier-check TIER=<light|standard|heavy> [BASE=<commit>]))
-	@bash _docs/agent-kit/scripts/check-tier.sh "$(TIER)" "$(BASE)"
+	$(if $(and $(filter 1,$(words $(value TIER))),$(filter light standard heavy,$(value TIER))),,$(error Usage: make tier-check TIER=<light|standard|heavy> [BASE=<commit>]))
+	$(if $(findstring $$,$(value BASE)),$(error Usage: make tier-check TIER=<light|standard|heavy> [BASE=<commit>] - BASE must not contain $$))
+	@bash _docs/agent-kit/scripts/check-tier.sh "$$TIER" "$$BASE"
 
 # --- When the stack is known (wrap the project's own commands) -------------
 
@@ -62,15 +66,17 @@ run: ## Run the project in the foreground (for humans; agents use <name>-start)
 	<the project's run command>
 
 test-one: ## Run one test file: make test-one FILE=path
-	@test -n "$(FILE)" || { echo "Usage: make test-one FILE=path/to/test_file"; exit 1; }
-	<the project's single-file test command> "$(FILE)"
+	$(if $(findstring $$,$(value FILE)),$(error Usage: make test-one FILE=path/to/test_file - FILE must not contain $$))
+	@test -n "$$FILE" || { echo "Usage: make test-one FILE=path/to/test_file"; exit 1; }
+	<the project's single-file test command> "$$FILE"
 
 e2e: ## Run end-to-end tests
 	<the project's e2e command, including any stack start and teardown>
 
 migration: ## Create a database migration: make migration MSG="what changed"
-	@test -n "$(MSG)" || { echo 'Usage: make migration MSG="what changed"'; exit 1; }
-	<the project's migration command> "$(MSG)"
+	$(if $(findstring $$,$(value MSG)),$(error Usage: make migration MSG="what changed" - MSG must not contain $$))
+	@test -n "$$MSG" || { echo 'Usage: make migration MSG="what changed"'; exit 1; }
+	<the project's migration command> "$$MSG"
 
 lint: ## Run the linter
 	<the project's lint command>
