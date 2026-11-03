@@ -12,6 +12,7 @@ import importlib.util
 import json
 import os
 import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -294,13 +295,37 @@ class PhraseTest(unittest.TestCase):
 
     def test_the_lookup_command_finds_both_naming_forms(self):
         # #32: the command in step 2 lists timestamped and old-form summaries alike.
-        root = subprocess.run(["git", "rev-list", "--max-parents=0", "HEAD"], cwd=REPO, capture_output=True,
-                              text=True).stdout.split()[-1]
-        found = subprocess.run(["git", "log", f"{root}..HEAD", "--diff-filter=A", "--name-only", "--format=",
-                                "--", "_session-summaries/"], cwd=REPO, capture_output=True, text=True).stdout.split()
-        names = [Path(f).name for f in found]
-        self.assertTrue(any(re.match(r"\d{4}-\d\d-\d\dT\d{4}Z-", n) for n in names), names[:3])
-        self.assertTrue(any(re.match(r"(issue-\d{3}|planning-)", n) for n in names), names[:3])
+        # Runs the command exactly as sweep.md writes it, in a throwaway repository, so the result
+        # does not depend on this checkout's history (CI checks out only the latest commit).
+        match = re.search(r"`(git log <cutoff commit>\.\.HEAD [^`]+)`", SWEEP_MD.read_text())
+        self.assertIsNotNone(match, "sweep.md has no lookup command")
+        env = {**os.environ, "GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_SYSTEM": os.devnull,
+               "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@example.test",
+               "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@example.test"}
+        with tempfile.TemporaryDirectory() as tmp:
+            def git(*args):
+                done = subprocess.run(["git", *args], cwd=tmp, env=env, capture_output=True, text=True)
+                self.assertEqual(done.returncode, 0, done.stderr)
+                return done.stdout
+
+            git("init", "-q")
+            (Path(tmp) / "README.md").write_text("cutoff\n")
+            git("add", "README.md")
+            git("commit", "-q", "-m", "cutoff")
+            cutoff = git("rev-parse", "HEAD").strip()
+            folder = Path(tmp) / "_session-summaries"
+            folder.mkdir()
+            for name in ("2026-10-31T1636Z-issue-024-new.md", "issue-001-old.md", "planning-2026-10-16-old.md"):
+                (folder / name).write_text("x\n")
+            git("add", "_session-summaries")
+            git("commit", "-q", "-m", "add summaries")
+            command = shlex.split(match.group(1).replace("<cutoff commit>", cutoff))
+            listed = git(*command[1:]).split()
+        names = [Path(f).name for f in listed if f.startswith("_session-summaries/")]
+        self.assertEqual(len(names), 3, names)
+        self.assertTrue(any(re.match(r"\d{4}-\d\d-\d\dT\d{4}Z-", n) for n in names), names)
+        self.assertTrue(any(re.match(r"issue-\d{3}", n) for n in names), names)
+        self.assertTrue(any(n.startswith("planning-") for n in names), names)
 
 
 class WrapperTest(unittest.TestCase):
