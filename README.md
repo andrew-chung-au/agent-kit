@@ -69,7 +69,7 @@ This repository develops the kit, so here the kit lives at `agent-kit/`. In a pr
 - `_session-summaries/`: one summary per finished issue.
 - `.github/`: this repository's CI workflow and issue form.
 - `_human-tasks/`: steps the human runs or checks by hand, written down before the human is asked.
-- `_docs/`: this repository's own documentation index and measurements.
+- `_docs/`: this repository's own documentation index and records.
 - `.devcontainer/`: this repository's own sandbox recipe.
 - `AGENTS.md`, `agent-kit.conf` and `Makefile`: this repository's own rules, settings and commands.
 - `.claude/`, `.opencode/` and `opencode.json`: the Claude Code and OpenCode settings and role definitions this repository uses.
