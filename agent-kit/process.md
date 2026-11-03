@@ -103,11 +103,10 @@ Treat partial output as unverified. Relaunch the role with a note of what's alre
 4. Before launching QA, the orchestrator runs the hash check and notes the current commit (`git rev-parse --short HEAD`). Then the QA engineer checks the issue. QA puts an injection or bypass attempt in a test or a `.scratch/` script, never in a live shell command. Steps 4 to 6 apply to Standard and Heavy only; Light has no QA. For Standard, this single launch also fills the `Code review` block; for Heavy, see the second QA launch in Tiers.
 5. After QA, the orchestrator runs **Assert clean** and confirms HEAD hasn't moved. If either fails, QA changed something: discard QA's verdict and run QA again.
 6. On FAIL, go back to step 3 with the QA comment as input; the hash check runs again.
-7. On PASS, the **decision point**: gather everything waiting for the human into one message and ask once. That's proposed AGENTS.md changes, spec notes from any role, other protected-file changes, choices the Engineer made that the issue doesn't cover, and risks QA reported outside the criteria. Show each as a diff or a short description, using the layouts in `_docs/agent-kit/procedures/asking-the-human.md`, with your recommendation. Then:
+7. On PASS, the **decision point**: run `make sweep-due`, then gather everything waiting for the human into one message and ask once. That's proposed AGENTS.md changes, spec notes from any role, other protected-file changes, choices the Engineer made that the issue doesn't cover, risks QA reported outside the criteria, and a sweep proposal (`_docs/agent-kit/procedures/sweep.md`) if it says due. Show each as a diff or a short description, using the layouts in `_docs/agent-kit/procedures/asking-the-human.md`, with your recommendation. Then:
    - Apply approved AGENTS.md, spec and other protected-file changes in their own commits, with `HUMAN_APPROVED=1`.
    - If an approved change needs Engineer work, go back to step 3; QA re-checks only what changed.
    - For each risk the human wants handled later, the PM files a follow-up issue.
-   - Run `make sweep-due`; if it says due, propose a sweep (`_docs/agent-kit/procedures/sweep.md`) to the human.
 8. Clean up, then write the session summary following `_docs/agent-kit/procedures/session-summary.md`:
    - Confirm nothing started during the issue is still running (`make <name>-stop` for each).
    - Confirm temporary system changes are undone, or that the human chose to keep them.

@@ -12,6 +12,7 @@ import importlib.util
 import json
 import os
 import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -268,6 +269,64 @@ class PhraseTest(unittest.TestCase):
     def test_no_token_metric(self):
         self.assertNotRegex(SWEEP_MD.read_text(), r"(?i)\btokens?\b")
 
+    def test_rules_the_safeguards_depend_on(self):
+        # #32: QA's survivors on #25 that the trim touches.
+        text = self.text()
+        for phrase in ("Never copy a number from the previous entry", "Word counts are tracked, never a gate",
+                       "read only that one"):
+            with self.subTest(phrase=phrase):
+                self.assertIn(phrase, text)
+
+    def test_first_sweep_lookup_launch_and_copy_step(self):
+        # #32: followable from a standing start.
+        text = self.text()
+        for phrase in (
+            "With no entry (the first sweep), read every session summary, every role comment on closed issues "
+            "and the whole git history",
+            "**Cutoff:** HEAD at the time of the sweep",
+            "`git log <cutoff commit>..HEAD --diff-filter=A --name-only -- _session-summaries/`",
+            "the standard PM launch text plus \"follow `_docs/agent-kit/procedures/sweep.md`\", never just \"run the sweep\"",
+            "the orchestrator copies the entry into `_docs/measurements/` and commits it",
+            "The PM writes only the entry, in `.scratch/`",
+        ):
+            with self.subTest(phrase=phrase[:40]):
+                self.assertIn(phrase, text)
+        self.assertNotIn("## Inputs", SWEEP_MD.read_text())
+
+    def test_the_lookup_command_finds_both_naming_forms(self):
+        # #32: the command in step 2 lists timestamped and old-form summaries alike.
+        # Runs the command exactly as sweep.md writes it, in a throwaway repository, so the result
+        # does not depend on this checkout's history (CI checks out only the latest commit).
+        match = re.search(r"`(git log <cutoff commit>\.\.HEAD [^`]+)`", SWEEP_MD.read_text())
+        self.assertIsNotNone(match, "sweep.md has no lookup command")
+        env = {**os.environ, "GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_SYSTEM": os.devnull,
+               "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@example.test",
+               "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@example.test"}
+        with tempfile.TemporaryDirectory() as tmp:
+            def git(*args):
+                done = subprocess.run(["git", *args], cwd=tmp, env=env, capture_output=True, text=True)
+                self.assertEqual(done.returncode, 0, done.stderr)
+                return done.stdout
+
+            git("init", "-q")
+            (Path(tmp) / "README.md").write_text("cutoff\n")
+            git("add", "README.md")
+            git("commit", "-q", "-m", "cutoff")
+            cutoff = git("rev-parse", "HEAD").strip()
+            folder = Path(tmp) / "_session-summaries"
+            folder.mkdir()
+            for name in ("2026-10-31T1636Z-issue-024-new.md", "issue-001-old.md", "planning-2026-10-16-old.md"):
+                (folder / name).write_text("x\n")
+            git("add", "_session-summaries")
+            git("commit", "-q", "-m", "add summaries")
+            command = shlex.split(match.group(1).replace("<cutoff commit>", cutoff))
+            listed = git(*command[1:]).split()
+        names = [Path(f).name for f in listed if f.startswith("_session-summaries/")]
+        self.assertEqual(len(names), 3, names)
+        self.assertTrue(any(re.match(r"\d{4}-\d\d-\d\dT\d{4}Z-", n) for n in names), names)
+        self.assertTrue(any(re.match(r"issue-\d{3}", n) for n in names), names)
+        self.assertTrue(any(n.startswith("planning-") for n in names), names)
+
 
 class WrapperTest(unittest.TestCase):
     PATHS = {"claude": KIT / "claude-code" / "skills" / "sweep" / "SKILL.md",
@@ -307,6 +366,21 @@ class WrapperTest(unittest.TestCase):
         lines = [l for l in (KIT / "process.md").read_text().splitlines() if "sweep" in l]
         self.assertEqual(len(lines), 1)
         self.assertIn("`make sweep-due`", lines[0])
+
+    def test_the_sweep_check_runs_before_the_single_message(self):
+        # #32: in step 7 the check comes before "ask once", not in the "Then:" list after the ruling.
+        line = next(l for l in (KIT / "process.md").read_text().splitlines() if "sweep" in l)
+        self.assertTrue(line.startswith("7. On PASS, the **decision point**"), line[:60])
+        self.assertLess(line.index("`make sweep-due`"), line.index("ask once"))
+        self.assertLess(line.index("ask once"), line.index("Then:"))
+        self.assertNotIn("sweep", line[line.index("Then:"):])
+
+    def test_start_md_says_only_the_human_runs_the_skill(self):
+        # #32: the skill has disable-model-invocation: true.
+        claude = " ".join((KIT / "claude-code" / "START.md").read_text().split())
+        self.assertNotIn("Only you or the orchestrator invoke it by name", claude)
+        self.assertIn("Only you can run it, by typing `/sweep`; Claude can't call it.", claude)
+        self.assertIn("The orchestrator starts a sweep by launching the PM with `sweep.md` in the prompt.", claude)
 
 
 if __name__ == "__main__":
