@@ -102,6 +102,10 @@ Agents take their rules from the project's `AGENTS.md`, not from the kit folder,
 
 **Note for projects last upgraded before the slimmed template:** the shared rules moved into Non-negotiables, the hook line, Read when triggers and the step docs. The shared block is now bracketed by `<!-- SHARED START ... -->` and `<!-- SHARED END -->`. A project with only the old single `<!-- SHARED: ... -->` marker takes the new block from that marker to the end of its file, and its Project gotchas go after SHARED END. An upgrade never replaces a project's `AGENTS.md` wholesale: the change is a diff you approve. Review the project's own settings and gotchas for rules that now duplicate the moved ones.
 
+### Unreleased (the human cuts the version)
+
+- **Dev container recipe for Python plus frontend projects** (`environments/local-sandbox/`): Node and uv at pinned versions (all unverified until you rebuild and check), the `claude` and `opencode` folders on `PATH`, a container named after its folder, and `setup.sh` that refuses early in a clean clone. The CI template shows the same Node and uv pins, and the Makefile blueprint has a `tool-versions` target. Existing projects: copy the recipe changes into your `.devcontainer/` from a clean clone, then rebuild; commit the lock file the rebuild creates.
+
 ### Changes in 1.9
 
 - **Environment profiles** (`environments.md`): Codespaces, local sandbox (dev container plus a clean clone) and local checkout, with where agents work, where hooks run, where you push and what checks a push. A new **Environment** setting in `AGENTS.md` tells agents which profile applies.

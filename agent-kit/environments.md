@@ -33,8 +33,10 @@ The agent works in a dev container with a GitHub token that can't push, in its o
 | File | Installed as | Notes |
 |---|---|---|
 | `pre-push` | `~/.agent-hooks/pre-push`, copied into each clean clone's `.git/hooks/pre-push` | The push check. Monorepo-aware: it finds every project the new commits change, using git only, then runs `make -C <project> install verify` for each in a throwaway container. The container sees only a bundle of the pushed commits: no ignored files, git settings or other branches. It blocks the push if a project's `agent-kit.conf` was removed. Never run it from the repo. |
-| `devcontainer.json`, `setup.sh` | `.devcontainer/` at the repo root | The container recipe. Fill in your name and noreply email in `setup.sh`. |
+| `devcontainer.json`, `setup.sh` | `.devcontainer/` at the repo root | The container recipe for Python plus frontend projects: installs Node and uv at pinned versions, names the container after its folder, and `setup.sh` refuses to run in a clean clone. Fill in your name and noreply email in `setup.sh`. |
 | `templates/ci-verify.yml.template` | `.github/workflows/` at the repo root | CI with `permissions: contents: read` and no secrets |
+
+The recipe's Node, nvm and uv versions are pins nobody has verified against the release pages yet (Node `24.22.0`, nvm `0.40.8`, uv `0.13.6`, and the setup actions in the CI template). Keep uv at 0.13.4 or later: earlier versions bundle a TLS root that was withdrawn (GHSA-hq85-5cpj-mr62). Your first rebuild creates `.devcontainer/devcontainer-lock.json` with an entry for the Node feature; you commit that file in the project. An agent never writes it. A project with no frontend deletes the Node feature and the Node lines in `setup.sh`.
 
 **Copy these files only from a clean clone, never from a sandbox.** An agent can change anything in its sandbox, including the kit.
 

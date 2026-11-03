@@ -37,8 +37,13 @@ jobs:
 
       # <Stack setup steps for this project, for example:>
       # - uses: astral-sh/setup-uv@v6
+      #   with:
+      #     version: "0.13.6" # same uv as the dev container recipe's setup.sh
       # - uses: oven-sh/setup-bun@v2
       # - uses: actions/setup-node@v4
+      #   with:
+      #     node-version: "24.22.0" # same Node as the dev container recipe's feature
+      # The pins and the action majors are unverified: check them before use.
 
       - run: make install
 

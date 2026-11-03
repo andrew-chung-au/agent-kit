@@ -5,6 +5,19 @@
 set -euo pipefail
 export PATH="$HOME/.local/bin:$HOME/.opencode/bin:$PATH"
 
+# Refuse early in a clean clone. This check comes before anything is installed or
+# configured, so a mistaken open of the clean clone in the container changes nothing.
+# Same two signals as agent-kit/scripts/install-hooks.sh (keep the two in step): a
+# remote named 'sandbox', or the push check in .git/hooks/pre-push. Git and
+# coreutils only.
+common_dir="$(git rev-parse --git-common-dir 2>/dev/null || true)"
+if git remote get-url sandbox >/dev/null 2>&1 || grep -qs '^# agent-kit-push-check' "$common_dir/hooks/pre-push"; then
+  echo "setup.sh: this is a clean clone (it has a 'sandbox' remote or the clean-clone push check)." >&2
+  echo "  Close this container and reopen the <repo>-sandbox folder in it instead." >&2
+  echo "  A clean clone is never opened in a container. See environments.md." >&2
+  exit 1
+fi
+
 # The Claude volume starts out owned by root; hand it to the container user.
 if [ -d "$HOME/.claude" ]; then
   sudo chown -R "$(id -u):$(id -g)" "$HOME/.claude"
@@ -15,6 +28,23 @@ if ! command -v make >/dev/null; then
 fi
 command -v opencode >/dev/null || curl -fsSL https://opencode.ai/install | bash
 command -v claude >/dev/null || curl -fsSL https://claude.ai/install.sh | bash
+
+# uv at a pinned version (unverified pin). Not older than 0.13.4: earlier versions bundle
+# a TLS root that was withdrawn (GHSA-hq85-5cpj-mr62). Safe to re-run on a rebuilt container:
+# the install runs only when uv is missing or is another version.
+case "$(uv --version 2>/dev/null || true)" in
+  "uv 0.13.6"*) ;;
+  *) pipx install --force uv==0.13.6 ;;
+esac
+
+# Node at a pinned version. The Node feature installs it under nvm; put its bin
+# directory on PATH for the rest of this script. The version here must equal the
+# feature's "version" in devcontainer.json (a test fails when they differ).
+node_version="24.22.0"
+export PATH="/usr/local/share/nvm/versions/node/v${node_version}/bin:$PATH"
+
+# No yarn or pnpm shims: the project's lockfile tool is npm.
+corepack disable
 
 git config --global user.name "<Your Name>"
 git config --global user.email "<id+username@users.noreply.github.com>"
