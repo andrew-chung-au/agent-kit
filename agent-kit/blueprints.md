@@ -46,6 +46,7 @@ What a project using this kit should have, when each piece applies, and how to c
 | Issue task format | Always, at setup | Every groomed issue | `templates/task-template.md` |
 | Starter docs | Always, at setup | The three day-one files; anything else is created at its first entry | `templates/starter-docs.md` |
 | Docs index | Always, at setup | `_docs/index.md` | `templates/docs-index.md` |
+| Roadmap | The first planned phase or milestone; one file per phase or milestone | The folder the index names for planning | `templates/roadmap.md` |
 | Entry-type folders | The first doc of that type; the folder the index names | One folder per entry type, as the index's entry-types table defines | `templates/docs-index.md` |
 | Source entries | The project depends on something external (data, API, vendor doc, standard, tool version) | Source folder from the index | `templates/source.md` |
 | Measurement entries | The project has a repeatable check of quality or cost | Measurement folder from the index | `templates/measurement.md` |

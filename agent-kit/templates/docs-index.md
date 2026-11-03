@@ -20,7 +20,7 @@ By folder: "no doc without an index entry" can't work for hundreds of entries. T
 
 | Type | Folder | Template | Filename pattern | Not here |
 |---|---|---|---|---|
-| Plan: what we intend to do and in what order (roadmap files, requirements-like files) | `_docs/planning/` | none yet | `<slug>.md` | measurements, decisions |
+| Plan: what we intend to do and in what order (roadmap files, requirements-like files) | `_docs/planning/` | `templates/roadmap.md` for roadmaps | `roadmap-<n>-<slug>.md`, or `<slug>.md` | measurements, decisions |
 | Decision | `_docs/decisions/` | `templates/adr.md` | `<timestamp>-<slug>.md` | plans, measurements |
 | Record: what was measured, found or read, with method and caveats (flat; the filename kind, such as `measure` or `source`, tells them apart) | `_docs/records/` | `templates/measurement.md`, `templates/source.md` | `<timestamp>-<kind>-<slug>.md` | decisions, plans |
 | Runbook (added when the first repeatable operation appears) | `_docs/runbooks/` | `templates/runbook.md` | `<slug>.md` | one-off fixes, decisions |
