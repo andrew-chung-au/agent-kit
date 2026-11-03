@@ -16,6 +16,7 @@ TEMPLATE = KIT / "templates" / "AGENTS.md.template"
 HEADINGS = ("## Claim", "## Release", "## Confirm", "## Close")
 PREFIX_RULE = "start with `Orchestrator:`"
 POST_RULE = "`make issue-comment N=<n> FILE=.scratch/<name>.md`, never a raw `gh` write"
+REST_RULE = "REST fallback for reads; writes still use `make issue-comment`"
 READ_WHEN = re.compile(r"(?m)^- Before writing a claim, release, confirm or close comment on an issue -> "
                        r"`(?:_docs/)?agent-kit/procedures/orchestrator-comments\.md`.*$")
 
@@ -52,6 +53,8 @@ def check_doc(text):
     claim = " ".join(found.get("## Claim", "").split())
     if "Never name an env file" not in claim:
         problems.append("claim env do-not")
+    if REST_RULE not in claim:
+        problems.append("claim rest rule")
     return problems
 
 
@@ -98,6 +101,8 @@ class OrchestratorCommentsTest(unittest.TestCase):
         self.assertTrue(check_doc(text.replace("`make issue-comment", "`gh issue comment")))
         self.assertTrue(check_doc(text.replace("Never close without QA PASS.", "")))
         self.assertTrue(check_doc(text.replace("Never name an env file in a claim.", "")))
+        self.assertTrue(check_doc(text.replace(REST_RULE, "the REST fallback")))
+        self.assertTrue(check_doc(text.replace("writes still use", "writes may also use")))
         self.assertTrue(check_doc(text + " word" * 300))
 
     def test_mutation_missing_read_when_line_fails(self):
