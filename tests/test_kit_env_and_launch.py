@@ -83,5 +83,88 @@ class NoDanglingConventionsTest(unittest.TestCase):
         self.assertTrue(hits[0][1].startswith("- **Conventions:**"))
 
 
+UPGRADE_HEADING = "### Upgrading the kit in the local sandbox"
+UNCHANGED_RULES = (
+    "**Never run `make` in a clean clone.**",
+    "**From Ubuntu, touch the sandbox folder only with `git fetch sandbox`, run from the clean clone.**",
+    "**Copy these files only from a clean clone, never from a sandbox.**",
+)
+UPGRADE_PHRASES = (
+    "`procedures/kit-import.md`",
+    "dev container's VS Code window",
+    "new, empty folder under `.scratch/`",
+    "`make kit-check`",
+    "in the container",
+    "`HUMAN_APPROVED=1`",
+    "`git fetch sandbox`",
+    "`make hooks` in the container",
+    "after the fetch",
+    "Never copy it from the container's `.scratch/` copy",
+)
+
+
+def upgrade_problems(doc: str) -> list:
+    """Problems with the local-sandbox upgrade steps in environments.md (issue #77).
+
+    It checks wording only: that the steps name the import procedure, the drop through the
+    container's VS Code window, the review and commit in the container, the fetch from the clean
+    clone, and that the rules that protect the human's machine are still there. It does not check
+    that an agent or a human follows them.
+    """
+    problems = []
+    if UPGRADE_HEADING not in doc:
+        return ["the upgrade subsection is missing"]
+    section = doc.split(UPGRADE_HEADING, 1)[1].split("\n## ", 1)[0]
+    for phrase in UPGRADE_PHRASES:
+        if phrase not in section:
+            problems.append("upgrade steps lack: " + phrase)
+    for rule in UNCHANGED_RULES:
+        if rule not in doc:
+            problems.append("rule changed or missing: " + rule)
+    for stale in ("Unzip the new kit in the clean clone", "git pull"):
+        if stale in doc:
+            problems.append("stale instruction is back: " + stale)
+    return problems
+
+
+class LocalSandboxUpgradeStepsTest(unittest.TestCase):
+    def setUp(self):
+        self.doc = read("environments.md")
+
+    def test_the_real_doc_has_no_problems(self):
+        self.assertEqual(upgrade_problems(self.doc), [])
+
+    def test_the_link_target_exists(self):
+        self.assertTrue((KIT / "procedures" / "kit-import.md").is_file())
+
+    def test_the_commit_waits_for_approval_and_the_human_only_fetches_and_pushes(self):
+        section = self.doc.split(UPGRADE_HEADING, 1)[1].split("\n## ", 1)[0]
+        self.assertRegex(section, r"commits with `HUMAN_APPROVED=1` only after you approve")
+        self.assertNotRegex(section, r"(?i)you (review, )?commit")
+
+    def test_each_removed_phrase_is_refused(self):
+        for phrase in UPGRADE_PHRASES:
+            with self.subTest(phrase=phrase):
+                section_start = self.doc.index(UPGRADE_HEADING)
+                mutated = self.doc[:section_start] + self.doc[section_start:].replace(phrase, "x")
+                self.assertTrue(upgrade_problems(mutated), phrase)
+
+    def test_each_changed_rule_is_refused(self):
+        for rule in UNCHANGED_RULES:
+            with self.subTest(rule=rule):
+                self.assertTrue(upgrade_problems(self.doc.replace(rule, rule.replace("Never", "Sometimes")
+                                                                  .replace("only", "mostly"), 1)))
+
+    def test_the_old_wording_is_refused(self):
+        for stale in ("Unzip the new kit in the clean clone, then review, commit and push it yourself.",
+                      "In the container: `git pull`, then `make hooks`."):
+            with self.subTest(stale=stale):
+                self.assertTrue(upgrade_problems(self.doc + "\n" + stale + "\n"))
+
+    def test_a_missing_subsection_is_refused(self):
+        self.assertEqual(upgrade_problems(self.doc.replace(UPGRADE_HEADING, "### Other")),
+                         ["the upgrade subsection is missing"])
+
+
 if __name__ == "__main__":
     unittest.main()
