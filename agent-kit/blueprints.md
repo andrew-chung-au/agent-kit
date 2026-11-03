@@ -44,8 +44,9 @@ What a project using this kit should have, when each piece applies, and how to c
 | Session summaries folder | The first session summary | `_session-summaries/` | `procedures/session-summary.md`, `templates/session-summary.md` |
 | Human task files | The first time the human must run or check something by hand beyond a one-line command | `_human-tasks/` at the project root | `templates/human-task.md`, `procedures/session-summary.md` |
 | Issue task format | Always, at setup | Every groomed issue | `templates/task-template.md` |
-| Docs index | The first doc beyond the README and `AGENTS.md` | `_docs/index.md` | `templates/docs-index.md` |
-| Entry-type folders | The first decision, measurement, source or runbook; the project names each folder and lists it in the index | One folder per entry type under `_docs/` | `templates/docs-index.md` |
+| Starter docs | Always, at setup | The three day-one files; anything else is created at its first entry | `templates/starter-docs.md` |
+| Docs index | Always, at setup | `_docs/index.md` | `templates/docs-index.md` |
+| Entry-type folders | The first doc of that type; the folder the index names | One folder per entry type, as the index's entry-types table defines | `templates/docs-index.md` |
 | Source entries | The project depends on something external (data, API, vendor doc, standard, tool version) | Source folder from the index | `templates/source.md` |
 | Measurement entries | The project has a repeatable check of quality or cost | Measurement folder from the index | `templates/measurement.md` |
 | Decision records | A choice that may be revisited, and every `tier:heavy` issue (its ADR; one row per ADR in the docs index) | Decision folder from the index | `templates/adr.md` |
