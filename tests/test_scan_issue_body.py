@@ -102,6 +102,28 @@ class FixtureTest(ScanBase):
                     self.assertNotIn(secret, shown)
                     self.assertNotIn(text, shown)
 
+    def test_an_env_file_refusal_carries_the_hint_and_never_the_name(self):
+        # #63 B: the hint says to describe env files in words, and holds nothing pattern 8 refuses.
+        hint = b"describe it in words instead"
+        for name, text, number, secret in MATCH:
+            with self.subTest(name=name):
+                done = self.scan_text(f"QA: {text}\n")
+                self.assertEqual(done.returncode, 1)
+                if number == 8:
+                    self.assertIn(hint, done.stderr)
+                    self.assertNotIn(secret.encode(), done.stdout + done.stderr)
+                    self.assertEqual(done.stderr.count(b"\n"), 1, "one hint line")
+                else:
+                    self.assertNotIn(hint, done.stderr)
+
+    def test_the_hint_itself_passes_the_scan(self):
+        self.patterns.write_text(self.patterns.read_text(encoding="utf-8"), encoding="utf-8")
+        done = self.scan_text("QA: " + MATCH[7][1] + "\n")
+        hint_line = done.stderr.decode().strip()
+        self.assertTrue(hint_line)
+        again = self.scan_text(hint_line + "\n", name="hint.md")
+        self.assertEqual((again.returncode, again.stdout), (0, b""), again.stderr)
+
     def test_one_line_per_hit_in_line_order(self):
         ghp, akia = MATCH[1][1], MATCH[3][1]
         data = f"ok\n{ghp}\nok\n{akia} {ghp}\n"

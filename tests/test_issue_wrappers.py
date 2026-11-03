@@ -23,7 +23,7 @@ import unittest
 from pathlib import Path
 
 from kit_repo import build_env, new_workdir
-from secret_fixtures import MATCH
+from secret_fixtures import MATCH, NON_MATCH
 
 REPO = Path(__file__).resolve().parent.parent
 KIT = REPO / "agent-kit"
@@ -118,7 +118,7 @@ class FakeGhMixin:
         """A PATH holding the tools the scripts need and no gh."""
         folder = self.work / "no-gh-bin"
         folder.mkdir(exist_ok=True)
-        for tool in ("bash", "head", "base64", "tr", "wc", "python3", "grep", "dirname", "cat", "env"):
+        for tool in ("bash", "head", "base64", "tr", "wc", "python3", "grep", "dirname", "cat", "env", "stat"):
             found = shutil.which(tool)
             if found and not (folder / tool).exists():
                 (folder / tool).symlink_to(found)
@@ -544,6 +544,43 @@ class ScannerRefusalTest(ScriptBase):
                 self.assertEqual(done.stdout, b"")
                 self.assertEqual(self.calls(), [])
 
+    def test_a_named_env_file_is_refused_with_the_wording_hint(self):
+        # #63 B, through the wrapper: exit 3, the hint shown, the matched text not shown, no gh call.
+        for name, text, number, secret in [m for m in MATCH if m[2] == 8]:
+            with self.subTest(name=name):
+                done = self.comment("5", self.put(f"QA: I ran {text} by mistake\n"))
+                self.assert_refused(done, 3)
+                self.assertIn("describe it in words instead", self.shown(done))
+                self.assertNotIn(secret, self.shown(done))
+
+    def test_a_first_line_reflection_prefix_is_refused(self):
+        # #63 C: the reflection comment keeps the role prefix; `Reflection:` alone is not a role.
+        self.assert_refused(self.comment("5", self.put("Reflection: what slowed me down\n")), 2)
+        self.assertEqual(self.comment("5", self.put("QA: Reflection on #63\n\nReflection:\n1. x\n")).returncode, 0)
+
+    def test_a_secret_on_the_last_line_without_a_newline_is_refused_by_create(self):
+        # #63 A: the title, the body and the last line with no trailing newline, for both wrappers.
+        for name, text, number, secret in MATCH:
+            with self.subTest(name=name):
+                path = self.put(f"Title: ok\n\nbody\n{text}")
+                done = self.create(path)
+                self.assert_refused(done, 3)
+                self.assertIn(f"{path}:4: matches pattern {number}", self.shown(done))
+                self.assertNotIn(secret, self.shown(done))
+
+    def test_each_near_miss_is_posted_once_with_its_exact_bytes(self):
+        for name, text in NON_MATCH:
+            for script, data in (("create", f"Title: near miss {name}\n\nbody\n{text}"),
+                                 ("comment", f"QA: near miss\n{text}")):
+                with self.subTest(name=name, script=script):
+                    self.reset_logs()
+                    path = self.put(data)
+                    done = self.create(path) if script == "create" else self.comment("5", path)
+                    self.assertEqual(done.returncode, 0, self.shown(done))
+                    self.assertEqual(len(self.writes()), 1)
+                    expected = data.split("\n\n", 1)[1] if script == "create" else data
+                    self.assertEqual(self.gh_stdin(), expected.encode())
+
     def test_the_text_posted_is_never_a_secret_even_when_hidden_in_a_long_line(self):
         data = "QA: " + "x" * 50000 + " " + MATCH[5][1] + "\n"
         self.assert_refused(self.comment("5", self.put(data)), 3)
@@ -689,6 +726,76 @@ class StaticTest(unittest.TestCase):
                     text = path.read_text(encoding="utf-8", errors="ignore")
                     self.assertNotIn("issue-create", text)
                     self.assertNotIn("issue-comment", text)
+
+
+SWAP_SCRIPT = """\
+set -u
+set -o pipefail
+here="$PWD/agent-kit/scripts"
+die() { echo "lib: $2" >&2; exit "$1"; }
+. agent-kit/scripts/issue-text-lib.sh
+check_file_arg "$1"
+bash -c "$2"
+load_issue_file "$1"
+printf 'LOADED:%s' "$CONTENT"
+"""
+
+
+class FileSwapTest(ScriptBase):
+    """#63 E: the path is swapped between check_file_arg and load_issue_file (sourced, no gh)."""
+
+    def run_swap(self, file, swap):
+        script = self.work / "swap.sh"
+        script.write_text(SWAP_SCRIPT, encoding="utf-8")
+        return subprocess.run(["bash", str(script), file, swap], cwd=str(self.project), env=self.env,
+                              stdin=subprocess.DEVNULL, capture_output=True)
+
+    def setUp(self):
+        super().setUp()
+        self.outside = self.project / "outside-secret.txt"
+        self.outside.write_text("QA: MARKER-OUTSIDE-SCRATCH\n", encoding="utf-8")
+
+    def test_no_swap_loads_the_checked_file(self):
+        done = self.run_swap(self.put("QA: original\n", "t.md"), "true")
+        self.assertEqual(done.returncode, 0, self.shown(done))
+        self.assertEqual(done.stdout, b"LOADED:QA: original\n")
+
+    def test_a_symlink_swapped_in_after_the_check_is_refused_and_not_read(self):
+        path = self.put("QA: original\n", "t.md")
+        done = self.run_swap(path, f"rm {path} && ln -s {self.outside} {path}")
+        self.assertEqual(done.returncode, 2, self.shown(done))
+        self.assertNotIn(b"MARKER-OUTSIDE-SCRATCH", done.stdout + done.stderr)
+        self.assertNotIn(b"LOADED", done.stdout)
+        self.assertIn(b"lib:", done.stderr)
+
+    def test_a_folder_swapped_for_a_symlink_after_the_check_is_refused(self):
+        sub = self.project / ".scratch" / "sub"
+        sub.mkdir()
+        (sub / "t.md").write_text("QA: original\n", encoding="utf-8")
+        elsewhere = self.project / "elsewhere"
+        elsewhere.mkdir()
+        (elsewhere / "t.md").write_text("QA: MARKER-OUTSIDE-SCRATCH\n", encoding="utf-8")
+        done = self.run_swap(".scratch/sub/t.md", f"mv .scratch/sub .scratch/sub-old && ln -s {elsewhere} .scratch/sub")
+        self.assertEqual(done.returncode, 2, self.shown(done))
+        self.assertNotIn(b"MARKER-OUTSIDE-SCRATCH", done.stdout + done.stderr)
+
+    def test_another_regular_file_swapped_in_is_refused_not_read(self):
+        path = self.put("QA: original\n", "t.md")
+        self.put("QA: MARKER-NEW-FILE\n", "other.md")
+        done = self.run_swap(path, f"mv .scratch/other.md {path}")
+        self.assertEqual(done.returncode, 2, self.shown(done))
+        self.assertNotIn(b"MARKER-NEW-FILE", done.stdout + done.stderr)
+        self.assertNotIn(b"LOADED", done.stdout)
+
+    def test_a_load_without_a_prior_check_is_refused(self):
+        # load_issue_file needs the device and inode check_file_arg recorded.
+        script = self.work / "unchecked.sh"
+        script.write_text(SWAP_SCRIPT.replace('check_file_arg "$1"\n', ""), encoding="utf-8")
+        done = subprocess.run(["bash", str(script), self.put("QA: x\n"), "true"], cwd=str(self.project),
+                              env=self.env, stdin=subprocess.DEVNULL, capture_output=True)
+        self.assertEqual(done.returncode, 2)
+        self.assertIn(b"not checked", done.stderr)
+        self.assertEqual(self.calls(), [])
 
 
 class MakeTargetTest(FakeGhMixin, unittest.TestCase):

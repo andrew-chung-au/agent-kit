@@ -124,6 +124,9 @@ class FixtureTest(unittest.TestCase):
             "cp .env.example .env", ".env.examples", "authorization: bearer " + "a" * 25,
             "Authorization: Bearer short", "xoxz-" + "1" * 12, "sk-" + "a" * 19, "sk-" + "a" * 20,
             "ghp_" + "a" * 35, "ghp_" + "a" * 36, "AKIA" + "A" * 15, "github_pat_" + "a" * 21,
+            # #63: a backslash inside a bracket is literal for grep -E but not for Python or JS.
+            "aws_secret_access_key\\=" + "A" * 40, "aws_secret_access_key \\ = " + "B" * 40,
+            "ghs_" + "a" * 36 + "\\", "xsk-proj-" + "a" * 25, "AUTHORIZATION: BASIC " + "Q" * 16,
         ]
         for text in extra:
             with self.subTest(text=text):
@@ -138,8 +141,34 @@ class FixtureTest(unittest.TestCase):
                        "xoxb- token", "sk- key", "Authorization Bearer header", "cat .env",
                        "config/.env.local"):
             self.assertIn(needed, names)
-        self.assertEqual([text for _, text in NON_MATCH],
+        # #63 adds rows after these; the five from #44 stay first and unchanged.
+        self.assertEqual([text for _, text in NON_MATCH[:5]],
                          ["git status", "make verify", ".env.example", "config/.env.example", "sk-short"])
+        self.assertEqual([name for name, *_ in MATCH[:9]],
+                         ["PEM private key header", "ghp_ token", "github_pat_ token", "AKIA key", "xoxb- token",
+                          "sk- key", "Authorization Bearer header", "cat .env", "config/.env.local"])
+
+    def test_each_added_pattern_has_a_fixture_and_there_are_near_misses(self):
+        # #63: one must-refuse fixture per added pattern (9 to 16), and at least as many near misses.
+        numbers = {number for _, _, number, _ in MATCH}
+        self.assertTrue(set(range(9, PATTERN_COUNT + 1)) <= numbers, set(range(9, PATTERN_COUNT + 1)) - numbers)
+        self.assertGreaterEqual(len(MATCH) - 9, 10)
+        self.assertGreaterEqual(len(NON_MATCH) - 5, len(MATCH) - 9)
+
+    def test_left_out_on_purpose(self):
+        # #63 decisions; the pattern file allows no comment lines, so the reasons live here.
+        # - bare 40-character or longer base64 blobs: they match commit hashes and checksums,
+        #   which issues quote all the time;
+        # - `password=` or `password:` with any value: it matches every discussion of passwords,
+        #   and the patterns above already cover real tokens;
+        # - a key split across a line break: the scanner reads line by line (see process.md).
+        patterns = PATTERNS_FILE.read_text(encoding="utf-8").split("\n")
+        texts = dict(NON_MATCH)
+        for name in ("a 40-character commit hash", "a password= value (left out on purpose)"):
+            with self.subTest(name=name):
+                self.assertFalse(any(line and re.search(line, texts[name]) for line in patterns))
+        split = "ghp_" + "A1b2" * 4 + "\n" + "A1b2" * 5
+        self.assertFalse(any(line and any(re.search(line, part) for part in split.split("\n")) for line in patterns))
 
 
 class EmptyMatchTest(unittest.TestCase):

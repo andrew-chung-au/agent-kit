@@ -9,7 +9,7 @@ At the end of every orchestrator session: issue work, planning or a backlog revi
 
 ## Reflection
 
-After QA PASS, ask each role (resume it, or relaunch it with the issue number if it can't be resumed) to post a new comment, since old ones can't be edited, ending in a `Reflection:` block of up to three lines (planning: a reply): (1) what slowed you down, with evidence; (2) what nearly went wrong or was blocked; (3) one proposed change: the file it touches, the expected effect, how it would be measured. Copy the blocks unchanged under `## Reflection`, one `###` per role; a role not asked reads `unknown (role not asked)`. One proposal per session, 150 words at most. It is a suggestion for the human; nobody applies it.
+After QA PASS, ask each role (resume it, or relaunch it with the issue number if it can't be resumed) to post a new comment, since old ones can't be edited, starting with its role prefix (such as `QA:`) and ending in a `Reflection:` block of up to three lines (planning: a reply): (1) what slowed you down, with evidence; (2) what nearly went wrong or was blocked; (3) one proposed change: the file it touches, the expected effect, how it would be measured. Copy the blocks unchanged under `## Reflection`, one `###` per role; a role not asked reads `unknown (role not asked)`. One proposal per session, 150 words at most. It is a suggestion for the human; nobody applies it.
 
 ## Launch usage
 

@@ -650,5 +650,52 @@ class IssueWrapperPermissionTest(unittest.TestCase):
                          ["gh issue list*", "gh issue view*"])
 
 
+# ---- Issue #63 D: this repo's own .claude/settings.json carries the kit's gh asks ----
+
+REPO_CLAUDE = json.loads((KIT.parent / ".claude" / "settings.json").read_text(encoding="utf-8"))["permissions"]
+
+
+def kit_gh_asks() -> list:
+    return [rule for rule in CLAUDE["ask"] if rule.startswith("Bash(gh ")]
+
+
+def missing_gh_asks(repo_permissions: dict) -> list:
+    """The kit's `gh` ask rules that the repo copy lacks (empty list: parity)."""
+    return [rule for rule in kit_gh_asks() if rule not in repo_permissions.get("ask", [])]
+
+
+def repo_decision(command: str, permissions: dict) -> str:
+    for decision in ("deny", "ask", "allow"):
+        if any(claude_matches(rule, "Bash", command) for rule in permissions.get(decision, [])):
+            return decision
+    return "ask"
+
+
+class RepoClaudeGhAskTest(unittest.TestCase):
+    def test_the_kit_has_the_seven_gh_asks(self):
+        self.assertEqual(sorted(kit_gh_asks()), sorted(CLAUDE_GH_ASKS))
+
+    def test_every_kit_gh_ask_is_in_the_repo_copy(self):
+        self.assertEqual(missing_gh_asks(REPO_CLAUDE), [])
+
+    def test_deleting_one_entry_is_named(self):
+        for rule in CLAUDE_GH_ASKS:
+            with self.subTest(rule=rule):
+                trimmed = dict(REPO_CLAUDE, ask=[r for r in REPO_CLAUDE["ask"] if r != rule])
+                self.assertEqual(missing_gh_asks(trimmed), [rule])
+
+    def test_no_repo_allow_rule_matches_a_raw_gh_write(self):
+        for command in RAW_ISSUE_WRITES:
+            with self.subTest(command=command):
+                self.assertEqual([r for r in REPO_CLAUDE["allow"] if claude_matches(r, "Bash", command)], [])
+
+    def test_a_raw_gh_issue_comment_asks_under_both_files(self):
+        command = "gh issue comment 5 --body-file -"
+        self.assertEqual(claude_decision("Bash", command), "ask")
+        self.assertEqual(repo_decision(command, REPO_CLAUDE), "ask")
+        self.assertTrue(any(claude_matches(r, "Bash", command) for r in REPO_CLAUDE["ask"]),
+                        "the repo copy asks only by default, not because a rule asks")
+
+
 if __name__ == "__main__":
     unittest.main()

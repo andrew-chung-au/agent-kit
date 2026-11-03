@@ -23,6 +23,23 @@ MATCH = [
     ("Authorization Bearer header", "Authorization: Bearer " + "abcdefghij" + "0123456789", 7, "abcdefghij"),
     ("cat .env", "cat .env", 8, ".env"),
     ("config/.env.local", "config/.env.local", 8, ".env.local"),
+    # Added by #63.
+    ("sk-proj key", "sk-" + "proj-" + "Ab3dE_fG-hI" * 3, 9, "proj-Ab3dE"),
+    ("sk-ant key", "sk-" + "ant-" + "api03-" + "Zx9_Yw8-Vu7T" * 2, 9, "api03-Zx9"),
+    ("gho_ token", "gho_" + "A1b2" * 9, 10, "gho_A1b2"),
+    ("ghs_ token", "ghs_" + "C3d4" * 9, 10, "ghs_C3d4"),
+    ("ghr_ token", "ghr_" + "E5f6" * 9, 10, "ghr_E5f6"),
+    ("lower-case bearer header", "authorization: bearer " + "abcdefghij" * 2 + "XYZ", 11, "abcdefghij"),
+    ("upper-case bearer header", "AUTHORIZATION: Bearer " + "0123456789" * 2 + "abc", 11, "0123456789"),
+    ("basic auth header", "Authorization: Basic " + "dXNlcjpw" + "YXNzd29yZA==", 12, "dXNlcjpw"),
+    ("PGP private key header", "-----BEGIN PGP " + "PRIVATE KEY BLOCK-----", 13, "PRIVATE KEY BLOCK"),
+    ("JWT", "eyJ" + "hbGciOiJI" + ".eyJ" + "zdWIiOiIx" + "." + "SflKxwRJSM" + "eKKF2QT4", 14, "hbGciOiJI"),
+    ("Slack webhook", "https://hooks." + "slack.com/services/" + "T0000AAAA/" + "B0000BBBB/" + "XXXXxxxxYYYY", 15,
+     "B0000BBBB"),
+    ("AWS secret key, lower case", "aws_secret_access_key = " + "wJalrXUtnFEMI/K7MDENG/" + "bPxRfiCYEXAMPLEKEY", 16,
+     "wJalrXUtn"),
+    ("AWS secret key, upper case", "AWS_SECRET_ACCESS_KEY: '" + "AbCdEfGhIjKlMnOpQrSt" + "UvWxYz0123456789+/AB" + "'",
+     16, "AbCdEfGhIj"),
 ]
 
 NON_MATCH = [
@@ -31,6 +48,20 @@ NON_MATCH = [
     (".env.example", ".env.example"),
     ("config/.env.example", "config/.env.example"),
     ("sk-short", "sk-short"),
+    # Added by #63: near misses that must pass.
+    ("a word ending in sk- before proj-", "brisk-proj-planning-for-the-next-quarter-long"),
+    ("a hyphenated word containing sk-", "risk-assessment-for-something-long"),
+    ("a 39-character ghs_ body", "ghs_" + "a" * 39),
+    ("a 35-character ghs_ body", "ghs_" + "a" * 35),
+    ("dotted version strings", "release 1.2.3 and v2.10.4"),
+    ("a JWT with two parts", "eyJ" + "hbGciOiJI" + ".eyJ" + "zdWIiOiIx"),
+    ("a Slack URL without the three-part path", "https://hooks." + "slack.com/services/T0000AAAA"),
+    ("the AWS key name without a value", "aws_secret_access_key = (not set)"),
+    ("a 40-character commit hash", "commit " + "0123456789abcdef" * 2 + "01234567"),
+    ("a short Basic value", "Authorization: Basic short"),
+    ("a PGP public key header", "-----BEGIN PGP PUBLIC KEY BLOCK-----"),
+    ("a password= value (left out on purpose)", "password=hunter2"),
+    ("a short lower-case bearer value", "authorization: bearer short"),
 ]
 
-PATTERN_COUNT = 8
+PATTERN_COUNT = 16
