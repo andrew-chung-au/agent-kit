@@ -13,7 +13,7 @@ The record format for permission requests an agent tool asks the human to approv
 
 **Fields** (the only ones ever written): `event`, `tool`, `time` (ISO-8601 UTC), `sessionID`, `id`, `type` (what is asked about, such as `bash`), `pattern`, `response`, `source` (OpenCode's own event name). A reply's `id` is the id of the ask it answers. For the report, `once` is allowed, `always` is always, `reject` is denied.
 
-**Limits:** secrets in `pattern` are replaced by `[redacted]` using `scripts/secret-patterns.txt`, then it is cut to 200 characters (a cut ends in `...`). If the patterns cannot be read it is `[redacted: no patterns]`. A file stops at 1048576 bytes: later records that day are dropped and one `truncated` record is written.
+**Limits:** secrets in `pattern` are replaced by `[redacted]` using `scripts/secret-patterns.txt`, then it is cut to 200 characters (a cut ends in `...`). If the patterns cannot be read it is `[redacted: no patterns]`. The first record that does not fit under 1048576 bytes ends that day's log: one `truncated` record is written, and every later record is dropped, even after a restart.
 
 **Never logged:** commands, titles, tool output, file contents, diffs. An unrecognised permission event becomes an `unknown` record with its name only; other events are ignored.
 

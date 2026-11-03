@@ -42,7 +42,48 @@ FORBIDDEN = [
     (r"process\.exit|\.env\b|process\.env", "exits or reads the environment"),
     (r"\.(metadata|title|command|output|diff|content)\b", "reads a field that must never be logged"),
     (r"\brequire\s*\(", "uses require"),
+    (r"\.\s*status\s*=(?!=)|\[\s*['\"]status['\"]\s*\]\s*=(?!=)", "assigns a status property (an aliased output.status change)"),
+    (r"\bObject\s*\.\s*assign\s*\(", "uses Object.assign (can overwrite output)"),
+    (r"\bglobalThis\s*\[", "reaches a global through a computed globalThis[...] access"),
+    (r"\beval\s*\(|\bnew\s+Function\b|\bFunction\s*\(", "builds code at run time (eval or Function)"),
 ]
+
+# The plugin's cap and cut, read from the source so a test cannot pass on a stale copy of the numbers.
+CUT_LINE = re.compile(r"return out\.length > MAX_PATTERN \? out\.slice\(0, MAX_PATTERN - (\d+)\) \+ \"\.\.\.\" : out")
+
+
+def const(source: str, name: str) -> int:
+    return int(re.search(r"^const %s = (\d+)" % name, source, re.M).group(1))
+
+
+def cut_problems(source: str, pattern: str) -> list:
+    """Apply the source's own cut expression to a pattern; say what is wrong with the result."""
+    found = CUT_LINE.search(source)
+    if not found:
+        return ["the cut line is missing or changed"]
+    limit = const(source, "MAX_PATTERN")
+    out = pattern if len(pattern) <= limit else pattern[:limit - int(found.group(1))] + "..."
+    if len(pattern) > limit and (len(out) != 200 or not out.endswith("...")):
+        return ["a long pattern is cut to %d characters, not 200 ending in ..." % len(out)]
+    return []
+
+
+def model_append(source: str, size: int, line: int, marked: bool, capped: bool, looked: bool):
+    """The plugin's append decision, mirrored from its constants: (action, capped, looked).
+
+    Action is "append", "drop", or "append+truncated" (the record is dropped and the marker written).
+    `marked` is whether the file already ends in a truncated record; `capped` and `looked` are the
+    plugin's in-memory sets for this file (empty after a restart).
+    """
+    cap, near = const(source, "CAP"), const(source, "NEAR")
+    if not capped and size > 0 and (not looked or size > cap - near):
+        looked = True
+        capped = marked
+    if capped:
+        return "drop", capped, looked
+    if size + line <= cap:
+        return "append", capped, looked
+    return ("drop" if marked else "append+truncated"), True, looked
 
 
 def problems(source: str) -> list:
@@ -80,6 +121,10 @@ class PluginSourceTest(unittest.TestCase):
         self.assertNotRegex(self.source, r"(?m)^\s*(interface|type)\s+\w+|:\s*(string|number|boolean)\b|\bas const\b")
 
     def test_the_checker_refuses_what_it_is_meant_to_refuse(self):
+        """The limit of a text check, stated once: it catches common shapes, not every way to write them.
+
+        It is a guard against a careless edit, not a proof that the plugin is observe-only.
+        """
         bad = {
             "decision change": 'event: async ({ event }) => {}, "x": 1\n output.status = "allow"',
             "decision change, spaced": "output . status = 'deny'",
@@ -101,6 +146,22 @@ class PluginSourceTest(unittest.TestCase):
         for name, source in bad.items():
             with self.subTest(name=name):
                 self.assertNotEqual(problems(source), [], name)
+
+    def test_the_checker_names_each_new_refusal(self):
+        cases = {
+            "aliased assignment": ("event: async (o) => { o.status = 'allow' }", "assigns a status property"),
+            "bracket assignment": ("o['status'] = 'deny'", "assigns a status property"),
+            "Object.assign": ("Object.assign(output, { status: 'allow' })", "uses Object.assign"),
+            "string-built global": ("globalThis['fe' + 'tch'](url)", "computed globalThis[...]"),
+            "any computed global": ("const f = globalThis[name]", "computed globalThis[...]"),
+            "eval": ("eval(code)", "builds code at run time"),
+            "new Function": ("const f = new Function('return 1')", "builds code at run time"),
+        }
+        for name, (snippet, why) in cases.items():
+            with self.subTest(name=name):
+                found = problems(self.source + "\n" + snippet)
+                self.assertTrue(any(why in w for w in found), (name, found))
+        self.assertEqual(problems(self.source), [])
 
     def test_the_checker_accepts_a_comparison_with_status(self):
         self.assertEqual([w for w in problems(self.source + "\nif (output.status === 1) {}") if "decision" in w], [])
@@ -159,6 +220,85 @@ class PluginSourceTest(unittest.TestCase):
     def test_the_patterns_are_applied_to_the_pattern_text_only(self):
         self.assertEqual(len(re.findall(r"redact\(", self.source)), 2)  # the definition and one call
         self.assertIn("record.pattern", self.source)
+
+
+class CutEffectTest(unittest.TestCase):
+    """The 200-character cut, tested by what the plugin's own cut expression does."""
+
+    source = PLUGIN.read_text(encoding="utf-8")
+
+    def test_the_real_cut_gives_200_characters_ending_in_three_dots(self):
+        self.assertEqual(cut_problems(self.source, "a" * 500), [])
+        self.assertEqual(cut_problems(self.source, "a" * 200), [])
+
+    def test_deleting_the_cut_line_fails_even_with_the_constant_kept(self):
+        mutated = CUT_LINE.sub("return out", self.source)
+        self.assertIn("const MAX_PATTERN = 200", mutated)
+        self.assertNotEqual(cut_problems(mutated, "a" * 500), [])
+
+    def test_changing_the_offset_fails(self):
+        for offset in (2, 4, 0):
+            with self.subTest(offset=offset):
+                mutated = self.source.replace("MAX_PATTERN - 3", "MAX_PATTERN - %d" % offset)
+                self.assertNotEqual(cut_problems(mutated, "a" * 500), [])
+
+    def test_changing_the_limit_fails(self):
+        mutated = self.source.replace("const MAX_PATTERN = 200", "const MAX_PATTERN = 300")
+        self.assertNotEqual(cut_problems(mutated, "a" * 500), [])
+
+
+class CapBehaviourTest(unittest.TestCase):
+    """Nothing is appended after the truncated marker (issue #71). A Python model of the append
+    decision, driven by the source's constants, plus text checks on the order in the source."""
+
+    source = PLUGIN.read_text(encoding="utf-8")
+    cap = const(source, "CAP")
+    line = 300
+
+    def test_a_record_that_fits_and_no_marker_is_appended(self):
+        self.assertEqual(model_append(self.source, 1000, self.line, False, False, False)[0], "append")
+        self.assertEqual(model_append(self.source, self.cap - self.line, self.line, False, False, True)[0], "append")
+
+    def test_the_first_record_that_does_not_fit_writes_one_marker(self):
+        action, capped, _ = model_append(self.source, self.cap - 100, self.line, False, False, True)
+        self.assertEqual((action, capped), ("append+truncated", True))
+
+    def test_a_smaller_record_after_the_marker_is_dropped_in_the_same_process(self):
+        _, capped, looked = model_append(self.source, self.cap - 100, self.line, False, False, True)
+        action, _, _ = model_append(self.source, self.cap + 80, 100, True, capped, looked)
+        self.assertEqual(action, "drop")
+
+    def test_a_smaller_record_after_the_marker_is_dropped_after_a_restart(self):
+        # Size is under the cap on purpose: the small record would fit. A restart empties both sets.
+        for size in (self.cap - 50, self.cap - 3000, self.cap - 5000):
+            with self.subTest(size=size):
+                action, capped, _ = model_append(self.source, size, 20, True, False, False)
+                self.assertEqual((action, capped), ("drop", True))
+
+    def test_a_marker_written_by_another_process_is_seen_near_the_cap(self):
+        action, _, _ = model_append(self.source, self.cap - 60, 20, True, False, True)
+        self.assertEqual(action, "drop")
+
+    def test_never_a_second_marker(self):
+        action, _, _ = model_append(self.source, self.cap - 50, self.line, True, False, False)
+        self.assertEqual(action, "drop")
+        action, _, _ = model_append(self.source, self.cap - 50, self.line, True, True, True)
+        self.assertEqual(action, "drop")
+
+    def test_the_marker_check_comes_before_any_append_of_a_normal_record(self):
+        body = self.source[self.source.index("function append("):self.source.index("export const")]
+        first_check = body.index("hasMarker(file)")
+        normal_append = body.index("fs.appendFileSync(file, line)")
+        marker_append = body.index('fs.appendFileSync(file, JSON.stringify({ event: "truncated"')
+        self.assertLess(first_check, normal_append)
+        self.assertLess(body.index("if (capped.has(file)) return"), normal_append)
+        self.assertLess(normal_append, marker_append)
+        self.assertEqual(body.count("fs.appendFileSync("), 2)
+        self.assertIn("const NEAR = ", self.source)
+
+    def test_the_marker_is_looked_for_in_the_file_not_only_in_memory(self):
+        self.assertRegex(self.source, r"const hasMarker = \(file\) => fs\.readFileSync\(file, \"utf8\"\)")
+        self.assertIn('.includes(\'"event":"truncated"\')', self.source)
 
 
 class RedactionModelTest(unittest.TestCase):

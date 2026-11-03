@@ -11,7 +11,9 @@ import path from "node:path"
 const CAP = 1048576 // bytes per daily file
 const MAX_PATTERN = 200 // characters, after redaction
 const NO_PATTERNS = "[redacted: no patterns]"
-const capped = new Set()
+const NEAR = 4096 // bytes: a marker can only follow a file this close to CAP (a record is far smaller)
+const capped = new Set() // files that hold the truncated marker
+const looked = new Set() // files whose tail this process has already checked for the marker
 
 const text = (value, max = 200) => (typeof value === "string" ? value.slice(0, max) : "")
 
@@ -70,6 +72,8 @@ function toRecord(event) {
   return { event: "unknown", tool: "opencode", time, source: text(name) } // the name only, never the payload
 }
 
+const hasMarker = (file) => fs.readFileSync(file, "utf8").slice(-1000).includes('"event":"truncated"')
+
 function append(root, record) {
   const dir = path.join(root, ".agent-kit", "logs", "permissions")
   fs.mkdirSync(dir, { recursive: true })
@@ -81,13 +85,19 @@ function append(root, record) {
   } catch {
     size = 0
   }
+  // The marker check comes before any append of a normal record: nothing follows a marker,
+  // not in this process (capped) and not after a restart (first look at the file, or near the cap).
+  if (!capped.has(file) && size > 0 && (!looked.has(file) || size > CAP - NEAR)) {
+    looked.add(file)
+    if (hasMarker(file)) capped.add(file)
+  }
+  if (capped.has(file)) return
   if (size + Buffer.byteLength(line) <= CAP) {
     fs.appendFileSync(file, line)
     return
   }
-  if (capped.has(file)) return
-  capped.add(file) // once per file: later records for the day are dropped
-  if (!fs.readFileSync(file, "utf8").slice(-1000).includes('"event":"truncated"')) {
+  capped.add(file) // the first record that does not fit ends the day's log
+  if (!hasMarker(file)) {
     fs.appendFileSync(file, JSON.stringify({ event: "truncated", tool: "opencode", time: record.time }) + "\n")
   }
 }
