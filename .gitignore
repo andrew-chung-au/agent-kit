@@ -3,3 +3,4 @@
 !.env.example
 .scratch/
 __pycache__/
+.agent-kit/logs/
