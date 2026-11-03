@@ -1,0 +1,15 @@
+# Installed-file map: kit files that are installed outside the kit folder (#91, piece a).
+# Read as text by scripts/kit-map.py; never sourced, never run. The human installs these
+# files from a clean clone; no tool writes them.
+#
+# <path inside the kit> | <install path> | <kind> | <allowed-to-differ>
+#   kind:     repo (inside the repository) or human-machine (on the human's machine)
+#   allowed:  none, markers (agent-kit: local-begin / agent-kit: local-end) or prefix:<text>
+#
+# A human-machine install path is data only: no tool opens or stats it. The push check is
+# installed twice: once in the human's ~/.agent-hooks, once in each clean clone's .git/hooks.
+environments/local-sandbox/devcontainer.json | .devcontainer/devcontainer.json | repo | none
+environments/local-sandbox/setup.sh | .devcontainer/setup.sh | repo | prefix:git config --global user.
+templates/ci-verify.yml.template | .github/workflows/verify.yml | repo | none
+environments/local-sandbox/pre-push | ~/.agent-hooks/pre-push | human-machine | none
+environments/local-sandbox/pre-push | .git/hooks/pre-push | human-machine | none
