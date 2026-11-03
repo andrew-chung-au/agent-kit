@@ -1,6 +1,6 @@
 # Permission log
 
-The record format for permission requests an agent tool asks the human to approve. The OpenCode plugin `opencode/plugins/permission-log.js` writes it. #36 adds the Claude Code logger (`tool: "claude-code"`), the report and retention.
+The record format for permission requests an agent tool asks the human to approve. The OpenCode plugin `opencode/plugins/permission-log.js` writes it, and so does the Claude Code hook `claude-code/hooks/log_permission.py` (`tool: "claude-code"`, `ask` records only: its events carry no outcome, so no `id`). `make permission-report` summarises both; `make permission-logs-prune DAYS=<n>` deletes old files (#36).
 
 **Where:** `.agent-kit/logs/permissions/YYYY-MM-DD.jsonl` (UTC date), one JSON object per line. It is git-ignored and outside `.scratch/`, so `make clean-scratch` leaves it.
 
