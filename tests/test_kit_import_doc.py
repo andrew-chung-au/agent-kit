@@ -42,6 +42,12 @@ class KitImportDocTest(unittest.TestCase):
                     "| Not present | New file | Add |"):
             self.assertIn(row, text)
 
+    def test_doc_copies_the_new_manifest_unchanged_before_the_check(self):
+        text = flat(DOC)
+        self.assertIn("Copy the new kit's `MANIFEST.sha256` into the live kit folder unchanged", text)
+        self.assertIn("before step 6", text)
+        self.assertLess(text.index("Copy the new kit's `MANIFEST.sha256`"), text.index("does not regenerate it"))
+
     def test_doc_states_the_refusal(self):
         self.assertIn("a locally modified file is never overwritten or removed without that file's decision recorded",
                       flat(DOC))

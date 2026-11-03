@@ -25,7 +25,7 @@ How a repo that carries a kit reviews a newer kit against its own, file by file,
 
 **Version.** If any local file is kept, the claim is `<newbase>+<repo>.<n>`: `n` is 1 on a new base and one higher for each further local change on the same base. If none is kept, the claim is the plain new base. Set it by editing `KIT_VERSION` in `agent-kit.conf` as text only. Leave the README header line alone in a derivative; it is hashed.
 
-**Manifest.** A derivative keeps the upstream `MANIFEST.sha256` and does not regenerate it, so `make kit-check` keeps showing drift from the pristine base and the `+` claim stays true. Regenerating would hide that drift.
+**Manifest.** Copy the new kit's `MANIFEST.sha256` into the live kit folder unchanged, as the new base's manifest, before step 6. A derivative keeps that upstream manifest and does not regenerate it, so `make kit-check` keeps showing drift from the pristine base and the `+` claim stays true. Regenerating would hide that drift.
 
 **Commit.** The kit folder is protected: stage explicit paths, send the approval request with `git diff --cached --stat`, and commit with `HUMAN_APPROVED=1` only after the human approves.
 
