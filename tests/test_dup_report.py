@@ -6,6 +6,7 @@ that the report is never a gate: verify, test and the hooks do not call it.
 """
 from __future__ import annotations
 
+import importlib.util
 import os
 import shutil
 import subprocess
@@ -121,6 +122,71 @@ class ReportTest(Base):
         self.assertEqual(done.returncode, 0)
         self.assertIn("unreadable (skipped): d.md", done.stdout)
 
+    def test_huge_decision_key_does_not_crash(self):
+        # QA on #112 at a170fd2: D plus 6000 digits in two files made int() raise
+        # "Exceeds the limit (4300 digits)" in the sort, and the report exited 1.
+        huge = "D" + "7" * 6000
+        self.put("a.md", f"{huge} is open.\n")
+        self.put("b.md", f"{huge} was decided.\n")
+        self.put("c.md", "D10 is open. D2 is open. D02 is open.\n")
+        self.put("d.md", "D10 is open. D2 is open. D02 is open.\n")
+        done = self.run_report(".")
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertEqual(done.stderr, "")
+        lines = done.stdout.splitlines()
+        self.assertIn("Decision keys in 2+ files: 4", lines)
+        listed = [line.split(":")[0][2:] for line in lines if line.startswith("- D") and "status" not in line]
+        self.assertEqual(listed, ["D02", "D2", "D10", huge])
+        self.assertIn(f"- {huge}: status differs: open in a.md; decided in b.md", lines)
+
+    def run_with_timeout(self, *args):
+        try:
+            return subprocess.run([sys.executable, "-B", str(SCRIPT), *args], cwd=str(self.root),
+                                  capture_output=True, text=True, stdin=subprocess.DEVNULL, timeout=20)
+        except subprocess.TimeoutExpired:
+            self.fail("dup-report hung")
+
+    def test_fifo_is_skipped_never_read(self):
+        # QA on #112 at a170fd2: a FIFO named f.md made open() block forever.
+        self.put("a.md", SHARED + "\n")
+        self.put("b.md", SHARED + "\n")
+        os.mkfifo(self.root / "f.md")
+        os.mkfifo(self.root / "g.md.template")
+        for args in ((".",), ("f.md", "a.md", "b.md")):
+            with self.subTest(args=args):
+                done = self.run_with_timeout(*args)
+                self.assertEqual(done.returncode, 0, done.stderr)
+                self.assertIn("Files scanned: 2.", done.stdout)
+                self.assertIn("Repeated sentences (12+ words, in 2+ files): 1", done.stdout)
+                self.assertNotIn("f.md", done.stdout)
+
+    def test_read_refuses_a_fifo_even_after_the_walk(self):
+        # A file swapped for a FIFO between the walk and the read is refused at the read.
+        spec = importlib.util.spec_from_file_location("dup_report", SCRIPT)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        fifo = self.root / "late.md"
+        os.mkfifo(fifo)
+        self.assertIsNone(module.read(str(fifo)))
+        self.put("ok.md", "text\n")
+        self.assertEqual(module.read(str(self.root / "ok.md")), "text\n")
+
+    def test_closed_output_pipe_exits_0(self):
+        # `make dup-report | head`: the reader closes early; the report must not fail.
+        for n in range(40):
+            self.put(f"f{n}.md", f"{SHARED} Number {n} here.\n\n{SHARED}\n")
+        proc = subprocess.Popen([sys.executable, "-B", str(SCRIPT), "."], cwd=str(self.root),
+                                stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.DEVNULL)
+        proc.stdout.close()
+        try:
+            err = proc.stderr.read()
+            code = proc.wait(timeout=20)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            self.fail("dup-report hung")
+        self.assertEqual(code, 0)
+        self.assertEqual(err, b"")
+
     def test_bad_usage_exits_2(self):
         for args in ((), ("missing-folder",), ("--bogus", ".")):
             with self.subTest(args=args):
@@ -142,7 +208,14 @@ class StaticTest(unittest.TestCase):
                      "eval(", "exec("):
             with self.subTest(word=word):
                 self.assertNotIn(word, code)
-        self.assertIn('open(name, "rb")', code)
+        # #112 QA fix: the read is a read-only, non-blocking os.open (it was open(name, "rb")).
+        self.assertIn("os.open(name, os.O_RDONLY | os.O_NONBLOCK", code)
+        for flag in ("O_RDWR", "O_CREAT", "O_TRUNC", "O_APPEND"):
+            with self.subTest(flag=flag):
+                self.assertNotIn(flag, code)
+        # The one write-mode open is devnull, for a closed output pipe; nothing else.
+        self.assertEqual(code.count("O_WRONLY"), 1)
+        self.assertIn("os.open(os.devnull, os.O_WRONLY)", code)
 
     def test_never_a_gate(self):
         for path in (KIT / "scripts" / "verify.sh", KIT / "scripts" / "check-staged.sh"):

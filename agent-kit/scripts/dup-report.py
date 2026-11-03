@@ -10,6 +10,10 @@ Each <path> is a file or a folder; folders are walked for `*.md` and `*.md.templ
 files. `--exclude <prefix>` (repeatable) skips any file whose path, relative to the
 current folder and written with `/`, starts with <prefix>. `.git/` is always skipped,
 and so is any symlink (file or folder), so the walk never leaves the tree it was given.
+Only regular files are read: a FIFO, device or socket named `*.md` is skipped, and the
+read itself opens non-blocking and re-checks the type, so the report never hangs.
+Decision keys are sorted without converting their digits to a number, so a key with
+thousands of digits cannot crash it.
 
 It prints, to standard output only:
   1. Repeated sentences: text between `.` `!` `?` and a space, 12 words or more, with
@@ -32,6 +36,7 @@ import argparse
 import collections
 import os
 import re
+import stat
 import sys
 from pathlib import Path
 
@@ -57,6 +62,22 @@ def excluded(name: str, prefixes) -> bool:
     return name == ".git" or name.startswith(".git/") or any(name.startswith(p) for p in prefixes)
 
 
+def regular(path: Path) -> bool:
+    """True only for a regular file that is not a symlink (lstat: never follows a link)."""
+    try:
+        return stat.S_ISREG(os.lstat(path).st_mode)
+    except OSError:
+        return False
+
+
+def key_order(key: str):
+    """Sort D2 before D10 without int(): the digits may be thousands long, and int()
+    refuses more than 4300. Compare by letter, digits without leading zeros by length,
+    then by text, then the full key so D01 and D1 keep a fixed order."""
+    digits = key[1:].lstrip("0")
+    return (key[0], len(digits), digits, key)
+
+
 def collect(paths, prefixes):
     """Return (sorted relative names of the files to scan, list of usage errors)."""
     found, errors = set(), []
@@ -64,8 +85,10 @@ def collect(paths, prefixes):
         start = Path(raw)
         if start.is_symlink():
             continue
-        if start.is_file():
-            if start.name.endswith(SUFFIXES) and not excluded(rel(start), prefixes):
+        if start.exists() and not start.is_dir():
+            # A named file: only a regular one is read (a FIFO would block the read).
+            if (start.name.endswith(SUFFIXES) and regular(start)
+                    and not excluded(rel(start), prefixes)):
                 found.add(rel(start))
             continue
         if not start.is_dir():
@@ -77,7 +100,7 @@ def collect(paths, prefixes):
                              and not excluded(rel(here / d) + "/", prefixes))
             for name in files:
                 path = here / name
-                if path.is_symlink() or not name.endswith(SUFFIXES):
+                if not name.endswith(SUFFIXES) or not regular(path):
                     continue
                 name_rel = rel(path)
                 if not excluded(name_rel, prefixes):
@@ -86,11 +109,28 @@ def collect(paths, prefixes):
 
 
 def read(name: str):
+    """Return the file's text, or None when it is not a regular file or cannot be read.
+
+    Opened with O_NONBLOCK and checked with fstat on the open descriptor, so a FIFO,
+    device or socket is refused without ever blocking, and a file swapped for one after
+    the walk is refused too.
+    """
     try:
-        with open(name, "rb") as handle:
+        fd = os.open(name, os.O_RDONLY | os.O_NONBLOCK | getattr(os, "O_NOFOLLOW", 0))
+    except OSError:
+        return None
+    try:
+        if not stat.S_ISREG(os.fstat(fd).st_mode):
+            return None
+        os.set_blocking(fd, True)
+        with os.fdopen(fd, "rb") as handle:
+            fd = None
             return handle.read().decode("utf-8", errors="replace")
     except OSError:
         return None
+    finally:
+        if fd is not None:
+            os.close(fd)
 
 
 def sentences(text: str) -> set:
@@ -142,7 +182,7 @@ def report(names):
         lines.append(f"- {' | '.join(sorted(files))} :: {preview}")
     shared = {k: v for k, v in key_files.items() if len(v) >= 2}
     lines.append(f"Decision keys in 2+ files: {len(shared)}")
-    order = sorted(shared, key=lambda k: (k[0], int(k[1:])))
+    order = sorted(shared, key=key_order)
     for key in order:
         lines.append(f"- {key}: {', '.join(sorted(shared[key]))}")
     for key in order:
@@ -171,7 +211,13 @@ def main(argv) -> int:
         for error in errors:
             print(f"dup-report: {error}", file=sys.stderr)
         return 2
-    print("\n".join(report(names)))
+    try:
+        print("\n".join(report(names)))
+        sys.stdout.flush()
+    except BrokenPipeError:
+        # The reader stopped early (`make dup-report | head`). The report is done, not
+        # failed: point stdout at devnull so the exit-time flush stays quiet, and exit 0.
+        os.dup2(os.open(os.devnull, os.O_WRONLY), sys.stdout.fileno())
     return 0
 
 
