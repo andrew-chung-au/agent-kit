@@ -8,7 +8,10 @@ alone.
 """
 from __future__ import annotations
 
+import contextlib
+import errno
 import importlib.util
+import io
 import os
 import shutil
 import stat
@@ -16,6 +19,7 @@ import subprocess
 import sys
 import unittest
 from pathlib import Path
+from unittest import mock
 
 REPO = Path(__file__).resolve().parent.parent
 KIT = REPO / "agent-kit"
@@ -122,26 +126,28 @@ class BundleTest(Base):
         self.assertEqual(len(entries), 1, "the shipped map has one prefix rule")
         return entries[0]
 
-    def test_lines_named_by_a_prefix_rule_never_reach_the_bundle(self):
+    def test_lines_that_differ_from_the_kit_copy_are_withheld_for_a_prefix_rule(self):
         entry = self.real_prefix_entry()
         self.assertEqual(entry.allowed, "prefix:git config --global user.")
         self.project_source(entry.source, "base\n")
-        self.reference_source(entry.source, "base\n")
+        self.reference_source(entry.source, "base\nsecond\n")
         self.write_map(f"{entry.source} | {entry.install} | repo | {entry.allowed}\n")
         self.installed(entry.install,
                        "base\ngit config --global user.name 'Ada Lovelace'\n"
-                       "git config --global user.email ada@example.com\nDRIFT\n")
+                       "git config --global user.email ada@example.com\nsecond\nDRIFT\n")
         done = self.run_script()
         self.assertEqual(done.returncode, 0, done.stderr)
         text = self.bundle_text()
-        self.assertNotIn("ada@example.com", text)
-        self.assertNotIn("Ada Lovelace", text)
-        self.assertNotIn("git config --global user.", text)
+        for private in ("ada@example.com", "Ada Lovelace", "git config --global user.", "DRIFT"):
+            self.assertNotIn(private, text)
         self.assertIn(f"## Changed installed file: {entry.install}", text)
-        self.assertIn("DRIFT", text)  # a real drift line is still kept
-        self.assertIn("2 line(s) allowed to differ by the map's prefix rule removed", text)
+        # The lines that match the kit stay; every other line is only numbered.
+        body = text.split("```")[1].splitlines()[1:]
+        self.assertEqual(body, ["base", "line 2 differs (text withheld)", "line 3 differs (text withheld)",
+                                "second", "line 5 differs (text withheld)"])
+        self.assertIn("3 line(s) differing from the reference kit's copy withheld", text)
 
-    def test_a_prefix_line_with_crlf_endings_is_stripped_too(self):
+    def test_a_prefix_file_with_crlf_endings_is_withheld_too(self):
         entry = self.real_prefix_entry()
         self.project_source(entry.source, "base\n")
         self.reference_source(entry.source, "base\n")
@@ -149,6 +155,24 @@ class BundleTest(Base):
         path = self.project / entry.install
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(b"base\r\ngit config --global user.email ada@example.com\r\nDRIFT\r\n")
+        done = self.run_script()
+        self.assertEqual(done.returncode, 0, done.stderr)
+        text = self.bundle_text()
+        self.assertNotIn("ada@example.com", text)
+        # `base\r\n` is not byte-identical to the kit's `base\n`: withheld, never guessed equal.
+        self.assertIn("line 1 differs (text withheld)", text)
+
+    def test_the_rule_comes_from_the_reference_map_not_the_project_map(self):
+        # A project map that says `none` for the setup.sh row would copy the body whole. The
+        # rule is read from the trusted reference map, so the body is still withheld.
+        entry = self.real_prefix_entry()
+        self.project_source(entry.source, "base\n")
+        self.reference_source(entry.source, "base\n")
+        (self.pkit / "installed-files.txt").write_text(
+            f"{entry.source} | {entry.install} | repo | none\n", encoding="utf-8")
+        (self.reference / "installed-files.txt").write_text(
+            f"{entry.source} | {entry.install} | repo | {entry.allowed}\n", encoding="utf-8")
+        self.installed(entry.install, "base\ngit config --global user.email ada@example.com\n")
         done = self.run_script()
         self.assertEqual(done.returncode, 0, done.stderr)
         self.assertNotIn("ada@example.com", self.bundle_text())
@@ -240,6 +264,13 @@ class PrivacyTest(Base):
         "id_rsa", "id_rsa.pub", ".ssh/id_rsa_work",
         ".netrc", "home/.netrc", ".npmrc", "web/.npmrc",
         "credentials", "credentials.json", "aws/credentials.bak",
+        # Misses QA found in launch 1: a case-insensitive .git, a trailing dot, more key and
+        # token names, and a name that only starts like .netrc.
+        ".GIT/config", ".Git/hooks/x", "sub/.GIT/config", ".git./config",
+        "tls/x.pem.", "tls/x.pem..", "tls/x.PEM.", "notes.pem.txt", "api.key.bak",
+        "keys/id_ed25519", "id_ed25519.pub", "id_ecdsa", "id_dsa",
+        "token.json", "tokens.yaml", "secrets.txt", "secret-key", "config/Secrets.json",
+        ".netrc.bak", ".npmrc.old", ".NETRC.bak",
     )
 
     def test_a_crafted_map_naming_a_secret_file_is_refused_before_any_read(self):
@@ -262,11 +293,88 @@ class PrivacyTest(Base):
                     done.stderr)
                 self.assert_nothing_left()
 
+    # 4. The reference kit's map is the trusted list of files this tool may read.
+    def test_a_project_map_entry_that_the_reference_map_lacks_is_refused(self):
+        self.project_source("env/x", "a\n")
+        self.reference_source("env/x", "a\n")
+        (self.reference / "installed-files.txt").write_text(
+            "env/x | .devcontainer/x | repo | none\n", encoding="utf-8")
+        (self.pkit / "installed-files.txt").write_text(
+            "env/x | .devcontainer/x | repo | none\nenv/x | notes/private.txt | repo | none\n", encoding="utf-8")
+        self.installed(".devcontainer/x", "same\n")
+        self.installed("notes/private.txt", "PRIVATE-NOTE-hunter2\n")
+        done = self.run_script()
+        self.assertEqual(done.returncode, 2, done.stdout)
+        self.assertIn("not in the reference kit's installed-files.txt", done.stderr)
+        self.assertIn("nothing written", done.stderr)
+        self.assertNotIn("PRIVATE-NOTE-hunter2", done.stdout + done.stderr)
+        self.assert_nothing_left()
+
+    def test_the_same_path_with_a_different_kind_is_refused(self):
+        self.project_source("env/hook", "h\n")
+        self.reference_source("env/hook", "h\n")
+        (self.reference / "installed-files.txt").write_text(
+            "env/hook | .git/hooks/pre-push | human-machine | none\n", encoding="utf-8")
+        (self.pkit / "installed-files.txt").write_text(
+            "env/hook | .git/hooks/pre-push | repo | none\n", encoding="utf-8")
+        done = self.run_script()
+        self.assertEqual(done.returncode, 2, done.stdout)
+        self.assertIn("different kind", done.stderr)
+        self.assert_nothing_left()
+
+    def test_a_missing_reference_map_is_refused(self):
+        self.project_source("env/x", "a\n")
+        self.reference_source("env/x", "a\n")
+        (self.pkit / "installed-files.txt").write_text("env/x | .devcontainer/x | repo | none\n", encoding="utf-8")
+        self.installed(".devcontainer/x", "x\n")
+        done = self.run_script()
+        self.assertEqual(done.returncode, 2, done.stdout)
+        self.assertIn("installed-files.txt is missing", done.stderr)
+        self.assert_nothing_left()
+
+    def test_a_project_map_with_fewer_entries_than_the_reference_is_fine(self):
+        self.project_source("env/x", "a\n")
+        self.reference_source("env/x", "a\n")
+        (self.reference / "installed-files.txt").write_text(
+            "env/x | .devcontainer/x | repo | none\nenv/x | .github/y | repo | none\n", encoding="utf-8")
+        (self.pkit / "installed-files.txt").write_text("env/x | .devcontainer/x | repo | none\n", encoding="utf-8")
+        self.installed(".devcontainer/x", "DRIFT\n")
+        done = self.run_script()
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertIn("drift .devcontainer/x", self.bundle_text())
+
+    # 6. A hard link under an ordinary name to a secret file.
+    def test_an_installed_file_with_two_hard_links_is_refused(self):
+        secret = SCRATCH / "secret-elsewhere"
+        secret.write_text("API_TOKEN=hunter2-SECRET\n", encoding="utf-8")
+        self.project_source("env/x", "base\n")
+        self.reference_source("env/x", "base\n")
+        self.write_map("env/x | notes/ordinary.txt | repo | none\n")
+        (self.project / "notes").mkdir()
+        os.link(secret, self.project / "notes" / "ordinary.txt")
+        self.assertEqual(os.stat(secret).st_nlink, 2)
+        done = self.run_script()
+        self.assertEqual(done.returncode, 2, done.stdout)
+        self.assertIn("more than one hard link", done.stderr)
+        self.assertNotIn("hunter2-SECRET", done.stdout + done.stderr)
+        self.assert_nothing_left()
+
+    def test_a_single_link_installed_file_and_a_missing_one_are_not_refused(self):
+        self.project_source("env/x", "base\n")
+        self.reference_source("env/x", "base\n")
+        self.write_map("env/x | notes/one.txt | repo | none\nenv/x | notes/gone.txt | repo | none\n")
+        self.installed("notes/one.txt", "DRIFT\n")
+        done = self.run_script()
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertIn("missing", self.bundle_text())
+
     def test_ordinary_install_paths_are_still_accepted(self):
         # The rule must not catch look-alikes: environments/, keyboard.md, monkey.txt, a
         # folder merely named env, .gitignore and .github/ (not .git/).
         for install in ("environments/x.sh", "docs/keyboard.md", "docs/monkey.txt",
-                        "env/run.sh", ".gitignore", ".github/workflows/ci.yml", "credits.md"):
+                        "env/run.sh", ".gitignore", ".github/workflows/ci.yml", "credits.md",
+                        "tokenizer.py", "docs/secretary.md", "identity.md", "pemmican.md",
+                        "docs/monkeys.txt", "keys.md", "git/config", "gitlab-ci.yml"):
             with self.subTest(install=install):
                 shutil.rmtree(self.pkit.parent, ignore_errors=True)
                 shutil.rmtree(self.project / "_docs", ignore_errors=True)
@@ -288,30 +396,44 @@ class PrivacyTest(Base):
         self.assertIn(".git/hooks/pre-push", self.bundle_text())
 
     # 3. A prefix rule's identity lines, in every spelling, never reach the bundle.
-    def test_prefix_variants_are_all_dropped_with_the_real_rule(self):
+    PREFIX_BYPASSES = (
+        "git config --global user.name 'Ada Lovelace'",              # exact prefix
+        "    git config --global user.name 'Ada Lovelace'",          # indented
+        "\tgit config --global user.name 'Ada Lovelace'",            # tab-indented
+        "git  config   --global  user.email ada@example.com",        # extra spaces
+        "sudo git config --global user.email ada@example.com",       # leading command
+        "GIT CONFIG --GLOBAL USER.EMAIL ADA@EXAMPLE.COM",            # case
+        "echo x && git config --global user.name 'Ada Lovelace'",    # after another command
+        # The three that beat the text filter (QA launch 1):
+        "git config \\\n--global user.name 'Ada Lovelace'",          # backslash continuation
+        "git -c x=y config --global user.name 'Ada Lovelace'",       # an option between words
+        "git config --global 'user.name' 'Ada Lovelace'",            # a quoted key
+    )
+
+    def test_every_prefix_bypass_is_withheld_and_nothing_private_is_in_the_bundle_folder(self):
         entry = [e for e in kit_map.parse_map(KIT, REPO) if e.allowed.startswith("prefix:")][0]
-        self.assertEqual(entry.allowed, "prefix:git config --global user.")
-        variants = (
-            "git config --global user.name 'Ada Lovelace'",              # exact prefix
-            "    git config --global user.name 'Ada Lovelace'",          # indented
-            "\tgit config --global user.name 'Ada Lovelace'",            # tab-indented
-            "git  config   --global  user.email ada@example.com",        # extra spaces
-            "sudo git config --global user.email ada@example.com",       # leading command
-            "GIT CONFIG --GLOBAL USER.EMAIL ADA@EXAMPLE.COM",            # case
-            "echo x && git config --global user.name 'Ada Lovelace'",    # after another command
-        )
         self.project_source(entry.source, "base\n")
         self.reference_source(entry.source, "base\n")
         self.write_map(f"{entry.source} | {entry.install} | repo | {entry.allowed}\n")
-        self.installed(entry.install, "base\n" + "\n".join(variants) + "\nDRIFT\n")
+        self.installed(entry.install, "base\n" + "\n".join(self.PREFIX_BYPASSES) + "\nDRIFT\n")
         done = self.run_script()
         self.assertEqual(done.returncode, 0, done.stderr)
-        text = self.bundle_text()
+        # The name and the email appear nowhere in the whole bundle folder, nor in the output.
+        everything = done.stdout + done.stderr
+        for path in (self.run_dir / ".scratch").rglob("*"):
+            if path.is_file():
+                everything += path.read_text(encoding="utf-8")
         for private in ("ada@example.com", "Ada Lovelace", "ADA@EXAMPLE.COM", "user.name", "user.email",
-                        "USER.EMAIL"):
-            self.assertNotIn(private, text)
-        self.assertIn("DRIFT", text)
-        self.assertIn(f"{len(variants)} line(s) allowed to differ by the map's prefix rule removed", text)
+                        "USER.EMAIL", "USER.NAME", "DRIFT", "git config", "GIT CONFIG", "--global"):
+            self.assertNotIn(private, everything)
+        # Only `base` survives, and every other line (one more for the continuation) is numbered.
+        body = self.bundle_text().split("```")[1].splitlines()[1:]
+        self.assertEqual(body[0], "base")
+        self.assertTrue(all(line.startswith("line ") and line.endswith(" differs (text withheld)") for line in body[1:]))
+        installed_lines = len(("base\n" + "\n".join(self.PREFIX_BYPASSES) + "\nDRIFT\n").splitlines())
+        self.assertEqual(len(body), installed_lines)
+        self.assertIn(f"{installed_lines - 1} line(s) differing from the reference kit's copy withheld",
+                      self.bundle_text())
 
     def test_the_shared_scan_still_matches_only_the_exact_prefix(self):
         # The broader strip is bundle-only: the shared scan's drift rule is unchanged.
@@ -381,23 +503,142 @@ class PrivacyTest(Base):
         self.assertFalse(list((self.run_dir / ".scratch").glob(".kit-feedback-*")))
 
 
-class StripPrefixUnitTest(unittest.TestCase):
-    def test_lines_containing_the_prefix_are_removed_and_counted(self):
-        # Broader than the shared scan's startswith(): a line is dropped if it contains the
-        # rule's text anywhere, after collapsing whitespace and lowercasing, so leading
-        # indentation, extra inner spaces or a leading `sudo` all still match.
-        text = "a\nuser.name=x\n  user.name=y\nuser.email=z\nb\n"
-        out, removed = kit_feedback.strip_prefix(text, "user.")
-        self.assertEqual(out, "a\nb\n")
-        self.assertEqual(removed, 3)
+class AtomicWriteTest(Base):
+    """Issue #116: the bundle is built in memory and written through a temp file and a rename,
+    so a failure at the write, the mkdir or the rename leaves no folder, no file and no temp
+    file under .scratch/. Each failure is injected in-process (a patch on the Path call)."""
 
-    def test_no_match_returns_the_text_unchanged(self):
-        self.assertEqual(kit_feedback.strip_prefix("a\nb\n", "zzz"), ("a\nb\n", 0))
+    def setUp(self):
+        super().setUp()
+        self.project_source("env/setup.sh", "a\n")
+        self.reference_source("env/setup.sh", "a\n")
+        self.write_map("env/setup.sh | .devcontainer/setup.sh | repo | none\n")
+        self.installed(".devcontainer/setup.sh", "DRIFT\n")
+        before = os.getcwd()
+        os.chdir(self.run_dir)
+        self.addCleanup(os.chdir, before)
 
-    def test_case_and_whitespace_normalised(self):
-        out, removed = kit_feedback.strip_prefix("a\nSUDO   GIT   CONFIG\nb\n", "git config")
-        self.assertEqual(out, "a\nb\n")
-        self.assertEqual(removed, 1)
+    def run_main(self):
+        out, err = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            code = kit_feedback.main([str(self.project), str(self.reference)])
+        return code, out.getvalue(), err.getvalue()
+
+    def assert_nothing_left(self):
+        left = list((self.run_dir / ".scratch").rglob("*"))
+        self.assertEqual(left, [], f"left behind: {left}")
+
+    def assert_refused_cleanly(self, code, out, err):
+        self.assertEqual(code, 2, out)
+        self.assertIn("nothing written", err)
+        self.assertNotIn("wrote", out)
+        self.assert_nothing_left()
+
+    def test_the_unpatched_run_writes_one_folder_with_one_file(self):
+        code, out, err = self.run_main()
+        self.assertEqual(code, 0, err)
+        found = sorted(p.name for p in (self.run_dir / ".scratch").rglob("*"))
+        self.assertEqual(len(found), 2)
+        self.assertEqual(found[0], "bundle.md")
+        self.assertTrue(found[1].startswith("kit-feedback-"))
+
+    def test_a_write_failure_after_some_bytes_leaves_nothing(self):
+        real = Path.write_bytes
+
+        def partial(self_path, data):
+            real(self_path, data[:7])  # some bytes land, then the disk is full
+            raise OSError(errno.ENOSPC, "injected: no space left")
+
+        with mock.patch.object(Path, "write_bytes", partial):
+            self.assert_refused_cleanly(*self.run_main())
+
+    def test_a_mkdir_failure_after_the_temp_file_is_written_leaves_nothing(self):
+        real = Path.mkdir
+
+        def fail_bundle_folder(self_path, *args, **kwargs):
+            if self_path.name.startswith("kit-feedback-"):
+                raise OSError(errno.EACCES, "injected: permission denied")
+            return real(self_path, *args, **kwargs)
+
+        with mock.patch.object(Path, "mkdir", fail_bundle_folder):
+            self.assert_refused_cleanly(*self.run_main())
+
+    def test_a_rename_failure_removes_the_folder_and_the_temp_file(self):
+        def fail(self_path, target):
+            raise OSError(errno.EIO, "injected: i/o error")
+
+        with mock.patch.object(Path, "rename", fail):
+            self.assert_refused_cleanly(*self.run_main())
+
+    def test_the_folder_is_not_made_before_the_temp_file_is_written(self):
+        # Order: temp file first. If the write fails, no bundle folder was ever created, which
+        # is what makes the cleanup above unnecessary for that failure.
+        seen = []
+        real_mkdir = Path.mkdir
+
+        def record(self_path, *args, **kwargs):
+            if self_path.name.startswith("kit-feedback-"):
+                seen.append(sorted(p.name for p in self_path.parent.iterdir()))
+            return real_mkdir(self_path, *args, **kwargs)
+
+        with mock.patch.object(Path, "mkdir", record):
+            code, _out, err = self.run_main()
+        self.assertEqual(code, 0, err)
+        self.assertEqual(len(seen), 1)
+        self.assertTrue(any(name.endswith(".tmp") for name in seen[0]), seen)
+
+
+class ScrubUnitTest(unittest.TestCase):
+    def test_the_named_roots_become_labels_in_any_spelling(self):
+        out = kit_feedback._scrub("x /home/ada/work/proj/_docs/agent-kit y /home/ada/kit z",
+                                  ["/home/ada/work/proj", "/home/ada/kit"])
+        self.assertEqual(out, "x <project root>/_docs/agent-kit y <reference kit root> z")
+
+    def test_a_relative_root_does_not_rewrite_a_word(self):
+        self.assertEqual(kit_feedback._scrub("the project root is missing", ["proj", "ref"]),
+                         "the project root is missing")
+        self.assertEqual(kit_feedback._scrub("in proj/_docs/agent-kit and ref", ["proj", "ref"]),
+                         "in <project root>/_docs/agent-kit and <reference kit root>")
+
+    def test_the_working_and_home_folders_are_hidden(self):
+        message = f"cannot read '{Path.cwd() / 'x'}' and '{Path.home() / 'y'}'"
+        out = kit_feedback._scrub(message, ["a", "b"])
+        self.assertNotIn(str(Path.cwd()), out)
+        self.assertNotIn(str(Path.home()) + "/", out)
+
+    def test_any_other_absolute_path_becomes_a_placeholder(self):
+        self.assertEqual(kit_feedback._scrub("cannot read '/etc/passwd': denied", ["a", "b"]),
+                         "cannot read '<path>': denied")
+
+    def test_a_relative_install_path_is_left_alone(self):
+        message = "install path is under .git/: 'sub/.git/config'"
+        self.assertEqual(kit_feedback._scrub(message, ["proj", "ref"]), message)
+
+
+class WithholdDifferingUnitTest(unittest.TestCase):
+    def test_only_byte_identical_lines_are_kept(self):
+        out, withheld = kit_feedback.withhold_differing("a\nuser.name=x\n  a\nb\n", "a\nb\n")
+        self.assertEqual(out, ["a", "line 2 differs (text withheld)", "line 3 differs (text withheld)", "b"])
+        self.assertEqual(withheld, 2)
+
+    def test_nothing_of_a_withheld_line_is_in_the_output(self):
+        out, _ = kit_feedback.withhold_differing("secret-value\n", "other\n")
+        self.assertEqual(out, ["line 1 differs (text withheld)"])
+
+    def test_a_missing_kit_copy_withholds_every_line(self):
+        out, withheld = kit_feedback.withhold_differing("a\nb\n", "")
+        self.assertEqual(withheld, 2)
+        self.assertNotIn("a", [line for line in out if not line.startswith("line ")])
+
+    def test_marker_blocks_are_dropped_without_renumbering(self):
+        text = "a\n# agent-kit: local-begin\nsecret\n# agent-kit: local-end\nb\nextra\n"
+        out, withheld = kit_feedback.withhold_differing(text, "a\nb\n")
+        self.assertEqual(out, ["a", "b", "line 6 differs (text withheld)"])
+        self.assertEqual(withheld, 1)
+
+    def test_a_line_ending_difference_counts_as_different(self):
+        out, withheld = kit_feedback.withhold_differing("a\r\n", "a\n")
+        self.assertEqual((out, withheld), (["line 1 differs (text withheld)"], 1))
 
 
 class StripLocalUnitTest(unittest.TestCase):
@@ -431,6 +672,55 @@ class RefusalTest(Base):
         self.assertIn("nothing written", done.stderr)
         self.assertFalse(sorted((self.run_dir / ".scratch").glob("kit-feedback-*")))
         self.assertEqual(snapshot(SCRATCH), before)
+
+    def test_the_missing_map_error_carries_no_absolute_path(self):
+        # The parser's own message quotes the kit root in full; _scrub must still catch it.
+        self.project_source("env/x", "a\n")
+        self.reference_source("env/x", "a\n")
+        (self.pkit / "installed-files.txt").unlink(missing_ok=True)
+        done = self.run_script()
+        self.assertEqual(done.returncode, 2, done.stdout)
+        self.assertIn("installed-files.txt is missing", done.stderr)
+        self.assertIn("<project root>", done.stderr)
+        self.assertNotIn(str(self.project), done.stderr)
+        self.assertNotIn(str(SCRATCH), done.stderr)
+
+    def test_an_unreadable_installed_file_error_carries_no_absolute_path(self):
+        self.project_source("env/setup.sh", "base\n")
+        self.reference_source("env/setup.sh", "base\n")
+        self.write_map("env/setup.sh | .devcontainer/setup.sh | repo | none\n")
+        path = self.project / ".devcontainer" / "setup.sh"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(b"\xff\xfe not utf8")
+        done = self.run_script()
+        self.assertEqual(done.returncode, 2, done.stdout)
+        self.assertIn("cannot be read as UTF-8", done.stderr)
+        self.assertNotIn(str(self.project), done.stderr)
+
+    def test_a_secret_path_refusal_message_carries_no_absolute_path(self):
+        self.project_source("env/x", "a\n")
+        self.reference_source("env/x", "a\n")
+        self.write_map("env/x | .env | repo | none\n")
+        self.installed(".env", "TOKEN=1\n")
+        done = self.run_script()
+        self.assertEqual(done.returncode, 2, done.stdout)
+        self.assertIn("looks like an env file", done.stderr)
+        self.assertNotIn(str(self.project), done.stderr)
+
+    def test_an_invalid_utf8_name_error_carries_no_absolute_path(self):
+        self.project_source("env/setup.sh", "a\n")
+        self.reference_source("env/setup.sh", "a\n")
+        self.write_map("env/setup.sh | .devcontainer/setup.sh | repo | none\n")
+        self.installed(".devcontainer/setup.sh", "DRIFT\n")
+        bad = os.fsencode(self.pkit) + b"/bad-\xff-name.md"
+        try:
+            with open(bad, "wb") as handle:
+                handle.write(b"x")
+        except OSError:
+            self.skipTest("this filesystem refuses an invalid UTF-8 file name")
+        done = self.run_script()
+        self.assertEqual(done.returncode, 2, done.stdout)
+        self.assertNotIn(str(self.project), done.stdout + done.stderr)
 
     def test_a_missing_project_root_is_refused(self):
         done = subprocess.run(

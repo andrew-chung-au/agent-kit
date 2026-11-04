@@ -21,15 +21,22 @@ The bundle, written to .scratch/kit-feedback-<timestamp>/, lists:
     inside the markers never reaches the bundle. A file whose markers are unclosed is
     reported as drift and its body is NOT written (never stripped silently). An entry whose
     allowed-to-differ rule is `prefix:<text>` (the real map uses it for setup.sh, whose
-    `git config --global user.` lines hold a personal name and email) also has every line
-    that starts with that text stripped, the same lines the shared scan ignores; the bundle
-    says how many were removed, never what they held.
+    `git config --global user.` lines hold a personal name and email) is not filtered by
+    matching text, because a text filter can always be bypassed: every installed line that is
+    not byte-identical to a line of the reference kit's copy of that file is WITHHELD. The
+    bundle writes `line N differs (text withheld)` for it, and a count, never the text. The
+    human copies a withheld line by hand after reading it.
   - a note that `human-machine` entries (the push check) are supplied by the human from
     the clean clone; their install paths are never opened.
 
 Refused (MapError or a bad root): a map entry the parser rejects fails the run with the
 parser's message and writes no bundle; a missing or non-folder root, or a project with no
-readable agent-kit.conf, does the same.
+readable agent-kit.conf, does the same. So does a project map entry whose install path (or
+kind) is not in the REFERENCE kit's installed-files.txt: the reference kit's map is the
+trusted list of files this tool may read, and the project's own map cannot choose others.
+Two more layers sit under that: a name list (an env file, anything under .git/, obvious
+secret names) and a hard-link check (an installed file with more than one hard link could be
+a secret under an ordinary name). Messages carry no absolute path.
 
 Read-only over both trees: the tool opens the project's kit and `repo` install files only
 to read them, and writes only under .scratch/. It never writes an installed file or a kit
@@ -65,20 +72,30 @@ kit_map = _load("kit_map", "kit-map.py")
 LOCAL_BEGIN = kit_map.LOCAL_BEGIN
 LOCAL_END = kit_map.LOCAL_END
 
-# Install paths this tool refuses to open, even when the project's own map names them: an
-# env file, anything under .git/, and a short list of obvious secret file names. The
-# project's installed-files.txt is untrusted (issue #116, QA launch 2 item 2): a crafted map
-# must not be able to make this read-only tool copy a secret into a public bundle.
+# Install paths this tool refuses to open, even when the reference kit's map names them: an
+# env file, anything under .git/, and obvious secret file names. This is a second layer under
+# the reference-map check (issue #116): a name list can always miss a spelling, so it is never
+# the only guard. Each component is compared lower-case with trailing dots and spaces removed
+# (a case-insensitive or Windows file system reads `.GIT`, `.git.` and `x.pem.` as the same).
 # A folder name may hold no control character at all (kit_map.CONTROL lets newline and tab
 # through because a map file has lines; a folder name must not, or it could forge a heading).
 _NAME_CONTROL = re.compile("[\x00-\x1f\x7f\x85\u2028\u2029]")
-_ENV_NAME = re.compile(r"(?i)^\.env")
-_SECRET_NAME = re.compile(r"(?i)(\.pem$|\.key$|^id_rsa|^\.netrc$|^\.npmrc$|^credentials)")
+_ENV_NAME = re.compile(r"^\.env")
+_SECRET_NAME = re.compile(
+    r"(\.(pem|key)(\.|$)"                 # x.pem, x.key, x.pem.bak, notes.pem.txt
+    r"|^id_(rsa|dsa|ecdsa|ed25519)"         # ssh private keys (and .pub beside them)
+    r"|^\.(netrc|npmrc)"                   # .netrc, .npmrc, .netrc.bak
+    r"|^credentials"                        # credentials, credentials.json
+    r"|^(tokens?|secrets?)([._-]|$))")      # token.json, secrets.txt, secret-key
+
+
+def _normal_part(part: str) -> str:
+    return part.rstrip(" .").lower()
 
 
 def _refused_install_path(install: str) -> str | None:
     """None if install is safe to open; else the one-line reason it is refused."""
-    parts = install.split("/")
+    parts = [_normal_part(part) for part in install.split("/")]
     if ".git" in parts:
         return f"install path is under .git/: {install!r}"
     name = parts[-1]
@@ -86,6 +103,22 @@ def _refused_install_path(install: str) -> str | None:
         return f"install path looks like an env file: {install!r}"
     if _SECRET_NAME.search(name):
         return f"install path looks like a secret file: {install!r}"
+    return None
+
+
+def _refused_hard_link(project: Path, install: str) -> str | None:
+    """A reason if the installed file has more than one hard link, else None.
+
+    A hard link under an ordinary name can point at a secret file, which no name check can
+    see; a file with one name is the normal case. A missing file is not refused here.
+    """
+    path = project
+    for part in install.split("/"):
+        path = path / part
+    if not _fs(path.is_file):
+        return None
+    if _fs(os.lstat, path).st_nlink > 1:
+        return f"installed file has more than one hard link: {install!r}"
     return None
 
 
@@ -101,13 +134,34 @@ def _fs(call, *args, failed=None):
         raise FeedbackError(str(error))
 
 
+_ABS_PATH = re.compile(r"(?<![\w.~/>-])/[\w.@+~/-]+")
+
+
 def _scrub(message: str, args) -> str:
-    """The message with the caller's folder paths replaced by labels (no absolute path out)."""
+    """The message with no absolute path, home folder or working folder in it.
+
+    The two roots the caller named (as given and resolved) become labels, the working folder
+    and the home folder become labels, and any other absolute path left becomes <path>. A
+    relative root is only replaced where it stands as a whole path token, so `proj` does not
+    rewrite the word `project`.
+    """
+    forms = []
     for raw, label in ((args[0], "<project root>"), (args[1], "<reference kit root>")):
-        for form in {raw, str(Path(raw).resolve()) if raw and not _NAME_CONTROL.search(raw) else raw}:
-            if form:
-                message = message.replace(form, label)
-    return message
+        if not raw:
+            continue
+        forms.append((raw, label))
+        if not _NAME_CONTROL.search(raw):
+            try:
+                forms.append((str(Path(raw).resolve()), label))
+            except OSError:
+                pass
+    for folder, label in ((Path.cwd(), "<working folder>"), (Path.home(), "~")):
+        forms.append((str(folder), label))
+    for form, label in sorted(set(forms), key=lambda item: -len(item[0])):
+        if form in ("", "/", "."):
+            continue
+        message = re.sub(r"(?<![\w.~-])" + re.escape(form) + r"(?![\w-])", lambda _m, l=label: l, message)
+    return _ABS_PATH.sub("<path>", message)
 
 
 def _folder(arg: str, what: str) -> Path:
@@ -172,24 +226,31 @@ def strip_local(text: str) -> tuple[str, bool]:
     return ("".join(out) if ok else text), ok
 
 
-def strip_prefix(text: str, prefix: str) -> tuple[str, int]:
-    """Return (text without the lines that start with prefix, how many were removed).
+def withhold_differing(text: str, kit_text: str) -> tuple[list[str], int]:
+    """The body lines of an installed file whose map rule is `prefix:`, and how many were withheld.
 
-    The shared scan (kit_map.scan_text) only ignores a line that starts with prefix exactly,
-    for the drift comparison. In the bundle, broader: a line is dropped if it CONTAINS prefix
-    once both are normalised (whitespace collapsed, lowercased), so leading whitespace, extra
-    spaces inside the rule's own words, and a `sudo` in front of the same command do not leave
-    identity text in a public bundle. This only affects what the bundle shows, never the scan.
+    Matching text is a blacklist and can always be bypassed (a backslash continuation, an
+    option between words, a quoted key), so none is done. A line is kept only if it is
+    byte-identical to a line of the kit's copy of the same file (the line ending counts);
+    every other line is replaced by `line N differs (text withheld)`, N being its 1-based
+    line number in the installed file. Lines between the local markers are dropped first,
+    as strip_local does. The caller has already checked the markers are balanced.
     """
-    norm_prefix = " ".join(prefix.lower().split())
-    kept, removed = [], 0
-    for line in text.splitlines(keepends=True):
-        norm_line = " ".join(line.lower().split())
-        if norm_prefix and norm_prefix in norm_line:
-            removed += 1
+    kit_lines = set(kit_text.splitlines(keepends=True))
+    out, withheld, depth = [], 0, 0
+    for number, line in enumerate(text.splitlines(keepends=True), start=1):
+        if LOCAL_BEGIN in line:
+            depth += 1
+        elif LOCAL_END in line:
+            depth = max(depth - 1, 0)
+        elif depth:
+            continue
+        elif line in kit_lines:
+            out.append("".join(line.splitlines()))
         else:
-            kept.append(line)
-    return "".join(kept), removed
+            out.append(f"line {number} differs (text withheld)")
+            withheld += 1
+    return out, withheld
 
 
 def installed_report(project_kit: Path, project: Path):
@@ -223,17 +284,27 @@ def build_bundle(project: Path, reference: Path) -> list[str]:
     project_kit = project_kit_dir(project)
     try:
         entries = kit_map.parse_map(project_kit, project)
+        reference_entries = kit_map.parse_map(reference, project)
     except kit_map.MapError as error:
         raise FeedbackError(str(error))
-    # Before anything is read: the project's own map is untrusted, so refuse a `repo` install
-    # path that names an env file, anything under .git/, or an obvious secret file name. A
-    # `human-machine` path is only named, never opened, so it is not checked here.
+    # Before anything is read. The project tree is untrusted, so its own map does not choose
+    # which files are read: every entry's install path (and kind) must be in the REFERENCE
+    # kit's installed-files.txt. Under that, a `repo` path is refused if its name looks like
+    # an env file, a .git/ path or a secret, or if the installed file has several hard links.
+    # A `human-machine` path is only named, never opened, so the name and link checks skip it.
+    trusted = {e.install: e for e in reference_entries}
     for entry in entries:
+        known = trusted.get(entry.install)
+        if known is None:
+            raise FeedbackError(f"install path is not in the reference kit's installed-files.txt: {entry.install!r}")
+        if known.kind != entry.kind:
+            raise FeedbackError(f"install path has a different kind in the reference kit's installed-files.txt: {entry.install!r}")
         if entry.kind == "repo":
-            refused = _refused_install_path(entry.install)
+            refused = _refused_install_path(entry.install) or _refused_hard_link(project, entry.install)
             if refused:
                 raise FeedbackError(refused)
-    allowed_by_install = {e.install: e.allowed for e in entries}
+    # The rule and the kit source come from the trusted reference entry, not the project's.
+    allowed_by_install = {e.install: e for e in reference_entries}
     reports = installed_report(project_kit, project)
     kit_states = kit_file_diff(project_kit, reference)
 
@@ -260,16 +331,23 @@ def build_bundle(project: Path, reference: Path) -> list[str]:
         install = project
         for part in report.install.split("/"):
             install = install / part
-        body, ok = strip_local(_read_text(install, report.install))
-        allowed = allowed_by_install.get(report.install, "none")
-        removed = 0
-        if ok and allowed.startswith("prefix:"):
-            body, removed = strip_prefix(body, allowed[len("prefix:"):])
+        text = _read_text(install, report.install)
+        body, ok = strip_local(text)
+        trusted_entry = allowed_by_install[report.install]
         if not ok:
             lines.append("(markers unbalanced: reported as drift; body not written, to avoid stripping it wrongly)")
+        elif trusted_entry.allowed.startswith("prefix:"):
+            try:
+                kit_text = kit_map._read_kit_source(reference, trusted_entry.source)
+            except kit_map.MapError:
+                kit_text = ""  # no usable reference copy: every line is withheld
+            body_lines, withheld = withhold_differing(text, kit_text)
+            if withheld:
+                lines.append(f"({withheld} line(s) differing from the reference kit's copy withheld; their text is not in the bundle)")
+            lines.append("```")
+            lines += body_lines
+            lines.append("```")
         else:
-            if removed:
-                lines.append(f"({removed} line(s) allowed to differ by the map's prefix rule removed; their text is not in the bundle)")
             lines.append("```")
             lines += body.splitlines()
             lines.append("```")
