@@ -3,14 +3,24 @@
 
 The map, `installed-files.txt` in the kit folder, names each kit file that is installed
 outside the kit folder. Readers (kit-check, kit-compare, the import steps) load this
-module and call parse_map(); none of them reads the map its own way, so they cannot
-disagree. Standard library only.
+module and call parse_map() and scan_installed(); none of them reads the map its own way
+or compares files its own way, so they cannot disagree. Standard library only.
 
     python3 -B agent-kit/scripts/kit-map.py <kit root> <repo root>
+    python3 -B agent-kit/scripts/kit-map.py --installed <kit root> <repo root>
 
-prints one line per entry (`kind | source | install | allowed`) and exits 0, or prints a
-one-line `kit-map: ...` reason on stderr and exits 2. Both arguments are required: there
-is no default kit root, and neither vuln-triage/ copy of the kit is authoritative.
+The first form prints one line per entry (`kind | source | install | allowed`) and exits
+0. The second (`--installed`) compares each installed file with its kit source and prints
+one line per entry: `unchanged`, `drift`, `missing` or, for a human-machine entry,
+`not checked here (human compares from the clean clone) <path>`; it exits 1 on any drift
+or missing, 0 otherwise. Either form prints a one-line `kit-map: ...` reason on stderr and
+exits 2 on a refused map. Both roots are required: there is no default kit root, and
+neither vuln-triage/ copy of the kit is authoritative.
+
+scan_installed() is the one driver every reader shares: it calls parse_map() for the
+entries and scan_text() per file, reads a `repo` entry's install path from the repo root,
+reports a `human-machine` entry as `not checked` without ever opening its install path,
+and writes nothing.
 
 Map format (text only; the file is never sourced and nothing in it is run):
     # comment lines start with "#"; blank lines are skipped
@@ -227,15 +237,100 @@ def scan_text(allowed: str, kit_text: str, installed_text: str) -> list[Finding]
     return findings
 
 
+class Report(NamedTuple):
+    install: str   # the install path from the map (data for a human-machine entry)
+    kind: str      # "repo" or "human-machine"
+    state: str     # repo: "unchanged", "drift" or "missing"; human-machine: "not checked"
+    findings: list  # the Findings behind a "drift" state; [] otherwise
+
+
+# One line per entry, exactly as kit-check, the import step and the reverse import print it.
+# `drift` and `missing` are the states that fail a run; `unchanged` and the human-machine
+# `not checked here` line never do. A human-machine entry is named but never opened.
+HUMAN_MACHINE_LINE = "not checked here (human compares from the clean clone)"
+
+
+def _read_kit_source(kit_root: Path, source: str) -> str:
+    """The kit copy of one installed file, read as text through the same symlink rule."""
+    current = kit_root
+    for part in source.split("/"):
+        current = current / part
+        if os.path.islink(current):
+            raise MapError(f"the kit source goes through a symlink: {source!r}")
+    if not current.is_file():
+        raise MapError(f"the kit source is missing: {source!r}")
+    return current.read_bytes().decode("utf-8")
+
+
+def scan_installed(kit_root, repo_root) -> list[Report]:
+    """Compare each installed file in the map with its kit source, read-only.
+
+    One driver for every reader (kit-check, the import step, the reverse import): it calls
+    parse_map() for the entries and scan_text() per file, so there is no second parser and
+    no second comparison. A `repo` entry's install path is read from repo_root; a
+    `human-machine` entry is reported as `not checked` and its install path is never opened
+    or stat'ed. A map the parser rejects raises MapError and nothing is read. Nothing is
+    written. Returns one Report per entry, in map order.
+    """
+    entries = parse_map(kit_root, repo_root)
+    kit_root, repo_root = Path(kit_root), Path(repo_root)
+    reports: list[Report] = []
+    for entry in entries:
+        if entry.kind == "human-machine":
+            reports.append(Report(entry.install, entry.kind, "not checked", []))
+            continue
+        kit_text = _read_kit_source(kit_root, entry.source)
+        install = repo_root
+        for part in entry.install.split("/"):
+            install = install / part
+            if os.path.islink(install):
+                raise MapError(f"the install path goes through a symlink: {entry.install!r}")
+        if not install.is_file():
+            reports.append(Report(entry.install, entry.kind, "missing", []))
+            continue
+        try:
+            installed_text = install.read_bytes().decode("utf-8")
+        except (OSError, UnicodeDecodeError) as exc:
+            raise MapError(f"the installed file cannot be read as UTF-8 text: {entry.install!r} ({exc})")
+        findings = scan_text(entry.allowed, kit_text, installed_text)
+        drift = [f for f in findings if f.status == "drift"]
+        reports.append(Report(entry.install, entry.kind, "drift" if drift else "unchanged", findings))
+    return reports
+
+
+def report_lines(reports: list[Report]) -> list[str]:
+    """One text line per Report, for a verdict or a human-read list. Never a file's content."""
+    lines = []
+    for report in reports:
+        if report.kind == "human-machine":
+            lines.append(f"{HUMAN_MACHINE_LINE} {report.install}")
+        elif report.state == "unchanged" and any(f.status == "local, ignored" for f in report.findings):
+            lines.append(f"local, ignored {report.install}")
+        else:
+            lines.append(f"{report.state} {report.install}")
+    return lines
+
+
 def main(argv: list[str]) -> int:
-    if len(argv) != 2:
-        print("kit-map: usage: kit-map.py <kit root> <repo root>", file=sys.stderr)
+    installed = argv and argv[0] == "--installed"
+    rest = argv[1:] if installed else argv
+    if len(rest) != 2:
+        print("kit-map: usage: kit-map.py [--installed] <kit root> <repo root>", file=sys.stderr)
         return 2
     try:
-        entries = parse_map(argv[0], argv[1])
+        if installed:
+            reports = scan_installed(rest[0], rest[1])
+        else:
+            entries = parse_map(rest[0], rest[1])
     except MapError as exc:
         print(f"kit-map: {exc}", file=sys.stderr)
         return 2
+    if installed:
+        failed = False
+        for line in report_lines(reports):
+            print(line)
+            failed = failed or line.startswith(("drift ", "missing "))
+        return 1 if failed else 0
     for entry in entries:
         print(f"{entry.kind} | {entry.source} | {entry.install} | {entry.allowed}")
     return 0

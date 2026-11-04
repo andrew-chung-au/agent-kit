@@ -18,10 +18,24 @@ Output: one line per kit file, in path order, exactly one of
 or, with no claim, `kit-check: no KIT_VERSION claim`. The paths are data; a name that
 reads like an instruction is still only a name.
 
-Exit codes: 0 every kit file unchanged; 1 something differs; 2 error, nothing compared
-(a one-line `kit-check: ...` reason): no manifest, a malformed manifest line, a manifest
-path that is absolute, holds "..", or leaves the kit folder, a symlink in the kit folder,
-a malformed or duplicate KIT_VERSION, or a claim whose base is not the manifest version.
+Then, when the kit folder carries installed-files.txt (#91 piece b), one line per map
+entry, for files installed outside the kit folder:
+    unchanged <install>   the installed copy matches its kit source
+    local, ignored <install>   it differs only where the map allows (markers or a prefix)
+    drift <install>       it differs outside what the map allows
+    missing <install>     the install path is a `repo` entry with no file there
+    not checked here (human compares from the clean clone) <install>   a human-machine
+                          entry, whose install path the tool never opens
+These lines come from the one shared driver kit_map.scan_installed: this script holds no
+second parser and no second comparison. A kit with no map prints none of them.
+
+Exit codes: 0 every kit file and every installed file unchanged; 1 something differs
+(a modified/added/missing kit file, or a `drift`/`missing` installed file); 2 error,
+nothing compared (a one-line `kit-check: ...` reason): no manifest, a malformed manifest
+line, a manifest path that is absolute, holds "..", or leaves the kit folder, a symlink in
+the kit folder, a malformed or duplicate KIT_VERSION, a claim whose base is not the
+manifest version, or a map entry the parser rejects (named in the reason; no installed
+file is read for that run).
 
 The claim format is <base> or <base>+<repo>.<n> (^[0-9]+(\\.[0-9]+)*(\\+[A-Za-z0-9]
 [A-Za-z0-9-]*\\.[1-9][0-9]*)?$); "+" is SemVer build metadata, so a derivative sorts as
@@ -36,9 +50,14 @@ import re
 import sys
 from pathlib import Path, PurePosixPath
 
-_spec = importlib.util.spec_from_file_location("kit_manifest", Path(__file__).with_name("kit-manifest.py"))
-kit_manifest = importlib.util.module_from_spec(_spec)
-_spec.loader.exec_module(kit_manifest)
+def _load(name: str, file: str):
+    spec = importlib.util.spec_from_file_location(name, Path(__file__).with_name(file))
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+kit_manifest = _load("kit_manifest", "kit-manifest.py")
 
 CONF = "agent-kit.conf"
 DEFAULT_KIT_DIR = "_docs/agent-kit"
@@ -140,7 +159,8 @@ def main(argv=None) -> int:
         print("Usage: kit-check.py (no arguments; run it from the project folder)", file=sys.stderr)
         return 2
     try:
-        kit, claim = read_conf(Path.cwd())
+        root = Path.cwd()
+        kit, claim = read_conf(root)
         version, recorded = read_manifest(kit)
         if claim is not None and CLAIM.fullmatch(claim).group("base") != version:
             raise CheckError(f"claim base {CLAIM.fullmatch(claim).group('base')} does not match manifest version {version}")
@@ -148,6 +168,17 @@ def main(argv=None) -> int:
             current = kit_manifest.kit_files(kit)
         except kit_manifest.KitError as error:
             raise CheckError(str(error))
+        # The installed-file scan runs before any line is printed, so a map the parser
+        # rejects exits 2 (naming the entry) with no partial output, and no installed file
+        # is read for that run. The shared driver is kit_map.scan_installed: no second
+        # parser, no second comparison. A kit with no map leaves the kit-folder verdict alone.
+        installed_lines: list = []
+        if (kit / "installed-files.txt").exists():
+            kit_map = _load("kit_map", "kit-map.py")
+            try:
+                installed_lines = kit_map.report_lines(kit_map.scan_installed(kit, root))
+            except kit_map.MapError as error:
+                raise CheckError(str(error))
     except CheckError as error:
         print(f"kit-check: {error}", file=sys.stderr)
         return 2
@@ -162,7 +193,11 @@ def main(argv=None) -> int:
         clean = clean and state == "unchanged"
         print(f"{state} {rel}")
     print(verdict(claim, version, clean))
-    return 0 if clean else 1
+    installed_failed = False
+    for line in installed_lines:
+        print(line)
+        installed_failed = installed_failed or line.startswith(("drift ", "missing "))
+    return 0 if clean and not installed_failed else 1
 
 
 if __name__ == "__main__":
