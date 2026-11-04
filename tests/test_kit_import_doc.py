@@ -18,7 +18,8 @@ def flat(path):
 class KitImportDocTest(unittest.TestCase):
     def test_doc_exists_and_is_short(self):
         self.assertTrue(DOC.is_file())
-        self.assertLessEqual(len(DOC.read_text(encoding="utf-8").split()), 600)
+        # 600 until #115; 713 is the text with the installed-files step (step 7, 113 words).
+        self.assertLessEqual(len(DOC.read_text(encoding="utf-8").split()), 713)
 
     def test_doc_names_the_pieces(self):
         text = flat(DOC)
@@ -75,6 +76,39 @@ class KitImportDocTest(unittest.TestCase):
         self.assertIn("the only config files you may read are those listed in the `readable config` slot",
                       text.lower())
         self.assertIn("ask me for anything else", text)
+
+    def test_forward_import_has_an_installed_files_step(self):
+        # Issue #115: the forward import gains an "installed files" step that uses the shared
+        # scan (through make kit-check), reports repo entries, names human-machine entries as
+        # human-only from the clean clone, states no agent copies an installed file, and stops
+        # on a rejected map entry.
+        text = flat(DOC)
+        self.assertIn("**Installed files.**", text)
+        self.assertIn("`installed-files.txt`", text)
+        self.assertIn("one shared scan", text)
+        self.assertIn("read-only", text)
+        for word in ("`unchanged`", "`local, ignored`", "`drift`"):
+            self.assertIn(word, text)
+        self.assertIn("`human-machine`", text)
+        self.assertIn("the human compares it from the clean clone, git only", text)
+        self.assertIn("no sandbox tool opens that path", text)
+        self.assertIn("No agent copies an installed file", text)
+        self.assertIn("rejected map entry stops the step with the parser's message", text)
+        self.assertIn("`missing <path>`", text)
+        self.assertIn("The scan reads the live kit folder", text)
+
+    def test_the_installed_files_step_names_no_agent_write_command(self):
+        # The step must not tell an agent to write an installed file: the only command it
+        # names is read-only (make kit-check). No write verb as a whole word, and no redirect.
+        step = DOC.read_text(encoding="utf-8")
+        step = step[step.index("**Installed files.**"):]
+        step = step[:step.index("\n\n")] if "\n\n" in step else step
+        for write_verb in ("cp", "mv", "rsync", "tee", "install", "ln", "dd", "scp", "sed", "patch"):
+            self.assertIsNone(re.search(r"(?<![\w-])" + write_verb + r"(?![\w-])", step), write_verb)
+        bare = step.replace("<path>", "")
+        for mark in (">", "copy this file"):
+            self.assertNotIn(mark, bare)
+        self.assertIn("`make kit-check`", step)
 
     def test_doc_is_listed_where_the_issue_requires(self):
         self.assertIn("kit-import.md", (KIT / "README.md").read_text(encoding="utf-8"))
