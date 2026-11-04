@@ -6,11 +6,11 @@ Numbered proposals for the human, from what the roles learned across issues. Rea
 
 Invoked by name ("run the sweep"). The orchestrator proposes one at the decision point, never starts it silently. Triggers: every N closed issues (N = 5, a draft the human sets; the one place it lives is `SWEEP_EVERY_N` in `scripts/sweep-due.py`, and `make sweep-due` says whether it is reached); at a version cut; when the human asks; after two QA FAILs in a row; after an **Assert clean** failure.
 
-A fresh PM launch runs it: the standard PM launch text plus "follow `_docs/agent-kit/procedures/sweep.md`", never just "run the sweep". The PM writes only the entry, in `.scratch/`, and returns it with the proposals. It files nothing; accepted proposals become issues or decision records after the human's ruling. Once the human has seen the proposals, the orchestrator copies the entry into `_docs/measurements/` and commits it.
+A fresh PM launch runs it: the standard PM launch text plus "follow `_docs/agent-kit/procedures/sweep.md`", never just "run the sweep". The PM writes only the entry, in `.scratch/`, and returns it with the proposals. It files nothing; accepted proposals become issues or decision records after the human's ruling. Once the human has seen the proposals, the orchestrator copies the entry into `_docs/records/` and commits it.
 
 ## Steps
 
-1. Read the newest entry in `_docs/measurements/` (read only that one): its Cutoff and Running summary. With no entry (the first sweep), read every session summary, every role comment on closed issues and the whole git history.
+1. Read the newest entry in `_docs/records/` (read only that one): its Cutoff and Running summary. With no entry (the first sweep), read every session summary, every role comment on closed issues and the whole git history.
 2. Find the summaries added since the cutoff, old names included: `git log <cutoff commit>..HEAD --diff-filter=A --name-only -- _session-summaries/`. Read their Reflection blocks and Launch usage lines, and the role comments since then. Draft proposals from the Reflection blocks.
 3. Recompute the figures from git and GitHub, with word counts from `git show <commit>:<path> | wc -w` over the always-loaded files (`AGENTS.md`, `process.md`, the three `team/` files) and all core Markdown (the kit's top level, `team/`, `procedures/`, `templates/`, tool-layer START.md and role-definition files). Word counts are tracked, never a gate. A figure with no verified source reads `unknown`.
 4. Write `<timestamp>-measure-pm-sweep.md`, named per `procedures/session-summary.md`, with the headings of `templates/measurement.md` plus three more:
