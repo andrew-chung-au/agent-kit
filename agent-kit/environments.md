@@ -99,6 +99,20 @@ The container reviews and commits the new kit; you fetch the result and push, as
 
 If the new kit changes `environments/local-sandbox/pre-push`, copy it from the clean clone, after the fetch and merge, to `~/.agent-hooks/pre-push` and refresh each clean clone's copy. Never copy it from the container's `.scratch/` copy. These steps don't touch `.devcontainer/` or the CI template.
 
+### Comparing the installed push check (human only)
+
+The push check is installed on your machine, outside the sandbox: once at `~/.agent-hooks/pre-push`, and once in each clean clone's `.git/hooks/pre-push`. These are the two `human-machine` rows in `installed-files.txt`, whose source is `environments/local-sandbox/pre-push`. A sandbox tool never opens a `human-machine` install path, so `make kit-check` lists these two as "not checked here" and a sandbox check can never prove the installed push check is current. Only you can compare them, from the clean clone.
+
+Do it with git and coreutils only, never `make`, and never by running or sourcing a repo file (the kit folder is untrusted until you have read its diff). From the clean clone, with `<ref>` the reviewed commit:
+
+```
+git show <ref>:agent-kit/environments/local-sandbox/pre-push > /tmp/pre-push.kit
+git diff --no-index /tmp/pre-push.kit ~/.agent-hooks/pre-push
+git diff --no-index /tmp/pre-push.kit .git/hooks/pre-push
+```
+
+`git diff --no-index` (or `cmp`) reports whether each installed copy matches the kit's. If an install path is missing, or is a symlink rather than a regular file, the comparison says so and you do not follow it: `test -h ~/.agent-hooks/pre-push && echo "symlink: resolve it by hand"`. Reinstall by copying from the clean clone, as above; never from the container's `.scratch/` copy. The install paths here come from the map's rows, so they are not hard-coded in a second place.
+
 ## Local, no sandbox
 
 The agent runs in your own checkout, with your login and files within its reach. The kit works exactly as in Codespaces: run `make hooks` once, and the kit's pre-push hook checks your pushes. Use this profile only for quick experiments. For real work, use the local sandbox.
