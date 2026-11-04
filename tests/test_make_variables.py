@@ -394,7 +394,7 @@ class KitTargetsTest(TargetCase):
             done = self.make(folder, "help")
             self.assertEqual(done.returncode, 0, done.stderr)
             self.assertRegex(done.stdout, r"(?m)^  kit-check +Say whether the kit folder is pristine")
-            self.assertRegex(done.stdout, r"(?m)^  kit-compare +List how the kit folder differs.*make kit-compare OTHER=")
+            self.assertRegex(done.stdout, r"(?m)^  kit-compare +List how one kit folder differs.*make kit-compare KIT_A=<folder> KIT_B=<folder>")
 
     def test_kit_check_runs_the_script_with_no_arguments(self):
         for kind, folder in self.each_kit_kind():
@@ -402,44 +402,54 @@ class KitTargetsTest(TargetCase):
             self.assertEqual(done.returncode, 0, done.stderr)
             self.assertEqual(self.received(folder), [[]])
 
-    def test_kit_compare_passes_the_folder_as_exactly_one_argument(self):
+    def test_kit_compare_passes_the_two_roots_as_exactly_two_arguments(self):
         for kind, folder in self.each_kit_kind():
-            for value in (".scratch/other", ".scratch/a-b_c.d/e", ".scratch/x/y/z"):
-                with self.subTest(kind=kind, other=value):
+            for first, second in ((".scratch/a", ".scratch/b"), ("agent-kit", ".scratch/a-b_c.d/e"),
+                                  ("_docs/agent-kit", "x/y/z"), ("same", "same2")):
+                with self.subTest(kind=kind, a=first, b=second):
                     (folder / "args.log").unlink(missing_ok=True)
-                    done = self.make(folder, "kit-compare", "OTHER=" + value)
+                    done = self.make(folder, "kit-compare", "KIT_A=" + first, "KIT_B=" + second)
                     self.assertEqual(done.returncode, 0, done.stderr)
-                    self.assertEqual(self.received(folder), [[value]])
+                    self.assertEqual(self.received(folder), [[first, second]])
 
-    def test_a_crafted_other_is_refused_before_any_script_runs(self):
+    def test_a_crafted_root_is_refused_before_any_script_runs(self):
+        crafted = [v for v in self.CRAFTED if v not in ("x", "other", ".scratch", "tmp/.scratch/x")] + ["-x", "-rf"]
         for kind, folder in self.each_kit_kind():
-            for value in self.CRAFTED:
-                with self.subTest(kind=kind, other=value):
-                    done = self.make(folder, "kit-compare", "OTHER=" + value)
+            for value in crafted:
+                for first, second in ((value, ".scratch/ok"), (".scratch/ok", value)):
+                    with self.subTest(kind=kind, a=first, b=second):
+                        done = self.make(folder, "kit-compare", "KIT_A=" + first, "KIT_B=" + second)
+                        self.assert_nothing_ran(folder, done)
+                        self.assertIn("Usage: make kit-compare KIT_A=<folder> KIT_B=<folder>", done.stderr)
+
+    def test_a_missing_root_is_refused(self):
+        for kind, folder in self.each_kit_kind():
+            for args in ((), ("KIT_A=.scratch/a",), ("KIT_B=.scratch/b",), ("KIT_A=", "KIT_B=.scratch/b"),
+                         ("KIT_A=.scratch/a", "KIT_B=")):
+                with self.subTest(kind=kind, args=args):
+                    done = self.make(folder, "kit-compare", *args)
                     self.assert_nothing_ran(folder, done)
-                    self.assertIn("Usage: make kit-compare OTHER=.scratch/<folder>", done.stderr)
+                    self.assertIn("Usage: make kit-compare", done.stderr)
 
-    def test_a_missing_other_is_refused(self):
+    def test_a_root_from_the_environment_is_also_safe(self):
         for kind, folder in self.each_kit_kind():
-            done = self.make(folder, "kit-compare")
-            self.assert_nothing_ran(folder, done)
-            self.assertIn("Usage: make kit-compare", done.stderr)
+            for name in ("KIT_A", "KIT_B"):
+                with self.subTest(kind=kind, variable=name):
+                    env = {k: v for k, v in os.environ.items() if k not in ("MAKEFLAGS", "MFLAGS", "MAKELEVEL")}
+                    env["KIT_A"], env["KIT_B"] = ".scratch/a", ".scratch/b"
+                    env[name] = "$(shell touch MARKER)"
+                    done = subprocess.run(["make", "--no-print-directory", "kit-compare"], cwd=str(folder), env=env,
+                                          stdin=subprocess.DEVNULL, capture_output=True, text=True)
+                    self.assert_nothing_ran(folder, done)
 
-    def test_an_other_from_the_environment_is_also_safe(self):
-        for kind, folder in self.each_kit_kind():
-            env = {k: v for k, v in os.environ.items() if k not in ("MAKEFLAGS", "MFLAGS", "MAKELEVEL")}
-            env["OTHER"] = "$(shell touch MARKER)"
-            done = subprocess.run(["make", "--no-print-directory", "kit-compare"], cwd=str(folder), env=env,
-                                  stdin=subprocess.DEVNULL, capture_output=True, text=True)
-            self.assert_nothing_ran(folder, done)
-
-    def test_the_kit_targets_never_expand_other(self):
+    def test_the_kit_targets_never_expand_the_roots(self):
         for path in (REPO_MAKEFILE, TEMPLATE):
             with self.subTest(file=path.name):
                 body = "\n".join(block(path.read_text(encoding="utf-8"), "kit-compare"))
-                self.assertIsNone(re.search(r"\$\(OTHER\)", body), body)
-                self.assertIn("$(value OTHER)", body)
-                self.assertIn('"$$OTHER"', body)
+                self.assertIsNone(re.search(r"\$\((KIT_A|KIT_B|OTHER)\)", body), body)
+                for name in ("KIT_A", "KIT_B"):
+                    self.assertIn(f"$(value {name})", body)
+                    self.assertIn(f'"$${name}"', body)
 
 
 class SameInBothFilesTest(unittest.TestCase):
@@ -456,7 +466,7 @@ class SameInBothFilesTest(unittest.TestCase):
     def test_the_kit_targets_and_their_validators_are_the_same_in_the_repo_and_the_template(self):
         repo = self.normalized(REPO_MAKEFILE, "agent-kit/scripts")
         template = self.normalized(TEMPLATE, "_docs/agent-kit/scripts")
-        for name in ("kit-check", "kit-other-chars", "kit-other-strip", "kit-other-ok", "kit-compare"):
+        for name in ("kit-check", "kit-other-chars", "kit-other-strip", "kit-root-ok", "kit-compare"):
             with self.subTest(name=name):
                 self.assertTrue(block(repo, name), name + " is missing from the repo Makefile")
                 self.assertEqual(block(repo, name), block(template, name))

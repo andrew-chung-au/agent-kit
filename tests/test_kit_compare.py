@@ -1,4 +1,4 @@
-"""The read-only kit comparison helper, agent-kit/scripts/kit-compare.py (issue #73).
+"""The read-only kit comparison helper, agent-kit/scripts/kit-compare.py (issues #73 and #114).
 
 Every test builds throwaway trees under .scratch/ and runs the real script (and, for the
 make target, the real template Makefile.mk) as a subprocess. Assertions are the exact
@@ -7,6 +7,7 @@ exit code.
 """
 from __future__ import annotations
 
+import importlib.util
 import os
 import re
 import shutil
@@ -93,8 +94,8 @@ class Base(unittest.TestCase):
         return subprocess.run([sys.executable, "-B", str(SCRIPT), *args], cwd=str(cwd or self.project),
                               env=self.env(), stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=60)
 
-    def compare(self, arg=OTHER):
-        return self.run_script(arg)
+    def compare(self, b=OTHER, a=LIVE):
+        return self.run_script(a, b)
 
     def lines(self, done):
         return done.stdout.splitlines()
@@ -205,91 +206,222 @@ class OutputTest(Base):
         self.put(self.live, "sub/MANIFEST.sha256", "x")
         self.assertEqual(self.lines(self.compare())[0], "added sub/MANIFEST.sha256")
 
-    def test_the_live_kit_is_found_through_kit_dir_in_the_conf(self):
+    def test_the_conf_is_not_read_the_roots_are_the_two_arguments(self):
         (self.project / "elsewhere").mkdir()
-        self.conf('KIT_DIR="elsewhere"\n')
         self.put(self.project / "elsewhere", "only.md")
-        self.assertEqual(self.lines(self.compare()), ["added only.md", "kit-compare: 1 differ"])
-
-    def test_the_default_kit_dir_applies_without_a_kit_dir_line(self):
-        (self.project / "agent-kit.conf").write_text('TEST_CMD="true"\n', encoding="utf-8")
-        self.put(self.live, "only.md")
-        self.assertEqual(self.lines(self.compare()), ["added only.md", "kit-compare: 1 differ"])
-
-    def test_the_conf_is_validated_as_kit_check_validates_it(self):
-        for text in ('KIT_DIR="/abs"\n', 'KIT_DIR="../up"\n', "KIT_DIR=$(id)\n", 'KIT_DIR="a"\nKIT_DIR="b"\n'):
-            with self.subTest(text=text):
-                (self.project / "agent-kit.conf").write_text(text, encoding="utf-8")
-                self.assert_refused(self.compare(), "KIT_DIR")
+        for conf in ('KIT_DIR="elsewhere"\n', 'KIT_DIR="/abs"\n', "KIT_DIR=$(id)\n"):
+            with self.subTest(conf=conf):
+                self.conf(conf)
+                done = self.compare("elsewhere")
+                self.assertEqual(done.returncode, 1)
+                self.assertEqual(self.lines(done), ["missing only.md", "kit-compare: 1 differ"])
         (self.project / "agent-kit.conf").unlink()
-        self.assert_refused(self.compare(), "agent-kit.conf")
+        self.assertEqual(self.lines(self.compare("elsewhere")), ["missing only.md", "kit-compare: 1 differ"])
 
-    def test_the_conf_lookup_is_kit_checks_own_not_a_copy(self):
+    def test_either_root_may_be_any_plain_folder_not_only_one_under_scratch(self):
+        (self.project / "elsewhere").mkdir()
+        self.put(self.project / "elsewhere", "only.md")
+        done = self.run_script("elsewhere", LIVE)
+        self.assertEqual(self.lines(done), ["added only.md", "kit-compare: 1 differ"])
+
+    def test_a_is_the_baseline_side_for_added_and_b_for_missing(self):
+        self.put(self.live, "in-a.md")
+        self.put(self.other, "in-b.md")
+        self.assertEqual(self.lines(self.run_script(LIVE, OTHER)),
+                         ["added in-a.md", "missing in-b.md", "kit-compare: 2 differ"])
+        self.assertEqual(self.lines(self.run_script(OTHER, LIVE)),
+                         ["missing in-a.md", "added in-b.md", "kit-compare: 2 differ"])
+
+    def test_one_code_path_through_the_shared_scan_and_parser(self):
         text = SCRIPT.read_text(encoding="utf-8")
-        self.assertIn("kit_check.read_conf(", text)
-        self.assertIn('"kit-check.py"', text)
         self.assertIn('"kit-manifest.py"', text)
+        self.assertIn('"kit-map.py"', text)
         self.assertIn("kit_manifest.kit_files(", text)
-        for needle in ("os.walk", "KIT_DIR", "re.compile(r\"^\\s*(?:export"):
-            self.assertNotIn(needle, text.split('"""', 2)[2])
+        self.assertIn("kit_map.parse_map(", text)
+        body = text.split('"""', 2)[2]
+        for needle in ("os.walk", "KIT_DIR", "read_conf", "split(\"|\")", "re.compile(r\"^\\s*(?:export"):
+            self.assertNotIn(needle, body)
 
     def test_the_docstring_states_the_contract(self):
         doc = SCRIPT.read_text(encoding="utf-8").split('"""', 2)[1]
         for needle in ("unchanged <path> | modified <path> | added <path> | missing <path>", "kit-compare: identical",
                        "kit-compare: <n> differ", "Exit codes: 0 identical; 1 something differs; 2 error",
                        "Read-only", "untrusted data", "never imports or runs anything", "MANIFEST.sha256",
-                       "under .scratch/"):
+                       "no default", "kit_map.parse_map", "no second parser", "run live from the working tree"):
             self.assertIn(needle, " ".join(doc.split()))
 
 
 class ArgumentTest(Base):
-    def test_no_argument_or_more_than_one_prints_usage_and_exits_two(self):
-        for args in ((), (OTHER, OTHER), ("", "x")):
+    def test_not_exactly_two_arguments_prints_usage_and_exits_two(self):
+        for args in ((), (OTHER,), (LIVE, OTHER, OTHER)):
             with self.subTest(args=args):
                 done = self.run_script(*args)
                 self.assertEqual(done.returncode, 2)
                 self.assertEqual(done.stdout, "")
                 self.assertTrue(done.stderr.startswith("Usage: kit-compare.py"), done.stderr)
 
-    def test_every_refused_other_folder_exits_two_with_a_reason(self):
+    def test_every_refused_root_exits_two_with_a_reason_on_either_side(self):
         self.both("x.md")
         (self.project / "outside").mkdir()
         (self.project / ".scratch" / "a b").mkdir()
         refused = ["/abs/path", "/projects", str(self.other), "../x", ".scratch/../x", ".scratch/../outside",
                    ".scratch/a b", ".scratch/$(id)", ".scratch/$HOME", ".scratch/`id`", ".scratch/'q'",
-                   '.scratch/"q"', ".scratch/a;b", ".scratch/a\nb", "outside", "x", ".scratch", ".scratch/",
+                   '.scratch/"q"', ".scratch/a;b", ".scratch/a\nb", "x", ".scratch/",
                    "./.scratch/other", ".scratch//other", ".scratch/./other", "", " ", ".scratch/other/..",
-                   ".scratch/missing"]
+                   ".scratch/missing", "-rf", "-x/y"]
         for arg in refused:
-            with self.subTest(arg=arg):
+            with self.subTest(side="B", arg=arg):
                 self.assert_refused(self.compare(arg))
+            with self.subTest(side="A", arg=arg):
+                self.assert_refused(self.compare(OTHER, arg))
+
+    def test_there_is_no_default_root(self):
+        for args in ((), (LIVE,)):
+            with self.subTest(args=args):
+                done = self.run_script(*args)
+                self.assertEqual((done.returncode, done.stdout), (2, ""))
+                self.assertTrue(done.stderr.startswith("Usage: kit-compare.py <kit root A> <kit root B>"), done.stderr)
 
     def test_a_file_is_not_a_folder(self):
         self.put(self.project / ".scratch", "plain-file")
-        self.assert_refused(self.compare(".scratch/plain-file"), "missing or not a folder")
+        self.assert_refused(self.compare(".scratch/plain-file"), "kit B is missing or not a folder")
+        self.assert_refused(self.compare(OTHER, ".scratch/plain-file"), "kit A is missing or not a folder")
 
     def test_a_symlinked_other_folder_or_symlinked_scratch_is_refused(self):
         real = self.project / "real"
         real.mkdir()
         (self.project / ".scratch" / "link").symlink_to(real)
-        self.assert_refused(self.compare(".scratch/link"), "symlink")
+        self.assert_refused(self.compare(".scratch/link"), "kit B path holds a symlink")
+        self.assert_refused(self.compare(OTHER, ".scratch/link"), "kit A path holds a symlink")
         shutil.rmtree(self.project / ".scratch")
         (self.project / ".scratch").symlink_to(real)
         (real / "o").mkdir()
         self.assert_refused(self.compare(".scratch/o"), "symlink")
 
-    def test_the_live_kit_folder_itself_is_refused(self):
-        self.conf('KIT_DIR=".scratch/live"\n')
-        live = self.project / ".scratch" / "live"
-        live.mkdir()
-        self.put(live, "x.md")
+    def test_the_same_folder_twice_is_refused(self):
+        self.put(self.live, "x.md")
         before = snapshot(self.work)
-        self.assert_refused(self.compare(".scratch/live"), "live kit folder itself")
+        self.assert_refused(self.compare(LIVE), "kit A and kit B are the same folder")
         self.assertEqual(snapshot(self.work), before)
 
-    def test_a_missing_live_kit_folder_is_an_error(self):
+    def test_a_missing_root_is_an_error_on_either_side(self):
         shutil.rmtree(self.live)
-        self.assert_refused(self.compare(), "kit folder")
+        self.assert_refused(self.compare(), "kit A is missing or not a folder")
+        self.assert_refused(self.run_script(OTHER, LIVE), "kit B is missing or not a folder")
+
+
+class InstalledMapTest(Base):
+    """The shared map parser runs on each root before anything else is read (issue #114)."""
+
+    def put_map(self, base, text):
+        return self.put(base, "installed-files.txt", text)
+
+    def test_a_rejected_entry_exits_two_naming_the_root_and_the_entry_and_prints_nothing(self):
+        self.both("x.md")
+        bad = {
+            "dotdot path": "x.md | ../evil | repo | none\n",
+            "absolute path": "x.md | /etc/passwd | repo | none\n",
+            "unknown kind": "x.md | a.txt | machine | none\n",
+            "unknown rule": "x.md | a.txt | repo | sometimes\n",
+            "wrong field count": "x.md | a.txt | repo\n",
+            "duplicate install": "x.md | a.txt | repo | none\nx.md | a.txt | repo | none\n",
+            "source with ..": "../x.md | a.txt | repo | none\n",
+        }
+        for side, base in (("A", self.live), ("B", self.other)):
+            for label, text in bad.items():
+                with self.subTest(side=side, case=label):
+                    self.put_map(base, text)
+                    done = self.compare()
+                    self.assert_refused(done, f"kit {side} installed-files.txt: line ")
+                    base.joinpath("installed-files.txt").unlink()
+
+    def test_a_symlinked_parent_of_an_install_path_is_refused(self):
+        self.both("x.md")
+        real = self.project / "real"
+        real.mkdir()
+        (self.project / "linked").symlink_to(real)
+        self.put_map(self.live, "x.md | linked/inst.txt | repo | none\n")
+        self.assert_refused(self.compare(), "kit A installed-files.txt: line 1: install path goes through a symlink")
+
+    def test_the_map_is_read_before_any_kit_file_is_scanned(self):
+        self.both("x.md")
+        (self.other / "evil.md").symlink_to("x.md")
+        self.put_map(self.live, "x.md | ../evil | repo | none\n")
+        done = self.compare()
+        self.assert_refused(done, "installed-files.txt")
+        self.assertNotIn("symlink in the kit folder", done.stderr)
+
+    def test_a_valid_map_changes_nothing_and_the_map_is_an_ordinary_kit_file(self):
+        self.both("x.md")
+        self.put_map(self.live, "x.md | a.txt | repo | none\n")
+        self.put_map(self.other, "x.md | a.txt | repo | none\n")
+        self.assertEqual(self.lines(self.compare()),
+                         ["unchanged installed-files.txt", "unchanged x.md", "kit-compare: identical"])
+        self.put_map(self.other, "x.md | b.txt | repo | none\n")
+        self.assertEqual(self.lines(self.compare()),
+                         ["modified installed-files.txt", "unchanged x.md", "kit-compare: 1 differ"])
+
+    def test_a_root_without_a_map_is_compared_as_before(self):
+        self.both("x.md")
+        self.put_map(self.live, "x.md | a.txt | repo | none\n")
+        self.assertEqual(self.lines(self.compare()), ["added installed-files.txt", "unchanged x.md", "kit-compare: 1 differ"])
+
+    def test_no_install_path_is_opened_a_pipe_there_would_hang_a_read(self):
+        if not hasattr(os, "mkfifo"):
+            self.fail("os.mkfifo is needed for this check")
+        self.both("x.md")
+        os.mkfifo(self.project / "pipe.txt")
+        text = "x.md | pipe.txt | repo | none\nx.md | ~/.git/hooks/pre-push | human-machine | none\n"
+        self.put_map(self.live, text)
+        self.put_map(self.other, text)
+        done = self.compare()
+        self.assertEqual((done.returncode, done.stderr), (0, ""))
+        self.assertEqual(self.lines(done)[-1], "kit-compare: identical")
+
+    def test_both_trees_and_the_project_are_byte_identical_afterwards(self):
+        self.both("x.md")
+        self.put(self.live, "only-a.md")
+        self.put_map(self.live, "x.md | a.txt | repo | none\n")
+        self.put_map(self.other, "x.md | b.txt | repo | none\n")
+        (self.project / "a.txt").write_text("installed\n", encoding="utf-8")
+        scenarios = {
+            "differ": lambda: None,
+            "rejected map": lambda: self.put_map(self.other, "x.md | ../evil | repo | none\n"),
+        }
+        for name, prepare in scenarios.items():
+            with self.subTest(name=name):
+                prepare()
+                before = snapshot(self.work)
+                self.compare()
+                self.assertEqual(snapshot(self.work), before)
+        self.assertFalse(list(self.work.rglob("__pycache__")))
+
+    def test_the_devcontainer_recipe_drift_is_reported_by_the_shared_scan_allowing_identity_lines(self):
+        """Absorbs the recipe-drift part of #7 (issue #114): an installed .devcontainer/ against the kit recipe."""
+        spec = importlib.util.spec_from_file_location("kit_map_under_test", KIT / "scripts" / "kit-map.py")
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        path = ".devcontainer/devcontainer.json"
+        recipe = ('{\n  "name": "kit",\n  "postCreateCommand": "make hooks",\n'
+                  '  "git.name": "KIT NAME",\n  "git.email": "kit@example.invalid"\n}\n')
+        other_identity = recipe.replace("KIT NAME", "Someone Else").replace("kit@example.invalid", "else@example.invalid")
+        cases = {
+            "identical": (recipe, f"local, ignored {path}", "unchanged"),
+            "only the identity lines differ": (other_identity, f"local, ignored {path}", "unchanged"),
+            "a recipe line differs": (other_identity.replace("make hooks", "make hooks && rm -rf x"), f"drift {path}", "drift"),
+            "a recipe line is gone": (other_identity.replace('  "name": "kit",\n', ""), f"drift {path}", "drift"),
+        }
+        kit = self.project / "recipe-kit"
+        self.put(kit, path, recipe)
+        self.put(kit, "installed-files.txt", f'{path} | {path} | repo | prefix:  "git.\n')
+        for label, (installed, line, state) in cases.items():
+            with self.subTest(case=label):
+                self.put(self.project, path, installed)
+                reports = module.scan_installed(kit, self.project)
+                self.assertEqual([r.state for r in reports], [state])
+                self.assertEqual(module.report_lines(reports), [line])
+        (self.project / path).unlink()
+        self.assertEqual(module.report_lines(module.scan_installed(kit, self.project)), [f"missing {path}"])
 
 
 class UntrustedDataTest(Base):
@@ -407,7 +539,7 @@ class MakeTargetTest(Base):
     def test_the_target_lists_the_difference_through_the_template(self):
         self.put(self.other, "scripts/kit-compare.py", "changed\n")
         self.put(self.other, "only-other.md")
-        done = self.make(f"OTHER={OTHER}")
+        done = self.make(f"KIT_A={LIVE}", f"KIT_B={OTHER}")
         self.assertEqual(done.returncode, 2, done.stdout + done.stderr)  # make reports a failed recipe as 2
         lines = self.lines(done)
         self.assertIn("added scripts/kit-check.py", lines)
@@ -418,52 +550,68 @@ class MakeTargetTest(Base):
     def test_identical_trees_exit_zero_through_make(self):
         shutil.rmtree(self.other)
         shutil.copytree(self.live, self.other)
-        done = self.make(f"OTHER={OTHER}")
+        done = self.make(f"KIT_A={LIVE}", f"KIT_B={OTHER}")
         self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
         self.assertEqual(self.lines(done)[-1], "kit-compare: identical")
 
-    def test_no_other_prints_the_usage_and_does_not_run_the_script(self):
+    def test_a_missing_root_prints_the_usage_and_does_not_run_the_script(self):
         before = snapshot(self.work)
-        for args in ((), ("OTHER=",)):
+        for args in ((), ("KIT_A=" + LIVE,), ("KIT_B=" + OTHER,), ("KIT_A=", "KIT_B=" + OTHER),
+                     ("KIT_A=" + LIVE, "KIT_B=")):
             with self.subTest(args=args):
                 done = self.make(*args)
                 self.assertNotEqual(done.returncode, 0)
                 self.assertEqual(done.stdout, "")
-                self.assertIn("Usage: make kit-compare OTHER=.scratch/<folder>", done.stderr)
+                self.assertIn("Usage: make kit-compare KIT_A=<folder> KIT_B=<folder>", done.stderr)
                 self.assertNotIn("kit-compare: ", done.stderr.replace("make kit-compare", ""))
         self.assertEqual(snapshot(self.work), before)
 
     def test_the_target_refuses_what_the_validator_refuses_before_the_script_runs(self):
         (self.project / ".scratch" / "a b").mkdir()
         marker = self.project / "PWNED"
-        bad = ["/abs", "../x", ".scratch/../x", ".scratch/a b", ".scratch/$(id)", ".scratch/$$", ".scratch/`id`",
-               ".scratch/'q'", ".scratch/a;touch PWNED", ".scratch/$(shell touch PWNED)", "other", ".scratch",
-               ".scratch/a*", ".scratch/a?b"]
+        bad = ["/abs", "-x", "../x", ".scratch/../x", ".scratch/a b", ".scratch/$(id)", ".scratch/$$", ".scratch/`id`",
+               ".scratch/'q'", ".scratch/a;touch PWNED", ".scratch/$(shell touch PWNED)", "$(file >PWNED,x)",
+               ".scratch/a*", ".scratch/a?b", ".scratch/x y", "${HOME}"]
         for value in bad:
-            with self.subTest(value=value):
-                done = self.make(f"OTHER={value}")
+            for good, name in ((LIVE, "KIT_B"), (OTHER, "KIT_A")):
+                with self.subTest(value=value, variable=name):
+                    other = "KIT_A" if name == "KIT_B" else "KIT_B"
+                    done = self.make(f"{name}={good}", f"{other}={value}")
+                    self.assertNotEqual(done.returncode, 0)
+                    self.assertEqual(done.stdout, "")
+                    self.assertIn("Usage: make kit-compare", done.stderr)
+                    self.assertFalse(marker.exists())
+
+    def test_a_root_from_the_environment_is_also_safe(self):
+        marker = self.project / "PWNED"
+        for name in ("KIT_A", "KIT_B"):
+            with self.subTest(variable=name):
+                env = self.env()
+                env["KIT_A"], env["KIT_B"] = LIVE, OTHER
+                env[name] = "$(shell touch PWNED)"
+                done = subprocess.run(["make", "--no-print-directory", "kit-compare"], cwd=str(self.project), env=env,
+                                      stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=60)
                 self.assertNotEqual(done.returncode, 0)
-                self.assertEqual(done.stdout, "")
-                self.assertIn("Usage: make kit-compare", done.stderr)
                 self.assertFalse(marker.exists())
 
     def test_the_shell_never_expands_the_value(self):
         # A name that is plain to make's validator but holds characters the shell would treat specially
         # cannot get through, and a plain folder named like a variable is passed as the literal text.
         (self.project / ".scratch" / "HOME").mkdir()
-        done = self.make("OTHER=.scratch/HOME")
+        done = self.make(f"KIT_A={LIVE}", "KIT_B=.scratch/HOME")
         self.assertEqual(done.returncode, 2, done.stderr)  # make reports the script's exit 1 as 2
         self.assertTrue(self.lines(done)[-1].startswith("kit-compare: "))
 
     def test_the_check_line_precedes_the_recipe_and_the_value_is_never_expanded_by_make(self):
         text = TEMPLATE.read_text(encoding="utf-8")
         block = text[text.index("\nkit-compare: ## ") + 1:].split("\n\n", 1)[0].splitlines()
-        self.assertEqual(len(block), 3, block)
-        self.assertIn("$(value OTHER)", block[1])
-        self.assertTrue(block[1].startswith("\t$(if $(call kit-other-ok,$(value OTHER)),,$(error Usage: make kit-compare"))
-        self.assertEqual(block[2], '\t@python3 -B _docs/agent-kit/scripts/kit-compare.py "$$OTHER"')
-        self.assertNotRegex("\n".join(block), r"\$\(OTHER\)|\$\{OTHER\}")
-        self.assertEqual(text.count("$(OTHER)"), 0)
+        self.assertEqual(len(block), 4, block)
+        for index, name in ((1, "KIT_A"), (2, "KIT_B")):
+            self.assertIn(f"$(value {name})", block[index])
+            self.assertTrue(block[index].startswith(f"\t$(if $(call kit-root-ok,$(value {name})),,$(error Usage: make kit-compare"))
+        self.assertEqual(block[3], '\t@python3 -B _docs/agent-kit/scripts/kit-compare.py "$$KIT_A" "$$KIT_B"')
+        self.assertNotRegex("\n".join(block), r"\$\((KIT_A|KIT_B)\)|\$\{(KIT_A|KIT_B)\}")
+        self.assertEqual(text.count("$(KIT_A)") + text.count("$(KIT_B)") + text.count("$(OTHER)"), 0)
 
     def test_the_target_sits_in_the_kit_check_section_after_kit_check(self):
         text = TEMPLATE.read_text(encoding="utf-8")
@@ -488,7 +636,7 @@ class MakeTargetTest(Base):
     def test_help_lists_the_target(self):
         done = subprocess.run(["make", "--no-print-directory", "help"], cwd=str(self.project), env=self.env(),
                               stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=60)
-        self.assertRegex(done.stdout, r"(?m)^  kit-compare +List how the kit folder differs")
+        self.assertRegex(done.stdout, r"(?m)^  kit-compare +List how one kit folder differs.*make kit-compare KIT_A=<folder> KIT_B=<folder>")
 
 
 class DocsTest(unittest.TestCase):
@@ -503,12 +651,14 @@ class DocsTest(unittest.TestCase):
 
     def test_readme_names_the_make_target(self):
         text = " ".join((KIT / "README.md").read_text(encoding="utf-8").split())
-        self.assertIn("`make kit-compare OTHER=.scratch/<folder>`", text)
+        self.assertIn("`make kit-compare KIT_A=<kit folder> KIT_B=<other kit folder>`", text)
+        self.assertNotIn("OTHER=", text.split("`make kit-compare", 1)[1])
 
     def test_the_import_procedure_uses_the_helper_and_keeps_the_decisions(self):
         path = KIT / "procedures" / "kit-import.md"
         text = path.read_text(encoding="utf-8")
-        self.assertEqual(len(re.findall(r"`make kit-compare OTHER=\.scratch/<folder>`", text)), 2)
+        self.assertEqual(len(re.findall(r"`make kit-compare KIT_A=<live kit folder> KIT_B=\.scratch/<folder>`", text)), 2)
+        self.assertNotIn("OTHER=", text)
         self.assertLessEqual(len(text.split()), 600)
         self.assertIn("| Modified | Changed | Decision question", text)
 

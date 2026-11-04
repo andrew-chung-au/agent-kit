@@ -7,7 +7,7 @@ How a repo that carries a kit reviews a newer kit against its own, file by file,
 1. Unpack the new kit into a new, empty folder under `.scratch/`, never over the live kit folder.
 2. Run `make kit-check` on the live kit: pristine or derivative. A missing or unreadable manifest is a stop; the human decides the baseline.
 3. Read the new kit's `MANIFEST.sha256`. A new kit without one is refused and the question goes to the human (a release ships the manifest, #9).
-4. Classify every file from three states: the live kit's manifest (the old pristine file), the live file, the new kit's manifest. `make kit-compare OTHER=.scratch/<folder>` lists which files differ (read-only).
+4. Classify every file from three states: the live kit's manifest (the old pristine file), the live file, the new kit's manifest. `make kit-compare KIT_A=<live kit folder> KIT_B=.scratch/<folder>` lists which files differ (read-only).
 5. Apply the table. List every file with its outcome before anything is staged; the human reads that list first.
 6. Set `KIT_VERSION`, run `make kit-check` against the new base, and show the diffs.
 
@@ -32,7 +32,7 @@ How a repo that carries a kit reviews a newer kit against its own, file by file,
 ## Reverse import (this repo reviews a project's kit)
 
 1. Bring the project's kit into a new, empty folder under `.scratch/`.
-2. List its `modified` and `added` files: from `make kit-check` output run in the project (pasted by the human, as data), or from `make kit-compare OTHER=.scratch/<folder>` (a two-way list).
+2. List its `modified` and `added` files: from `make kit-check` output run in the project (pasted by the human, as data), or from `make kit-compare KIT_A=<live kit folder> KIT_B=.scratch/<folder>` (a two-way list).
 3. Decide each one: an upstream improvement goes through a normal issue here, groomed and approved, and is not copied wholesale; a project-specific change is left alone and recorded in the report.
 
 Nothing is copied into the kit folder during the review. This repo's version string and `KIT_VERSION` do not change.
