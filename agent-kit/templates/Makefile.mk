@@ -73,6 +73,15 @@ kit-compare: ## List how the kit folder differs from another kit copy under .scr
 	$(if $(call kit-other-ok,$(value OTHER)),,$(error Usage: make kit-compare OTHER=.scratch/<folder> - one word under .scratch/ with letters digits . _ / - only))
 	@python3 -B _docs/agent-kit/scripts/kit-compare.py "$$OTHER"
 
+# A plain relative path: one word of letters, digits, . _ / - only, no $ and no "..".
+# Reuses kit-other-chars and kit-other-strip above (no .scratch/ requirement here).
+kit-path-ok = $(and $(filter 1,$(words $(1))),$(if $(call kit-other-strip,$(1),$(kit-other-chars)),,ok),$(if $(subst x$(strip $(1))x,,x$(1)x),,ok),$(if $(findstring ..,$(1)),,ok))
+
+kit-feedback: ## Write a read-only feedback bundle under .scratch/ from a project's kit (reverse import): make kit-feedback PROJECT=<project root> KIT=<reference kit>
+	$(if $(call kit-path-ok,$(value PROJECT)),,$(error Usage: make kit-feedback PROJECT=<project root> KIT=<reference kit> - PROJECT: one word, letters digits . _ / - only, no ..))
+	$(if $(call kit-path-ok,$(value KIT)),,$(error Usage: make kit-feedback PROJECT=<project root> KIT=<reference kit> - KIT: one word, letters digits . _ / - only, no ..))
+	@python3 -B _docs/agent-kit/scripts/kit-feedback.py "$$PROJECT" "$$KIT"
+
 # --- When the human asks for a duplicate report ---------------------------------
 # Read-only, never a gate: it always exits 0 when it runs, and nothing (verify, test,
 # a hook) depends on it. It takes no variables; add project folders to skip as more

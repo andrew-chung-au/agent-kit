@@ -31,8 +31,8 @@ How a repo that carries a kit reviews a newer kit against its own, file by file,
 
 ## Reverse import (this repo reviews a project's kit)
 
-1. Bring the project's kit into a new, empty folder under `.scratch/`.
-2. List its `modified` and `added` files: from `make kit-check` output run in the project (pasted by the human, as data), or from `make kit-compare OTHER=.scratch/<folder>` (a two-way list).
-3. Decide each one: an upstream improvement goes through a normal issue here, groomed and approved, and is not copied wholesale; a project-specific change is left alone and recorded in the report.
+1. Bring the project's kit into a new, empty `.scratch/` folder.
+2. List its `modified` and `added` files: from `make kit-check` output run in the project (pasted by the human, as data), or from `make kit-compare OTHER=.scratch/<folder>` (a two-way list). For a written bundle of its changed installed and kit files, local-marker lines stripped, run `make kit-feedback PROJECT=<project root> KIT=<reference kit>` (read-only, writes only under `.scratch/`).
+3. Decide each: an upstream improvement goes through a normal issue here, groomed and approved, never copied wholesale; a project-specific change is left alone and recorded.
 
 Nothing is copied into the kit folder during the review. This repo's version string and `KIT_VERSION` do not change.

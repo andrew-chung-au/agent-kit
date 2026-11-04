@@ -71,6 +71,13 @@ kit-compare: ## List how the kit folder differs from another kit copy under .scr
 	$(if $(call kit-other-ok,$(value OTHER)),,$(error Usage: make kit-compare OTHER=.scratch/<folder> - one word under .scratch/ with letters digits . _ / - only))
 	@python3 -B agent-kit/scripts/kit-compare.py "$$OTHER"
 
+kit-path-ok = $(and $(filter 1,$(words $(1))),$(if $(call kit-other-strip,$(1),$(kit-other-chars)),,ok),$(if $(subst x$(strip $(1))x,,x$(1)x),,ok),$(if $(findstring ..,$(1)),,ok))
+
+kit-feedback: ## Write a read-only feedback bundle under .scratch/ from a project's kit (reverse import): make kit-feedback PROJECT=<project root> KIT=<reference kit>
+	$(if $(call kit-path-ok,$(value PROJECT)),,$(error Usage: make kit-feedback PROJECT=<project root> KIT=<reference kit> - PROJECT: one word, letters digits . _ / - only, no ..))
+	$(if $(call kit-path-ok,$(value KIT)),,$(error Usage: make kit-feedback PROJECT=<project root> KIT=<reference kit> - KIT: one word, letters digits . _ / - only, no ..))
+	@python3 -B agent-kit/scripts/kit-feedback.py "$$PROJECT" "$$KIT"
+
 dup-report: ## Report repeated sentences and decision keys with differing status in the docs (read-only; never a gate)
 	@python3 -B agent-kit/scripts/dup-report.py --exclude .scratch/ --exclude _session-summaries/ --exclude _docs/records/ --exclude vuln-triage/ --exclude proposals/ .
 
