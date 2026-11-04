@@ -64,11 +64,19 @@ class FeedbackError(Exception):
     """Exit 2: nothing written. The message is the one-line reason."""
 
 
+def _fs(call, *args, failed=None):
+    """kit_map.fs() with its MapError turned into a FeedbackError (exit 2, one-line reason)."""
+    try:
+        return kit_map.fs(call, *args, failed=failed)
+    except kit_map.MapError as error:
+        raise FeedbackError(str(error))
+
+
 def _folder(arg: str, what: str) -> Path:
     if not arg:
         raise FeedbackError(f"the {what} is required")
     path = Path(arg)
-    if path.is_symlink() or not path.is_dir():
+    if _fs(path.is_symlink) or not _fs(path.is_dir):
         raise FeedbackError(f"the {what} is missing, not a folder or a symlink: {arg}")
     return path
 
@@ -79,9 +87,17 @@ def project_kit_dir(project: Path) -> Path:
         kit, _claim = kit_check.read_conf(project)
     except kit_check.CheckError as error:
         raise FeedbackError(f"the project has no readable agent-kit.conf: {error}")
-    if kit.is_symlink() or not kit.is_dir():
+    if _fs(kit.is_symlink) or not _fs(kit.is_dir):
         raise FeedbackError(f"the project's kit folder is missing or a symlink: {kit}")
     return kit
+
+
+def _read_text(path: Path, shown: str) -> str:
+    """One installed file as UTF-8 text, read through kit_map.fs()."""
+    try:
+        return kit_map.read_utf8(path, f"cannot read the installed file {shown!r}")
+    except kit_map.MapError as error:
+        raise FeedbackError(str(error))
 
 
 def strip_local(text: str) -> tuple[str, bool]:
@@ -171,7 +187,7 @@ def build_bundle(project: Path, reference: Path) -> list[str]:
         install = project
         for part in report.install.split("/"):
             install = install / part
-        body, ok = strip_local(install.read_bytes().decode("utf-8"))
+        body, ok = strip_local(_read_text(install, report.install))
         if not ok:
             lines.append("(markers unbalanced: reported as drift; body not written, to avoid stripping it wrongly)")
         else:
@@ -190,15 +206,15 @@ def main(argv=None) -> int:
         project = _folder(args[0], "project root")
         reference = _folder(args[1], "reference kit root")
         lines = build_bundle(project, reference)
+        scratch = _fs(Path.cwd, failed="cannot read the working folder") / ".scratch"
+        _fs(lambda: scratch.mkdir(parents=True, exist_ok=True), failed="cannot create the .scratch folder")
+        out = scratch / f"kit-feedback-{time.strftime('%Y%m%dT%H%M%SZ', time.gmtime())}"
+        _fs(out.mkdir)
+        bundle = out / "bundle.md"
+        _fs(lambda: bundle.write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n"), failed="cannot write the bundle")
     except FeedbackError as error:
         print(f"kit-feedback: {error}; nothing written", file=sys.stderr)
         return 2
-    scratch = Path.cwd() / ".scratch"
-    scratch.mkdir(parents=True, exist_ok=True)
-    out = scratch / f"kit-feedback-{time.strftime('%Y%m%dT%H%M%SZ', time.gmtime())}"
-    out.mkdir()
-    bundle = out / "bundle.md"
-    bundle.write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
     print(f"kit-feedback: wrote {bundle}")
     return 0
 
