@@ -17,6 +17,10 @@ or missing, 0 otherwise. Either form prints a one-line `kit-map: ...` reason on 
 exits 2 on a refused map. Both roots are required: there is no default kit root, and
 neither vuln-triage/ copy of the kit is authoritative.
 
+Every filesystem call in kit-map.py, kit-check.py and kit-compare.py goes through fs(), which
+turns an OSError (a folder that cannot be searched, a file that cannot be read) into a
+MapError, so the run exits 2 with a one-line reason and never exits 1, the drift code.
+
 scan_installed() is the one driver every reader shares: it calls parse_map() for the
 entries and scan_text() per file, reads a `repo` entry's install path from the repo root,
 reports a `human-machine` entry as `not checked` without ever opening its install path,
@@ -66,6 +70,36 @@ class MapError(Exception):
     """The map or an argument is refused. The message is the one-line reason."""
 
 
+def fs(call, *args, failed=None):
+    """Run one filesystem call; an OSError becomes a MapError, never a traceback.
+
+    Every filesystem call in kit-map.py, kit-check.py and kit-compare.py goes through this
+    one helper (a stat such as is_file(), is_dir(), is_symlink(), exists() or resolve(), or
+    a read). A permission error, a loop or any other OSError then exits 2 with a one-line
+    reason; exit 1 is the code for drift, and a crash must never read as drift. `failed` is
+    the caller's own message, used in place of the generic one. The call is a bound Path
+    method or a function with its arguments, so the path in the reason is call.__self__ or
+    the first argument; it is shown quoted.
+    """
+    try:
+        return call(*args)
+    except OSError as exc:
+        subject = args[0] if args else getattr(call, "__self__", "")
+        reason = exc.strerror or type(exc).__name__
+        if failed:
+            raise MapError(f"{failed} ({reason})") from None
+        raise MapError(f"cannot read {str(subject)!r}: {reason}") from None
+
+
+def read_utf8(path, failed: str) -> str:
+    """The text of one file, read as raw bytes and decoded as UTF-8, through fs()."""
+    data = fs(path.read_bytes, failed=failed)
+    try:
+        return data.decode("utf-8")
+    except UnicodeDecodeError:
+        raise MapError(f"{failed} (not valid UTF-8)") from None
+
+
 class Entry(NamedTuple):
     source: str   # path inside the kit folder
     install: str  # install path: repo-relative for `repo`, data only for `human-machine`
@@ -94,13 +128,13 @@ def _plain_relative(path: str, what: str, number: int) -> None:
 
 def _check_repo_install(repo_root: Path, install: str, number: int) -> None:
     _plain_relative(install, "install path", number)
-    real_root = os.path.realpath(repo_root)
+    real_root = fs(os.path.realpath, repo_root)
     current = Path(repo_root)
     for part in install.split("/"):
         current = current / part
-        if os.path.islink(current):
+        if fs(current.is_symlink):
             raise MapError(f"line {number}: install path goes through a symlink: {install!r}")
-    real = os.path.realpath(current)
+    real = fs(os.path.realpath, current)
     if os.path.commonpath([real_root, real]) != real_root:
         raise MapError(f"line {number}: install path resolves outside the repo: {install!r}")
 
@@ -123,19 +157,16 @@ def parse_map(kit_root, repo_root) -> list[Entry]:
     if kit_root is None or repo_root is None or str(kit_root) == "" or str(repo_root) == "":
         raise MapError("a kit root and a repo root are both required, and neither may be empty")
     kit_root, repo_root = Path(kit_root), Path(repo_root)
-    if not kit_root.is_dir() or kit_root.is_symlink():
+    if not fs(kit_root.is_dir) or fs(kit_root.is_symlink):
         raise MapError(f"the kit root is not a plain folder: {kit_root}")
-    if not repo_root.is_dir():
+    if not fs(repo_root.is_dir):
         raise MapError(f"the repo root is not a folder: {repo_root}")
     path = kit_root / MAP_NAME
-    if path.is_symlink() or not path.is_file():
+    if fs(path.is_symlink) or not fs(path.is_file):
         raise MapError(f"{MAP_NAME} is missing or not a regular file in {kit_root}")
-    try:
-        # Raw bytes, decoded here: read_text() would translate a bare CR into a newline
-        # before the control check below could refuse it.
-        text = path.read_bytes().decode("utf-8")
-    except (OSError, UnicodeDecodeError) as exc:
-        raise MapError(f"{MAP_NAME} cannot be read as UTF-8 text: {exc}") from None
+    # Raw bytes, decoded in read_utf8: read_text() would translate a bare CR into a newline
+    # before the control check below could refuse it.
+    text = read_utf8(path, f"{MAP_NAME} cannot be read as UTF-8 text")
 
     bad = CONTROL.search(text)
     if bad:
@@ -255,14 +286,11 @@ def _read_kit_source(kit_root: Path, source: str) -> str:
     current = kit_root
     for part in source.split("/"):
         current = current / part
-        if os.path.islink(current):
+        if fs(current.is_symlink):
             raise MapError(f"the kit source goes through a symlink: {source!r}")
-    if not current.is_file():
+    if not fs(current.is_file, failed=f"the kit source cannot be read as UTF-8 text: {source!r}"):
         raise MapError(f"the kit source is missing: {source!r}")
-    try:
-        return current.read_bytes().decode("utf-8")
-    except (OSError, UnicodeDecodeError) as exc:
-        raise MapError(f"the kit source cannot be read as UTF-8 text: {source!r} ({exc})") from None
+    return read_utf8(current, f"the kit source cannot be read as UTF-8 text: {source!r}")
 
 
 def scan_installed(kit_root, repo_root) -> list[Report]:
@@ -286,15 +314,13 @@ def scan_installed(kit_root, repo_root) -> list[Report]:
         install = repo_root
         for part in entry.install.split("/"):
             install = install / part
-            if os.path.islink(install):
+            if fs(install.is_symlink):
                 raise MapError(f"the install path goes through a symlink: {entry.install!r}")
-        if not install.is_file():
+        failed = f"the installed file cannot be read as UTF-8 text: {entry.install!r}"
+        if not fs(install.is_file, failed=failed):
             reports.append(Report(entry.install, entry.kind, "missing", []))
             continue
-        try:
-            installed_text = install.read_bytes().decode("utf-8")
-        except (OSError, UnicodeDecodeError) as exc:
-            raise MapError(f"the installed file cannot be read as UTF-8 text: {entry.install!r} ({exc})")
+        installed_text = read_utf8(install, failed)
         findings = scan_text(entry.allowed, kit_text, installed_text)
         drift = [f for f in findings if f.status == "drift"]
         reports.append(Report(entry.install, entry.kind, "drift" if drift else "unchanged", findings))

@@ -28,7 +28,7 @@ compared as before. Only the map text is read: no install path is opened here.
 Exit codes: 0 identical; 1 something differs; 2 error, nothing compared (a one-line
 `kit-compare: ...` reason on stderr): not exactly two arguments, a root that is not a
 plain path, missing, not a folder or a symlink, the two roots being the same folder, a
-map entry the parser rejects, a symlink or other non-regular entry or a control-character
+map entry the parser rejects, a filesystem error (every file call goes through kit_map.fs()), a symlink or other non-regular entry or a control-character
 name in either tree, a name that is not valid UTF-8, or an unreadable file.
 
 Read-only: it opens files only to read and hash them, creates nothing and writes nothing
@@ -65,6 +65,14 @@ class CompareError(Exception):
     """Exit 2: nothing compared. The message is the one-line reason."""
 
 
+def _fs(call, *args, failed=None):
+    """kit_map.fs() with its MapError turned into a CompareError (exit 2, one-line reason)."""
+    try:
+        return kit_map.fs(call, *args, failed=failed)
+    except kit_map.MapError as error:
+        raise CompareError(str(error)) from None
+
+
 def kit_root(root: Path, arg: str, label: str) -> Path:
     """A kit folder, validated: a plain relative path from the project folder, a real folder."""
     if not arg or not PLAIN_PATH.fullmatch(arg):
@@ -75,9 +83,9 @@ def kit_root(root: Path, arg: str, label: str) -> Path:
     path = root
     for part in parts:
         path = path / part
-        if path.is_symlink():
+        if _fs(path.is_symlink):
             raise CompareError(f"kit {label} path holds a symlink: {arg}")
-    if not path.is_dir():
+    if not _fs(path.is_dir):
         raise CompareError(f"kit {label} is missing or not a folder: {arg}")
     return path
 
@@ -85,7 +93,8 @@ def kit_root(root: Path, arg: str, label: str) -> Path:
 def read_maps(root: Path, roots) -> None:
     """Run the shared parser on each root's map before anything else is read."""
     for label, folder in roots:
-        if not (folder / kit_map.MAP_NAME).exists() and not (folder / kit_map.MAP_NAME).is_symlink():
+        map_path = folder / kit_map.MAP_NAME
+        if not _fs(map_path.exists) and not _fs(map_path.is_symlink):
             continue
         try:
             kit_map.parse_map(folder, root)
@@ -99,10 +108,10 @@ def main(argv=None) -> int:
         print("Usage: kit-compare.py <kit root A> <kit root B>", file=sys.stderr)
         return 2
     try:
-        root = Path.cwd()
+        root = _fs(Path.cwd, failed="cannot read the working folder")
         dir_a = kit_root(root, args[0], "A")
         dir_b = kit_root(root, args[1], "B")
-        if dir_a.resolve() == dir_b.resolve():
+        if _fs(dir_a.resolve) == _fs(dir_b.resolve):
             raise CompareError("kit A and kit B are the same folder")
         read_maps(root, (("A", dir_a), ("B", dir_b)))
         try:
