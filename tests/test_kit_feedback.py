@@ -26,6 +26,7 @@ SCRATCH = REPO / ".scratch" / "test-kit-feedback"
 spec = importlib.util.spec_from_file_location("kit_feedback", SCRIPT)
 kit_feedback = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(kit_feedback)
+kit_map = kit_feedback.kit_map
 
 
 def snapshot(root: Path) -> dict:
@@ -115,6 +116,43 @@ class BundleTest(Base):
         self.assertIn("## Changed installed file: .devcontainer/setup.sh", text)
         self.assertIn("DRIFT", text)  # the drift line itself is kept
 
+    def real_prefix_entry(self):
+        # The real map's own `prefix:` row (setup.sh), so the test follows the shipped rule.
+        entries = [e for e in kit_map.parse_map(KIT, REPO) if e.allowed.startswith("prefix:")]
+        self.assertEqual(len(entries), 1, "the shipped map has one prefix rule")
+        return entries[0]
+
+    def test_lines_named_by_a_prefix_rule_never_reach_the_bundle(self):
+        entry = self.real_prefix_entry()
+        self.assertEqual(entry.allowed, "prefix:git config --global user.")
+        self.project_source(entry.source, "base\n")
+        self.reference_source(entry.source, "base\n")
+        self.write_map(f"{entry.source} | {entry.install} | repo | {entry.allowed}\n")
+        self.installed(entry.install,
+                       "base\ngit config --global user.name 'Ada Lovelace'\n"
+                       "git config --global user.email ada@example.com\nDRIFT\n")
+        done = self.run_script()
+        self.assertEqual(done.returncode, 0, done.stderr)
+        text = self.bundle_text()
+        self.assertNotIn("ada@example.com", text)
+        self.assertNotIn("Ada Lovelace", text)
+        self.assertNotIn("git config --global user.", text)
+        self.assertIn(f"## Changed installed file: {entry.install}", text)
+        self.assertIn("DRIFT", text)  # a real drift line is still kept
+        self.assertIn("2 line(s) allowed to differ by the map's prefix rule removed", text)
+
+    def test_a_prefix_line_with_crlf_endings_is_stripped_too(self):
+        entry = self.real_prefix_entry()
+        self.project_source(entry.source, "base\n")
+        self.reference_source(entry.source, "base\n")
+        self.write_map(f"{entry.source} | {entry.install} | repo | {entry.allowed}\n")
+        path = self.project / entry.install
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(b"base\r\ngit config --global user.email ada@example.com\r\nDRIFT\r\n")
+        done = self.run_script()
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertNotIn("ada@example.com", self.bundle_text())
+
     def test_human_machine_entries_are_named_and_never_opened(self):
         self.project_source("env/hook", "h\n")
         self.reference_source("env/hook", "h\n")
@@ -139,6 +177,17 @@ class BundleTest(Base):
         self.assertIn("markers unbalanced", text)
         # Body not written, so the value inside the unclosed block never leaks.
         self.assertNotIn("ada@example.com", text)
+
+
+class StripPrefixUnitTest(unittest.TestCase):
+    def test_only_lines_starting_with_the_prefix_are_removed_and_counted(self):
+        text = "a\nuser.name=x\n  user.name=y\nuser.email=z\nb\n"
+        out, removed = kit_feedback.strip_prefix(text, "user.")
+        self.assertEqual(out, "a\n  user.name=y\nb\n")  # an indented line does not start with it
+        self.assertEqual(removed, 2)
+
+    def test_no_match_returns_the_text_unchanged(self):
+        self.assertEqual(kit_feedback.strip_prefix("a\nb\n", "zzz"), ("a\nb\n", 0))
 
 
 class StripLocalUnitTest(unittest.TestCase):
@@ -179,6 +228,22 @@ class RefusalTest(Base):
             cwd=str(self.run_dir), stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=60)
         self.assertEqual(done.returncode, 2)
         self.assertIn("nothing written", done.stderr)
+
+
+    def test_a_symlinked_scratch_folder_is_refused_and_nothing_lands_outside(self):
+        elsewhere = SCRATCH / "elsewhere"
+        elsewhere.mkdir()
+        shutil.rmtree(self.run_dir / ".scratch")
+        os.symlink(elsewhere, self.run_dir / ".scratch")
+        self.project_source("env/x", "a\n")
+        self.reference_source("env/x", "a\n")
+        self.write_map("env/x | .devcontainer/x | repo | none\n")
+        self.installed(".devcontainer/x", "DRIFT\n")
+        done = self.run_script()
+        self.assertEqual(done.returncode, 2, done.stdout)
+        self.assertIn(".scratch folder is a symlink", done.stderr)
+        self.assertIn("nothing written", done.stderr)
+        self.assertEqual(list(elsewhere.iterdir()), [])
 
 
 class ReadOnlyTest(Base):

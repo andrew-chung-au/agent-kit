@@ -19,7 +19,11 @@ The bundle, written to .scratch/kit-feedback-<timestamp>/, lists:
   - for each changed `repo` entry, a copy of the project's file with the lines between
     `agent-kit: local-begin` and `agent-kit: local-end` stripped, so a personal value
     inside the markers never reaches the bundle. A file whose markers are unclosed is
-    reported as drift and its body is NOT written (never stripped silently).
+    reported as drift and its body is NOT written (never stripped silently). An entry whose
+    allowed-to-differ rule is `prefix:<text>` (the real map uses it for setup.sh, whose
+    `git config --global user.` lines hold a personal name and email) also has every line
+    that starts with that text stripped, the same lines the shared scan ignores; the bundle
+    says how many were removed, never what they held.
   - a note that `human-machine` entries (the push check) are supplied by the human from
     the clean clone; their install paths are never opened.
 
@@ -132,6 +136,21 @@ def strip_local(text: str) -> tuple[str, bool]:
     return ("".join(out) if ok else text), ok
 
 
+def strip_prefix(text: str, prefix: str) -> tuple[str, int]:
+    """Return (text without the lines that start with prefix, how many were removed).
+
+    Matches exactly as kit_map.scan_text() does for a `prefix:` rule: str.splitlines() lines,
+    startswith(prefix), no trimming.
+    """
+    kept, removed = [], 0
+    for line in text.splitlines(keepends=True):
+        if line.startswith(prefix):
+            removed += 1
+        else:
+            kept.append(line)
+    return "".join(kept), removed
+
+
 def installed_report(project_kit: Path, project: Path):
     """The shared installed-file scan for the project, or raise FeedbackError on a bad map."""
     try:
@@ -163,6 +182,10 @@ def build_bundle(project: Path, reference: Path) -> list[str]:
     project_kit = project_kit_dir(project)
     reports = installed_report(project_kit, project)
     kit_states = kit_file_diff(project_kit, reference)
+    try:
+        allowed_by_install = {e.install: e.allowed for e in kit_map.parse_map(project_kit, project)}
+    except kit_map.MapError as error:
+        raise FeedbackError(str(error))
 
     lines = ["# kit-feedback bundle",
              f"# project: {project}", f"# reference kit: {reference}",
@@ -188,9 +211,15 @@ def build_bundle(project: Path, reference: Path) -> list[str]:
         for part in report.install.split("/"):
             install = install / part
         body, ok = strip_local(_read_text(install, report.install))
+        allowed = allowed_by_install.get(report.install, "none")
+        removed = 0
+        if ok and allowed.startswith("prefix:"):
+            body, removed = strip_prefix(body, allowed[len("prefix:"):])
         if not ok:
             lines.append("(markers unbalanced: reported as drift; body not written, to avoid stripping it wrongly)")
         else:
+            if removed:
+                lines.append(f"({removed} line(s) allowed to differ by the map's prefix rule removed; their text is not in the bundle)")
             lines.append("```")
             lines += body.splitlines()
             lines.append("```")
@@ -207,6 +236,8 @@ def main(argv=None) -> int:
         reference = _folder(args[1], "reference kit root")
         lines = build_bundle(project, reference)
         scratch = _fs(Path.cwd, failed="cannot read the working folder") / ".scratch"
+        if _fs(scratch.is_symlink):
+            raise FeedbackError("the .scratch folder is a symlink; the bundle would land outside it")
         _fs(lambda: scratch.mkdir(parents=True, exist_ok=True), failed="cannot create the .scratch folder")
         out = scratch / f"kit-feedback-{time.strftime('%Y%m%dT%H%M%SZ', time.gmtime())}"
         _fs(out.mkdir)
