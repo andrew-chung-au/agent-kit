@@ -71,7 +71,11 @@ class MapError(Exception):
 
 
 def fs(call, *args, failed=None):
-    """Run one filesystem call; an OSError becomes a MapError, never a traceback.
+    """Run one filesystem call; a failure becomes a MapError, never a traceback.
+
+    The failures caught are OSError, RuntimeError and ValueError: Path.resolve() raises
+    RuntimeError("Symlink loop") on Python up to 3.12 and OSError after, and a path with an
+    embedded NUL raises ValueError. Any other exception is a bug and is left to surface.
 
     Every filesystem call in kit-map.py, kit-check.py and kit-compare.py goes through this
     one helper (a stat such as is_file(), is_dir(), is_symlink(), exists() or resolve(), or
@@ -83,9 +87,9 @@ def fs(call, *args, failed=None):
     """
     try:
         return call(*args)
-    except OSError as exc:
+    except (OSError, RuntimeError, ValueError) as exc:
         subject = args[0] if args else getattr(call, "__self__", "")
-        reason = exc.strerror or type(exc).__name__
+        reason = " ".join((getattr(exc, "strerror", None) or str(exc) or type(exc).__name__).split())
         if failed:
             raise MapError(f"{failed} ({reason})") from None
         raise MapError(f"cannot read {str(subject)!r}: {reason}") from None
