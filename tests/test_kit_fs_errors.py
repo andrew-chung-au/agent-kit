@@ -193,13 +193,34 @@ class KitMapSitesTest(Base):
             with self.assertRaises(kit_map.MapError):
                 kit_map.scan_installed(self.kit, self.repo)
 
-    def test_the_helper_passes_results_and_other_exceptions_through(self):
+    def test_the_helper_passes_results_through_and_reports_failures_with_the_callers_message(self):
         self.assertEqual(kit_map.fs(len, "abc"), 3)
-        with self.assertRaises(ValueError):
-            kit_map.fs(int, "x")
         with self.assertRaises(kit_map.MapError) as raised:
             kit_map.fs(mock.Mock(side_effect=PermissionError(13, "Permission denied")), "p", failed="could not do it")
         self.assertEqual(str(raised.exception), "could not do it (Permission denied)")
+
+
+class OtherExceptionsTest(Base):
+    """fs() also catches what Path.resolve() raises for a loop (RuntimeError) and for a bad path (ValueError)."""
+
+    def test_a_runtime_error_and_a_value_error_become_a_map_error(self):
+        for error in (RuntimeError("Symlink loop from 'x'"), ValueError("embedded null byte")):
+            with self.subTest(error=type(error).__name__):
+                with self.assertRaises(kit_map.MapError) as raised:
+                    kit_map.fs(mock.Mock(side_effect=error), "p")
+                self.assertNotIn("\n", str(raised.exception))
+                self.assertIn(str(error), str(raised.exception))
+
+    def test_a_real_symlink_loop_in_resolve_is_a_map_error(self):
+        loop = self.work / "loop"
+        loop.symlink_to("loop")
+        with self.assertRaises(kit_map.MapError) as raised:
+            kit_map.fs((loop / "x").resolve)
+        self.assertNotIn("\n", str(raised.exception))
+
+    def test_an_exception_that_is_not_a_filesystem_failure_still_surfaces(self):
+        with self.assertRaises(KeyError):
+            kit_map.fs(mock.Mock(side_effect=KeyError("bug")), "p")
 
 
 class KitCheckSitesTest(Base):
@@ -266,6 +287,16 @@ class KitCheckSitesTest(Base):
         code, out, err = self.run_check()
         self.assertEqual(code, 2, (out, err))
         self.assertEqual(out, "")
+
+    def test_a_symlink_loop_named_by_a_manifest_line_is_exit_two_not_a_traceback(self):
+        # The case QA reproduced: loop -> loop under the kit, and a manifest line naming loop/x.
+        (self.kit / "loop").symlink_to("loop")
+        manifest = self.kit / "MANIFEST.sha256"
+        manifest.write_text(manifest.read_text(encoding="utf-8") + "0" * 64 + "  644  loop/x\n", encoding="utf-8")
+        code, out, err = self.run_check()
+        self.assertEqual((code, out), (2, ""), err)
+        self.assertRegex(err, r"\Akit-check: [^\n]+\n\Z")
+        self.assertNotIn("Traceback", err)
 
     def test_the_scan_installed_errors_reach_kit_check_as_exit_two(self):
         self.assert_exit_two(deny("is_file", self.project / ".devcontainer" / "dev.json"))
