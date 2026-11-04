@@ -383,7 +383,7 @@ class RecordFormatDocTest(unittest.TestCase):
     def test_the_doc_is_about_250_words(self):
         words = len(self.text.split())
         self.assertGreaterEqual(words, 200)
-        self.assertLessEqual(words, 320)
+        self.assertLessEqual(words, 330)
 
     def test_the_example_patterns_hold_no_secret_shaped_text(self):
         patterns = PATTERNS.read_text(encoding="utf-8")

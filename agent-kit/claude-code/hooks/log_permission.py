@@ -14,13 +14,18 @@ What the event carries, and what it does not (hooks reference, PermissionRequest
 - not carried: the outcome (allowed or denied) and a tool_use_id to pair it with PostToolUse.
 So the log holds `ask` records only, with no `id`; the report says so.
 
+It refuses a symlink: nothing is written when `.agent-kit`, `logs`, `permissions` or the day's
+file is a symlink (the project root itself may be reached through one). A refusal is silent.
+
 The log is capped at 1 MiB a day. The first record that does not fit ends that day's log:
 one `truncated` record is written and nothing is appended after it, in any later run.
 """
 from __future__ import annotations
 
+import errno
 import json
 import os
+import stat
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -67,8 +72,17 @@ def has_marker(path: Path) -> bool:
         return MARKER in handle.read().decode("utf-8", "replace")
 
 
+def is_symlink(path: Path) -> bool:
+    """True if the path itself is a symlink (dangling or not). Never follows it."""
+    try:
+        return stat.S_ISLNK(os.lstat(path).st_mode)
+    except FileNotFoundError:
+        return False
+
+
 def write(path: Path, line: bytes) -> None:
-    fd = os.open(path, os.O_WRONLY | os.O_APPEND | os.O_CREAT, 0o600)
+    # O_NOFOLLOW: a symlink swapped in after the lstat check is refused by the kernel (ELOOP).
+    fd = os.open(path, os.O_WRONLY | os.O_APPEND | os.O_CREAT | os.O_NOFOLLOW, 0o600)
     try:
         os.write(fd, line)
     finally:
@@ -76,9 +90,15 @@ def write(path: Path, line: bytes) -> None:
 
 
 def append(root: Path, record: dict) -> None:
-    folder = root / ".agent-kit" / "logs" / "permissions"
+    agent_kit = root / ".agent-kit"
+    folder = agent_kit / "logs" / "permissions"
+    # lstat each level, parent first, before any mkdir: nothing is created through a symlink.
+    if any(is_symlink(level) for level in (agent_kit, agent_kit / "logs", folder)):
+        return
     folder.mkdir(parents=True, exist_ok=True)
     path = folder / (record["time"][:10] + ".jsonl")
+    if is_symlink(path):
+        return
     line = (json.dumps(record, separators=(",", ":")) + "\n").encode("utf-8")
     size = path.stat().st_size if path.exists() else 0
     # The marker check comes before any append of a normal record. Each run is a new process,
@@ -103,6 +123,9 @@ def main() -> int:
         import permission_log_lib as lib  # noqa: E402  (after the path is set; failure is caught below)
         root = Path(os.environ.get("CLAUDE_PROJECT_DIR") or os.getcwd())
         append(root, record_for(payload, lib))
+    except OSError as error:
+        if error.errno != errno.ELOOP:  # ELOOP: O_NOFOLLOW refused a symlink; a refusal is silent
+            sys.stderr.write("log_permission: not logged (%s)\n" % type(error).__name__)
     except Exception as error:  # observe-only: never let a logging problem change the prompt
         sys.stderr.write("log_permission: not logged (%s)\n" % type(error).__name__)
     return 0
