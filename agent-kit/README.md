@@ -2,11 +2,14 @@
 
 **Version 1.9 (2026-10-10).** A tool-agnostic way to run a project with AI coding agents: a PM, Engineer and QA team working from GitHub issues, a verification gate that catches weakened tests, and git hooks as a safety net. It works with any agent that can read `AGENTS.md` and run shell commands, in a codespace, a local dev container sandbox or a local checkout.
 
-The kit is one folder, `_docs/agent-kit/`, copied unchanged into each project. It holds three kinds of material:
+The kit is one folder, `_docs/agent-kit/`, copied unchanged into each project. It holds four kinds of material:
 
 - **Shared process:** the lifecycle, team roles and procedures, used as is.
 - **Blueprints:** templates plus rules for *when* each applies, for the parts that must be tailored to a project, such as `AGENTS.md`, Makefile targets, settings, hooks and CI.
 - **A setup procedure:** an agent reviews the project folder, maps what's already there, and proposes how to build the kit around it.
+- **Reference copies of installed files:** the dev container recipe, the push check, the push-check image and the CI workflow template. They sit inside the kit folder but are installed outside it, by you, from a clean clone. `installed-files.txt` maps each one to its install path.
+
+A project can take the kit alone, or the kit plus the dev container (the local sandbox profile). See "Adding the kit to a project folder".
 
 ## How the controls work
 
@@ -34,12 +37,13 @@ _docs/agent-kit/
   blueprints.md      what a project needs, and when
   process.md         lifecycle: planning, backlog, roles, verification, handover
   team/              pm.md, software-engineer.md, qa-engineer.md
-  procedures/        verify.md, session-summary.md, asking-the-human.md, sweep.md, processes.md, permission-log.md, kit-import.md
-  templates/         AGENTS.md, agent-kit.conf, Makefile, task, session-summary, docs-index, source, measurement, adr, runbook and CI templates
-  scripts/           verify.sh, check-staged.sh, assert-clean.sh, install-hooks.sh, lib.sh, sweep-due.py, permission-report.py, permission-logs-prune.py
+  procedures/        verify.md, session-summary.md, asking-the-human.md, sweep.md, processes.md, permission-log.md, kit-import.md, orchestrator-comments.md
+  templates/         AGENTS.md, agent-kit.conf, Makefile (core and GitHub parts), task, human-task, session-summary, docs-index, starter-docs, roadmap, source, measurement, adr, runbook, CI workflow, and GitHub issue and pull request templates
+  scripts/           verify.sh, check-staged.sh, check-tier.sh, assert-clean.sh, install-hooks.sh, lib.sh, issue-*.sh and issue-hash.py (issue text), scan-issue-body.sh, kit-check.py, kit-compare.py, kit-feedback.py, kit-manifest.py, kit-map.py (kit and installed-file checks), check-claims.py, dup-report.py, sweep-due.py, permission-report.py, permission-logs-prune.py and helpers
   githooks/          pre-commit, pre-push and a Git LFS pass-through, installed at the repo root
+  installed-files.txt  map of kit files installed outside the kit folder, and where
   environments.md    where agents run: Codespaces, local sandbox, local checkout
-  environments/      local-sandbox/: push check, dev container recipe (reference copies)
+  environments/      local-sandbox/: push check, push-check image, dev container recipe, Compose variant (reference copies)
   claude-code/       optional Claude Code layer: START.md, role definitions, sweep skill, hooks, settings
   opencode/          optional OpenCode layer: START.md, role definitions, sweep skill, permission settings, permission log plugin
 ```
@@ -52,11 +56,27 @@ _docs/agent-kit/
 
 You need `git`, `make` and `bash`: WSL, macOS, Linux or Codespaces.
 
-1. Copy `_docs/agent-kit/` from your newest project into `<project>/_docs/agent-kit/`.
+There is no tagged release or release zip yet (issue #9 tracks it). Get the kit by cloning the kit's repository, which holds the kit in its `agent-kit/` folder and this README as `agent-kit/README.md`. Treat the clone as a clean clone: copy from it, and never open it in a container or run `make` in it.
+
+**Path 1: kit only.**
+
+1. Copy the clone's `agent-kit/` folder into `<project>/_docs/agent-kit/`.
 2. Optional: put a product spec at `<project>/_docs/specs.md`. Without one, the project starts in planning.
 3. Start your AI coding tool in the project folder and say: "Set up this project using `_docs/agent-kit/setup.md`."
 4. Review what it proposes, approve or correct it, then approve the setup commit.
-5. Run `make hooks` once wherever agents commit: the codespace, the dev container or your local checkout. In the local sandbox profile, never run it (or any `make` target) in the clean clone; see `environments.md`.
+5. Run `make hooks` once wherever agents commit: the codespace or your local checkout. In the local sandbox profile, never run it (or any `make` target) in the clean clone; see `environments.md`.
+
+**Path 2: kit plus dev container (the local sandbox profile).** Do steps 1 to 4 of path 1, then, from the clean clone:
+
+1. Copy `environments/local-sandbox/devcontainer.json` and `setup.sh` to the project's `.devcontainer/`, and `templates/ci-verify.yml.template` to `.github/workflows/verify.yml`. Put your git name and noreply email in `setup.sh`.
+2. Open only the project's `<repo>-sandbox` folder in the container. `setup.sh` runs `make hooks` on the first build. Commit the `.devcontainer/devcontainer-lock.json` that the first rebuild creates.
+3. Copy `environments/local-sandbox/pre-push` to `~/.agent-hooks/pre-push` and into each clean clone's `.git/hooks/pre-push`, and make it executable. This is the push check; it needs git, Docker and coreutils on your machine.
+4. If the project's `make install` needs Node or uv, build the image from `environments/local-sandbox/push-check.Dockerfile` and set `AGENT_PUSH_CHECK_IMAGE` to it; otherwise the push check uses `python:3.12`. Dry-run it with `AGENT_PUSH_CHECK_PLAN=1 git push`.
+5. If the project's checks need a database, use the files in `environments/local-sandbox/compose/` instead of the standard recipe.
+
+`environments.md` has the reasons, the token limits and the full rules. The Node, uv and Postgres pins in these files are unverified until you rebuild.
+
+After either path, `make kit-check` tells you whether the kit folder is pristine and, from `installed-files.txt`, whether each installed file still matches its kit source; see "Installed files" under "Updating the kit".
 
 In a monorepo, the hooks go at the repository root and only act on folders that contain `agent-kit.conf`, so projects without the kit are unaffected.
 
@@ -84,6 +104,12 @@ To pre-approve routine commands in your tool, see Tool permissions in `blueprint
 The kit's files are protected in every project, so changes need your approval. Improve the kit in the project you're working on, then copy the folder to other projects you're still actively working on; finished homework can keep the version it was built with. Bump the version at the top of this file when you change it.
 
 **Versions in a project.** A pristine kit claims a plain version, such as `1.9`. Once a project changes a kit file, its kit is a derivative and claims `<base>+<repo>.<n>`, such as `1.9+vuln-triage.2`: `<n>` rises with each local change and restarts at 1 on a new base. The claim is `KIT_VERSION` in `agent-kit.conf`, and `make kit-check` compares the kit folder with the `MANIFEST.sha256` a released kit ships. Leave the version line at the top of this file alone in a derivative; it is one of the hashed files. `make kit-compare KIT_A=<kit folder> KIT_B=<other kit folder>` lists how kit A differs from kit B, read-only; both folders are named, there is no default. The manifest shows drift, not tampering. The kit's own repo ships no manifest between releases.
+
+**Installed files.** `installed-files.txt` lists each kit file that is installed outside the kit folder, where it goes, whether it is a `repo` file or a `human-machine` file (the push check), and what a local copy may differ in. In a project:
+- `make kit-check` reads the map, read-only, and reports each `repo` entry as `unchanged`, `local, ignored` (it differs only where the map allows), `drift` or `missing`. A `human-machine` entry is only named ("not checked here"); no sandbox tool opens that path. A map entry the parser rejects stops the check with the parser's message.
+- The forward import has an installed-files step, step 7 of `procedures/kit-import.md`.
+- The reverse import can write a feedback bundle of a project's changed installed and kit files: `make kit-feedback PROJECT=<project root> KIT=<reference kit>` (read-only, writes only under `.scratch/`).
+- No agent copies an installed file. You do, from a clean clone. To compare the installed push check, follow "Comparing the installed push check (human only)" in `environments.md`.
 
 **Installed files in a release.** The release zip unpacks only the kit folder. The files the kit installs outside that folder (`.devcontainer/`, the CI workflow, the push check) are not placed by the unzip; the human places them, using `installed-files.txt`, which ships inside the kit folder (so it is in the zip and in `MANIFEST.sha256`). No agent places an installed file. For the `human-machine` entries (the push check), compare the installed copy as in "Comparing the installed push check (human only)" in `environments.md`.
 
