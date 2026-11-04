@@ -99,6 +99,19 @@ The container reviews and commits the new kit; you fetch the result and push, as
 
 If the new kit changes `environments/local-sandbox/pre-push`, copy it from the clean clone, after the fetch and merge, to `~/.agent-hooks/pre-push` and refresh each clean clone's copy. Never copy it from the container's `.scratch/` copy. These steps don't touch `.devcontainer/` or the CI template.
 
+### Comparing the installed push check (human only)
+
+The push check is installed on your machine, outside the sandbox: once at `~/.agent-hooks/pre-push`, and once in each clean clone's `.git/hooks/pre-push`. These are the two `human-machine` rows in `installed-files.txt`, whose source is `environments/local-sandbox/pre-push`. A sandbox tool never opens a `human-machine` install path, so `make kit-check` lists these two as "not checked here" and a sandbox check can never prove the installed push check is current. Only you can compare them, from the clean clone.
+
+Do it with git and coreutils only, never `make`, and never by running or sourcing a repo file (the kit folder is untrusted until you have read its diff). The recipe runs in one clone at a time: repeat it in each clean clone, because `.git/hooks/pre-push` belongs to that clone while `~/.agent-hooks/pre-push` is shared. From the clean clone, with `<ref>` the reviewed commit:
+
+```
+p=~/.agent-hooks/pre-push; if test -h "$p"; then echo "symlink: $p, resolve it by hand"; elif test -f "$p"; then git show <ref>:agent-kit/environments/local-sandbox/pre-push | git diff --no-index -- - "$p"; else echo "missing: $p"; fi
+p=.git/hooks/pre-push; if test -h "$p"; then echo "symlink: $p, resolve it by hand"; elif test -f "$p"; then git show <ref>:agent-kit/environments/local-sandbox/pre-push | git diff --no-index -- - "$p"; else echo "missing: $p"; fi
+```
+
+Each line checks one install path and stops at the first answer. A symlink is tested first and reported, never followed (`cmp` follows symlinks, so it is not an alternative). A missing path, or one that is not a regular file, prints `missing:` and nothing is compared. A match prints nothing and exits 0. A mismatch prints the diff and exits 1. The kit text goes to `git diff --no-index` on standard input, so no temp file is written and nothing is written to an install path. Reinstall by copying from the clean clone, as above; never from the container's `.scratch/` copy. The install paths here come from the map's rows, so they are not hard-coded in a second place.
+
 ## Local, no sandbox
 
 The agent runs in your own checkout, with your login and files within its reach. The kit works exactly as in Codespaces: run `make hooks` once, and the kit's pre-push hook checks your pushes. Use this profile only for quick experiments. For real work, use the local sandbox.
