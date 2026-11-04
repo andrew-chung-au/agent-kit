@@ -42,6 +42,8 @@ Standard library only.
 from __future__ import annotations
 
 import importlib.util
+import os
+import re
 import sys
 import time
 from pathlib import Path
@@ -63,6 +65,29 @@ kit_map = _load("kit_map", "kit-map.py")
 LOCAL_BEGIN = kit_map.LOCAL_BEGIN
 LOCAL_END = kit_map.LOCAL_END
 
+# Install paths this tool refuses to open, even when the project's own map names them: an
+# env file, anything under .git/, and a short list of obvious secret file names. The
+# project's installed-files.txt is untrusted (issue #116, QA launch 2 item 2): a crafted map
+# must not be able to make this read-only tool copy a secret into a public bundle.
+# A folder name may hold no control character at all (kit_map.CONTROL lets newline and tab
+# through because a map file has lines; a folder name must not, or it could forge a heading).
+_NAME_CONTROL = re.compile("[\x00-\x1f\x7f\x85\u2028\u2029]")
+_ENV_NAME = re.compile(r"(?i)^\.env")
+_SECRET_NAME = re.compile(r"(?i)(\.pem$|\.key$|^id_rsa|^\.netrc$|^\.npmrc$|^credentials)")
+
+
+def _refused_install_path(install: str) -> str | None:
+    """None if install is safe to open; else the one-line reason it is refused."""
+    parts = install.split("/")
+    if ".git" in parts:
+        return f"install path is under .git/: {install!r}"
+    name = parts[-1]
+    if _ENV_NAME.search(name):
+        return f"install path looks like an env file: {install!r}"
+    if _SECRET_NAME.search(name):
+        return f"install path looks like a secret file: {install!r}"
+    return None
+
 
 class FeedbackError(Exception):
     """Exit 2: nothing written. The message is the one-line reason."""
@@ -76,12 +101,23 @@ def _fs(call, *args, failed=None):
         raise FeedbackError(str(error))
 
 
+def _scrub(message: str, args) -> str:
+    """The message with the caller's folder paths replaced by labels (no absolute path out)."""
+    for raw, label in ((args[0], "<project root>"), (args[1], "<reference kit root>")):
+        for form in {raw, str(Path(raw).resolve()) if raw and not _NAME_CONTROL.search(raw) else raw}:
+            if form:
+                message = message.replace(form, label)
+    return message
+
+
 def _folder(arg: str, what: str) -> Path:
     if not arg:
         raise FeedbackError(f"the {what} is required")
+    if _NAME_CONTROL.search(arg):
+        raise FeedbackError(f"the {what} holds a control character or line break")
     path = Path(arg)
     if _fs(path.is_symlink) or not _fs(path.is_dir):
-        raise FeedbackError(f"the {what} is missing, not a folder or a symlink: {arg}")
+        raise FeedbackError(f"the {what} is missing, not a folder or a symlink")
     return path
 
 
@@ -92,7 +128,7 @@ def project_kit_dir(project: Path) -> Path:
     except kit_check.CheckError as error:
         raise FeedbackError(f"the project has no readable agent-kit.conf: {error}")
     if _fs(kit.is_symlink) or not _fs(kit.is_dir):
-        raise FeedbackError(f"the project's kit folder is missing or a symlink: {kit}")
+        raise FeedbackError("the project's kit folder is missing or a symlink")
     return kit
 
 
@@ -139,12 +175,17 @@ def strip_local(text: str) -> tuple[str, bool]:
 def strip_prefix(text: str, prefix: str) -> tuple[str, int]:
     """Return (text without the lines that start with prefix, how many were removed).
 
-    Matches exactly as kit_map.scan_text() does for a `prefix:` rule: str.splitlines() lines,
-    startswith(prefix), no trimming.
+    The shared scan (kit_map.scan_text) only ignores a line that starts with prefix exactly,
+    for the drift comparison. In the bundle, broader: a line is dropped if it CONTAINS prefix
+    once both are normalised (whitespace collapsed, lowercased), so leading whitespace, extra
+    spaces inside the rule's own words, and a `sudo` in front of the same command do not leave
+    identity text in a public bundle. This only affects what the bundle shows, never the scan.
     """
+    norm_prefix = " ".join(prefix.lower().split())
     kept, removed = [], 0
     for line in text.splitlines(keepends=True):
-        if line.startswith(prefix):
+        norm_line = " ".join(line.lower().split())
+        if norm_prefix and norm_prefix in norm_line:
             removed += 1
         else:
             kept.append(line)
@@ -180,15 +221,24 @@ def kit_file_diff(project_kit: Path, reference: Path):
 def build_bundle(project: Path, reference: Path) -> list[str]:
     """The bundle lines. Reads the project and reference read-only; writes nothing here."""
     project_kit = project_kit_dir(project)
-    reports = installed_report(project_kit, project)
-    kit_states = kit_file_diff(project_kit, reference)
     try:
-        allowed_by_install = {e.install: e.allowed for e in kit_map.parse_map(project_kit, project)}
+        entries = kit_map.parse_map(project_kit, project)
     except kit_map.MapError as error:
         raise FeedbackError(str(error))
+    # Before anything is read: the project's own map is untrusted, so refuse a `repo` install
+    # path that names an env file, anything under .git/, or an obvious secret file name. A
+    # `human-machine` path is only named, never opened, so it is not checked here.
+    for entry in entries:
+        if entry.kind == "repo":
+            refused = _refused_install_path(entry.install)
+            if refused:
+                raise FeedbackError(refused)
+    allowed_by_install = {e.install: e.allowed for e in entries}
+    reports = installed_report(project_kit, project)
+    kit_states = kit_file_diff(project_kit, reference)
 
     lines = ["# kit-feedback bundle",
-             f"# project: {project}", f"# reference kit: {reference}",
+             "# project: <project root>", "# reference kit: <reference kit root>",
              "",
              "## Installed files (repo entries)"]
     lines += kit_map.report_lines([r for r in reports if r.kind == "repo"]) or ["(none)"]
@@ -235,18 +285,36 @@ def main(argv=None) -> int:
         project = _folder(args[0], "project root")
         reference = _folder(args[1], "reference kit root")
         lines = build_bundle(project, reference)
+        try:
+            data = ("\n".join(lines) + "\n").encode("utf-8")
+        except UnicodeEncodeError:
+            raise FeedbackError("a file name in the bundle is not valid UTF-8 text")
         scratch = _fs(Path.cwd, failed="cannot read the working folder") / ".scratch"
         if _fs(scratch.is_symlink):
             raise FeedbackError("the .scratch folder is a symlink; the bundle would land outside it")
         _fs(lambda: scratch.mkdir(parents=True, exist_ok=True), failed="cannot create the .scratch folder")
         out = scratch / f"kit-feedback-{time.strftime('%Y%m%dT%H%M%SZ', time.gmtime())}"
-        _fs(out.mkdir)
         bundle = out / "bundle.md"
-        _fs(lambda: bundle.write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n"), failed="cannot write the bundle")
+        # Everything that can fail on the content has happened above, in memory. Now the
+        # bytes go to a temp file in .scratch/, the folder is made, and the file is renamed
+        # in, so a failure never leaves a partial or empty bundle.md (and the folder is
+        # removed again if the rename fails).
+        tmp = scratch / f".kit-feedback-{os.getpid()}.tmp"
+        try:
+            _fs(lambda: tmp.write_bytes(data), failed="cannot write the bundle")
+            _fs(out.mkdir, failed="cannot create the bundle folder")
+            try:
+                _fs(lambda: tmp.rename(bundle), failed="cannot write the bundle")
+            except FeedbackError:
+                _fs(out.rmdir)
+                raise
+        finally:
+            if tmp.exists():
+                tmp.unlink()
     except FeedbackError as error:
-        print(f"kit-feedback: {error}; nothing written", file=sys.stderr)
+        print(f"kit-feedback: {_scrub(str(error), args)}; nothing written", file=sys.stderr)
         return 2
-    print(f"kit-feedback: wrote {bundle}")
+    print(f"kit-feedback: wrote {bundle.relative_to(Path.cwd())}")
     return 0
 
 

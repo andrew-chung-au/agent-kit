@@ -179,15 +179,225 @@ class BundleTest(Base):
         self.assertNotIn("ada@example.com", text)
 
 
+class PrivacyTest(Base):
+    """Issue #116, QA launch 2: nothing private from the human's machine or the untrusted
+    project tree may reach a bundle meant for a public repo."""
+
+    def assert_nothing_left(self):
+        """After a refusal: no bundle folder, no file, no temp file anywhere under .scratch/."""
+        left = [p for p in (self.run_dir / ".scratch").rglob("*")]
+        self.assertEqual(left, [], f"left behind: {left}")
+
+    def one_drifted_entry(self, install=".devcontainer/setup.sh", allowed="none", body="DRIFT\n"):
+        self.project_source("env/setup.sh", "base\n")
+        self.reference_source("env/setup.sh", "base\n")
+        self.write_map(f"env/setup.sh | {install} | repo | {allowed}\n")
+        self.installed(install, body)
+
+    # 1. No absolute path in the bundle, nothing forged by a folder name.
+    def test_the_bundle_header_prints_labels_not_the_callers_paths(self):
+        self.one_drifted_entry()
+        done = self.run_script()
+        self.assertEqual(done.returncode, 0, done.stderr)
+        text = self.bundle_text()
+        self.assertIn("# project: <project root>", text)
+        self.assertIn("# reference kit: <reference kit root>", text)
+        for private in (str(self.project), str(self.reference), str(SCRATCH), str(REPO)):
+            self.assertNotIn(private, text)
+        self.assertNotIn(str(REPO), done.stdout)  # the success line is relative too
+
+    def test_a_folder_name_with_a_control_character_is_refused(self):
+        # A NUL cannot be passed in argv; the others can.
+        self.one_drifted_entry()
+        for bad in ("proj\n## forged heading", "proj\rx", "proj\ttab", "proj\u2028x"):
+            for position in (0, 1):
+                with self.subTest(bad=bad, position=position):
+                    roots = [str(self.project), str(self.reference)]
+                    roots[position] = bad
+                    done = subprocess.run(
+                        [sys.executable, "-B", str(SCRIPT), *roots],
+                        cwd=str(self.run_dir), stdin=subprocess.DEVNULL, capture_output=True,
+                        text=True, timeout=60)
+                    self.assertEqual(done.returncode, 2, done.stdout)
+                    self.assertIn("holds a control character or line break", done.stderr)
+                    self.assertNotIn("forged heading", done.stderr)
+                    self.assert_nothing_left()
+
+    def test_error_messages_carry_no_absolute_path(self):
+        done = subprocess.run(
+            [sys.executable, "-B", str(SCRIPT), str(SCRATCH / "nope"), str(self.reference)],
+            cwd=str(self.run_dir), stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=60)
+        self.assertEqual(done.returncode, 2)
+        self.assertNotIn(str(SCRATCH), done.stderr)
+        self.assertNotIn(str(REPO), done.stderr)
+        self.assertIn("the project root is missing", done.stderr)
+
+    # 2. The project's own map must not choose secrets to copy.
+    REFUSED_INSTALL_PATHS = (
+        ".env", ".env.local", ".env.production", "config/.env", ".envrc", ".ENV",
+        ".git/config", ".git/hooks/pre-push", "sub/.git/config",
+        "tls/server.pem", "tls/server.key", "keys/SERVER.KEY",
+        "id_rsa", "id_rsa.pub", ".ssh/id_rsa_work",
+        ".netrc", "home/.netrc", ".npmrc", "web/.npmrc",
+        "credentials", "credentials.json", "aws/credentials.bak",
+    )
+
+    def test_a_crafted_map_naming_a_secret_file_is_refused_before_any_read(self):
+        for install in self.REFUSED_INSTALL_PATHS:
+            with self.subTest(install=install):
+                shutil.rmtree(self.project, ignore_errors=True)
+                shutil.rmtree(self.pkit.parent, ignore_errors=True)
+                shutil.rmtree(self.reference, ignore_errors=True)
+                self.pkit.mkdir(parents=True)
+                self.reference.mkdir(parents=True)
+                (self.project / "agent-kit.conf").write_text(
+                    'KIT_DIR="_docs/agent-kit"\nTEST_CMD="true"\n', encoding="utf-8")
+                self.one_drifted_entry(install=install, body="API_TOKEN=hunter2-SECRET\n")
+                done = self.run_script()
+                self.assertEqual(done.returncode, 2, done.stdout)
+                self.assertIn("nothing written", done.stderr)
+                self.assertNotIn("hunter2-SECRET", done.stdout + done.stderr)
+                self.assertTrue(
+                    "env file" in done.stderr or "under .git/" in done.stderr or "secret file" in done.stderr,
+                    done.stderr)
+                self.assert_nothing_left()
+
+    def test_ordinary_install_paths_are_still_accepted(self):
+        # The rule must not catch look-alikes: environments/, keyboard.md, monkey.txt, a
+        # folder merely named env, .gitignore and .github/ (not .git/).
+        for install in ("environments/x.sh", "docs/keyboard.md", "docs/monkey.txt",
+                        "env/run.sh", ".gitignore", ".github/workflows/ci.yml", "credits.md"):
+            with self.subTest(install=install):
+                shutil.rmtree(self.pkit.parent, ignore_errors=True)
+                shutil.rmtree(self.project / "_docs", ignore_errors=True)
+                self.pkit.mkdir(parents=True)
+                (self.run_dir / ".scratch").mkdir(exist_ok=True)
+                for old in (self.run_dir / ".scratch").glob("kit-feedback-*"):
+                    shutil.rmtree(old)
+                self.one_drifted_entry(install=install)
+                done = self.run_script()
+                self.assertEqual(done.returncode, 0, done.stderr)
+
+    def test_a_human_machine_path_under_dot_git_is_not_refused(self):
+        # The shipped map names .git/hooks/pre-push as human-machine: only named, never opened.
+        self.project_source("env/hook", "h\n")
+        self.reference_source("env/hook", "h\n")
+        self.write_map("env/hook | .git/hooks/pre-push | human-machine | none\n")
+        done = self.run_script()
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertIn(".git/hooks/pre-push", self.bundle_text())
+
+    # 3. A prefix rule's identity lines, in every spelling, never reach the bundle.
+    def test_prefix_variants_are_all_dropped_with_the_real_rule(self):
+        entry = [e for e in kit_map.parse_map(KIT, REPO) if e.allowed.startswith("prefix:")][0]
+        self.assertEqual(entry.allowed, "prefix:git config --global user.")
+        variants = (
+            "git config --global user.name 'Ada Lovelace'",              # exact prefix
+            "    git config --global user.name 'Ada Lovelace'",          # indented
+            "\tgit config --global user.name 'Ada Lovelace'",            # tab-indented
+            "git  config   --global  user.email ada@example.com",        # extra spaces
+            "sudo git config --global user.email ada@example.com",       # leading command
+            "GIT CONFIG --GLOBAL USER.EMAIL ADA@EXAMPLE.COM",            # case
+            "echo x && git config --global user.name 'Ada Lovelace'",    # after another command
+        )
+        self.project_source(entry.source, "base\n")
+        self.reference_source(entry.source, "base\n")
+        self.write_map(f"{entry.source} | {entry.install} | repo | {entry.allowed}\n")
+        self.installed(entry.install, "base\n" + "\n".join(variants) + "\nDRIFT\n")
+        done = self.run_script()
+        self.assertEqual(done.returncode, 0, done.stderr)
+        text = self.bundle_text()
+        for private in ("ada@example.com", "Ada Lovelace", "ADA@EXAMPLE.COM", "user.name", "user.email",
+                        "USER.EMAIL"):
+            self.assertNotIn(private, text)
+        self.assertIn("DRIFT", text)
+        self.assertIn(f"{len(variants)} line(s) allowed to differ by the map's prefix rule removed", text)
+
+    def test_the_shared_scan_still_matches_only_the_exact_prefix(self):
+        # The broader strip is bundle-only: the shared scan's drift rule is unchanged.
+        kit_text = "base\n"
+        indented = kit_map.scan_text("prefix:git config --global user.", kit_text,
+                                     "base\n    git config --global user.name x\n")
+        self.assertTrue(any(f.status == "drift" for f in indented))
+        exact = kit_map.scan_text("prefix:git config --global user.", kit_text,
+                                  "base\ngit config --global user.name x\n")
+        self.assertFalse(any(f.status == "drift" for f in exact))
+
+    # 4. A failure leaves nothing behind.
+    def test_a_kit_file_with_an_invalid_utf8_name_leaves_nothing_behind(self):
+        self.one_drifted_entry()
+        bad = os.fsencode(self.pkit) + b"/bad-\xff-name.md"
+        try:
+            with open(bad, "wb") as handle:
+                handle.write(b"x")
+        except OSError:
+            self.skipTest("this filesystem refuses an invalid UTF-8 file name")
+        done = self.run_script()
+        self.assertEqual(done.returncode, 2, done.stdout)
+        self.assertIn("nothing written", done.stderr)
+        self.assert_nothing_left()
+
+    def test_every_refusal_leaves_the_scratch_folder_empty(self):
+        # A rejected map entry, a secret install path, an unreadable installed file and a
+        # control-character root: after each, .scratch/ holds no folder, no file, no temp.
+        cases = []
+
+        def rejected_entry():
+            self.write_map("env/setup.sh | ../escape | repo | none\n")
+
+        def secret_path():
+            self.write_map("env/setup.sh | .env | repo | none\n")
+            self.installed(".env", "TOKEN=1\n")
+
+        def unreadable_file():
+            self.write_map("env/setup.sh | .devcontainer/setup.sh | repo | none\n")
+            self.installed(".devcontainer/setup.sh", "x\n")
+            (self.project / ".devcontainer" / "setup.sh").write_bytes(b"\xff\xfe not utf8")
+
+        cases = [("rejected entry", rejected_entry), ("secret path", secret_path),
+                 ("non-UTF-8 installed file", unreadable_file)]
+        for label, arrange in cases:
+            with self.subTest(case=label):
+                shutil.rmtree(self.project, ignore_errors=True)
+                self.pkit.mkdir(parents=True)
+                (self.project / "agent-kit.conf").write_text(
+                    'KIT_DIR="_docs/agent-kit"\nTEST_CMD="true"\n', encoding="utf-8")
+                self.project_source("env/setup.sh", "base\n")
+                self.reference_source("env/setup.sh", "base\n")
+                arrange()
+                done = self.run_script()
+                self.assertEqual(done.returncode, 2, done.stdout)
+                self.assertIn("nothing written", done.stderr)
+                self.assert_nothing_left()
+
+    def test_the_success_path_leaves_exactly_one_folder_with_one_file_and_no_temp(self):
+        self.one_drifted_entry()
+        done = self.run_script()
+        self.assertEqual(done.returncode, 0, done.stderr)
+        found = sorted(p.relative_to(self.run_dir / ".scratch").parts[0] for p in (self.run_dir / ".scratch").rglob("*"))
+        self.assertEqual(len(set(found)), 1)
+        self.assertTrue(found[0].startswith("kit-feedback-"))
+        self.assertEqual(len(found), 2)  # the folder and its bundle.md; no .tmp beside them
+        self.assertFalse(list((self.run_dir / ".scratch").glob(".kit-feedback-*")))
+
+
 class StripPrefixUnitTest(unittest.TestCase):
-    def test_only_lines_starting_with_the_prefix_are_removed_and_counted(self):
+    def test_lines_containing_the_prefix_are_removed_and_counted(self):
+        # Broader than the shared scan's startswith(): a line is dropped if it contains the
+        # rule's text anywhere, after collapsing whitespace and lowercasing, so leading
+        # indentation, extra inner spaces or a leading `sudo` all still match.
         text = "a\nuser.name=x\n  user.name=y\nuser.email=z\nb\n"
         out, removed = kit_feedback.strip_prefix(text, "user.")
-        self.assertEqual(out, "a\n  user.name=y\nb\n")  # an indented line does not start with it
-        self.assertEqual(removed, 2)
+        self.assertEqual(out, "a\nb\n")
+        self.assertEqual(removed, 3)
 
     def test_no_match_returns_the_text_unchanged(self):
         self.assertEqual(kit_feedback.strip_prefix("a\nb\n", "zzz"), ("a\nb\n", 0))
+
+    def test_case_and_whitespace_normalised(self):
+        out, removed = kit_feedback.strip_prefix("a\nSUDO   GIT   CONFIG\nb\n", "git config")
+        self.assertEqual(out, "a\nb\n")
+        self.assertEqual(removed, 1)
 
 
 class StripLocalUnitTest(unittest.TestCase):
@@ -291,6 +501,19 @@ class MakeTargetTest(Base):
         done = self.run_make(f"PROJECT={self.project}", f"KIT={self.reference}")
         self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
         self.assertIn("kit-feedback: wrote", done.stdout)
+
+    def test_absolute_roots_through_make_leave_no_path_in_the_bundle(self):
+        self.project_source("env/setup.sh", "a\n")
+        self.reference_source("env/setup.sh", "a\n")
+        self.write_map("env/setup.sh | .devcontainer/setup.sh | repo | none\n")
+        self.installed(".devcontainer/setup.sh", "DRIFT\n")
+        self.write_makefile()
+        done = self.run_make(f"PROJECT={self.project}", f"KIT={self.reference}")
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        text = self.bundle_text()
+        for private in (str(self.project), str(self.reference), str(SCRATCH)):
+            self.assertNotIn(private, text)
+            self.assertNotIn(private, done.stdout)
 
 
 if __name__ == "__main__":
