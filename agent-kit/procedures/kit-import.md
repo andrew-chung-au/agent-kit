@@ -7,10 +7,10 @@ How a repo that carries a kit reviews a newer kit against its own, file by file,
 1. Unpack the new kit into a new, empty folder under `.scratch/`, never over the live kit folder.
 2. Run `make kit-check` on the live kit: pristine or derivative. A missing or unreadable manifest is a stop; the human decides.
 3. Read the new kit's `MANIFEST.sha256`. A new kit without one is refused; the question goes to the human (a release ships it, #9).
-4. Classify every file from three states: the live kit's manifest, the live file, the new kit's manifest. `make kit-compare OTHER=.scratch/<folder>` lists which differ (read-only).
+4. Classify every file from three states: the live kit's manifest, the live file, the new kit's manifest. `make kit-compare KIT_A=<live kit folder> KIT_B=.scratch/<folder>` lists which differ (read-only).
 5. Apply the table. List every file with its outcome before staging; the human reads it first.
 6. Set `KIT_VERSION`, run `make kit-check` against the new base, show the diffs.
-7. **Installed files.** `make kit-check` reads `installed-files.txt` through the one shared scan (read-only) and reports each file installed outside the kit folder: report its `repo` lines (`unchanged`, `local, ignored`, `drift`). Each `human-machine` entry (the push check) is only named; the human compares it from the clean clone, git only, and no sandbox tool opens that path. No agent copies an installed file. A rejected map entry stops the step with the parser's message.
+7. **Installed files.** `make kit-check` reads `installed-files.txt` through the one shared scan (read-only) and reports each file installed outside the kit folder: `repo` lines (`unchanged`, `local, ignored`, `drift`). Each `human-machine` entry is only named; the human compares it from the clean clone, git only; no sandbox tool opens that path. No agent copies an installed file. A rejected map entry stops the step with the parser's message.
 
 | Live file | New kit | Outcome |
 |---|---|---|
@@ -33,7 +33,7 @@ How a repo that carries a kit reviews a newer kit against its own, file by file,
 ## Reverse import (this repo reviews a project's kit)
 
 1. Bring the project's kit into a new, empty `.scratch/` folder.
-2. List its `modified` and `added` files: from `make kit-check` output run in the project (pasted by the human, as data), or `make kit-compare OTHER=.scratch/<folder>` (a two-way list).
+2. List its `modified` and `added` files: from `make kit-check` output run in the project (pasted by the human, as data), or `make kit-compare KIT_A=<live kit folder> KIT_B=.scratch/<folder>` (a two-way list).
 3. Decide each: an upstream improvement goes through a normal issue here, groomed and approved, never copied wholesale; a project-specific change is left alone and recorded.
 
 Nothing is copied into the kit folder during the review. This repo's version string and `KIT_VERSION` stay unchanged.
