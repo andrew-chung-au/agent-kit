@@ -275,6 +275,18 @@ class ArgumentTest(Base):
             with self.subTest(side="A", arg=arg):
                 self.assert_refused(self.compare(OTHER, arg))
 
+    def test_a_real_folder_with_a_leading_dash_is_refused_on_either_side(self):
+        # A folder that exists, so only the leading-dash rule can refuse it (not "missing").
+        self.both("x.md")
+        for name in ("-x", "-rf"):
+            (self.project / name).mkdir()
+            self.put(self.project / name, "x.md")
+            for label, args in (("B", (LIVE, name)), ("A", (name, OTHER))):
+                with self.subTest(folder=name, side=label):
+                    done = self.run_script(*args)
+                    self.assert_refused(done, f"kit {label} must be a plain relative path")
+                    self.assertEqual(done.stdout, "")
+
     def test_there_is_no_default_root(self):
         for args in ((), (LIVE,)):
             with self.subTest(args=args):
@@ -581,6 +593,17 @@ class MakeTargetTest(Base):
                     self.assertEqual(done.stdout, "")
                     self.assertIn("Usage: make kit-compare", done.stderr)
                     self.assertFalse(marker.exists())
+
+    def test_a_real_folder_with_a_leading_dash_is_refused_before_the_script_runs(self):
+        (self.project / "-x").mkdir()
+        self.put(self.project / "-x", "x.md")
+        for args in ((f"KIT_A={LIVE}", "KIT_B=-x"), ("KIT_A=-x", f"KIT_B={OTHER}")):
+            with self.subTest(args=args):
+                done = self.make(*args)
+                self.assertNotEqual(done.returncode, 0)
+                self.assertEqual(done.stdout, "")
+                self.assertIn("Usage: make kit-compare KIT_A=<folder> KIT_B=<folder>", done.stderr)
+                self.assertNotIn("kit-compare: ", done.stderr.replace("make kit-compare", ""))
 
     def test_a_root_from_the_environment_is_also_safe(self):
         marker = self.project / "PWNED"

@@ -422,6 +422,15 @@ class KitTargetsTest(TargetCase):
                         self.assert_nothing_ran(folder, done)
                         self.assertIn("Usage: make kit-compare KIT_A=<folder> KIT_B=<folder>", done.stderr)
 
+    def test_a_real_folder_with_a_leading_dash_is_refused_before_any_script_runs(self):
+        for kind, folder in self.each_kit_kind():
+            (folder / "-x").mkdir()
+            for first, second in (("-x", ".scratch/ok"), (".scratch/ok", "-x")):
+                with self.subTest(kind=kind, a=first, b=second):
+                    done = self.make(folder, "kit-compare", "KIT_A=" + first, "KIT_B=" + second)
+                    self.assert_nothing_ran(folder, done)
+                    self.assertIn("Usage: make kit-compare KIT_A=<folder> KIT_B=<folder>", done.stderr)
+
     def test_a_missing_root_is_refused(self):
         for kind, folder in self.each_kit_kind():
             for args in ((), ("KIT_A=.scratch/a",), ("KIT_B=.scratch/b",), ("KIT_A=", "KIT_B=.scratch/b"),
