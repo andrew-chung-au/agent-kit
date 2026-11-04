@@ -73,6 +73,14 @@ kit-compare: ## List how the kit folder differs from another kit copy under .scr
 	$(if $(call kit-other-ok,$(value OTHER)),,$(error Usage: make kit-compare OTHER=.scratch/<folder> - one word under .scratch/ with letters digits . _ / - only))
 	@python3 -B _docs/agent-kit/scripts/kit-compare.py "$$OTHER"
 
+# --- When the human asks for a duplicate report ---------------------------------
+# Read-only, never a gate: it always exits 0 when it runs, and nothing (verify, test,
+# a hook) depends on it. It takes no variables; add project folders to skip as more
+# --exclude arguments in the recipe.
+
+dup-report: ## Report repeated sentences and decision keys with differing status in the docs (read-only; never a gate)
+	@python3 -B _docs/agent-kit/scripts/dup-report.py --exclude .scratch/ --exclude _session-summaries/ .
+
 # --- When the project keeps the permission log (procedures/permission-log.md) ---
 
 # Both targets follow the validation rule above. permission-report passes SINCE on and the
