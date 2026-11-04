@@ -1,6 +1,6 @@
 # Permission log
 
-The record format for permission requests an agent tool asks the human to approve. The OpenCode plugin `opencode/plugins/permission-log.js` writes it, and so does the Claude Code hook `claude-code/hooks/log_permission.py` (`tool: "claude-code"`, `ask` records only: its events carry no outcome, so no `id`). `make permission-report` summarises both; `make permission-logs-prune DAYS=<n>` deletes old files (#36). The hook refuses symlinks, like report and prune.
+The record format for permission requests a tool asks the human to approve. The OpenCode plugin `opencode/plugins/permission-log.js` writes it, as does the Claude Code hook `claude-code/hooks/log_permission.py` (`tool: "claude-code"`, `ask` records only: its events carry no outcome, no `id`). `make permission-report` summarises both (`SINCE`: UTC date or `YYYY-MM-DDTHH:MMZ`); `make permission-logs-prune DAYS=<n>` deletes old files (#36). The hook refuses symlinks too.
 
 **Where:** `.agent-kit/logs/permissions/YYYY-MM-DD.jsonl` (UTC date), one JSON object per line. It is git-ignored and outside `.scratch/`, so `make clean-scratch` leaves it.
 

@@ -205,9 +205,9 @@ class UnknownTest(Base):
 
 class MakeTargetTest(Base):
     def test_make_target_runs_script_from_repo_root(self):
-        # The repo has no _docs/measurements entry yet, so gh must not run.
+        # The repo has no _docs/records sweep entry yet, so gh must not run.
         self.gh_reply([])
-        if any((REPO / "_docs" / "measurements").glob("*-measure-pm-sweep*.md")):
+        if any((REPO / "_docs" / "records").glob("*-measure-pm-sweep*.md")):
             self.skipTest("a real sweep entry exists")
         done = subprocess.run(["make", "--no-print-directory", "sweep-due"], env=self.env(),
                               capture_output=True, text=True, cwd=REPO)
@@ -286,7 +286,7 @@ class PhraseTest(unittest.TestCase):
             "**Cutoff:** HEAD at the time of the sweep",
             "`git log <cutoff commit>..HEAD --diff-filter=A --name-only -- _session-summaries/`",
             "the standard PM launch text plus \"follow `_docs/agent-kit/procedures/sweep.md`\", never just \"run the sweep\"",
-            "the orchestrator copies the entry into `_docs/measurements/` and commits it",
+            "the orchestrator copies the entry into `_docs/records/` and commits it",
             "The PM writes only the entry, in `.scratch/`",
         ):
             with self.subTest(phrase=phrase[:40]):

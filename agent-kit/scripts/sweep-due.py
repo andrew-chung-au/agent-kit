@@ -4,10 +4,10 @@
 Run through the make target, from the project root:
     make sweep-due
 or directly:
-    python3 -B agent-kit/scripts/sweep-due.py [--dir <measurements folder>]
+    python3 -B agent-kit/scripts/sweep-due.py [--dir <records folder>]
 
-It finds the newest `*-measure-pm-sweep*.md` entry in the measurements folder
-(default `_docs/measurements`), takes the cutoff time from the entry's name
+It finds the newest `*-measure-pm-sweep*.md` entry in the records folder
+(default `_docs/records`), takes the cutoff time from the entry's name
 (`<YYYY-MM-DDTHHMMZ>-measure-pm-sweep[-<n>].md`, UTC), and counts issues closed
 at or after that time with `gh issue list --state closed`. It prints one line:
 
@@ -35,7 +35,7 @@ from pathlib import Path
 # A draft placeholder. The human sets the real value.
 SWEEP_EVERY_N = 5
 
-MEASUREMENTS = "_docs/measurements"
+MEASUREMENTS = "_docs/records"
 ISSUE_LIMIT = 1000
 ENTRY = re.compile(r"(\d{4}-\d{2}-\d{2}T\d{4}Z)-measure-pm-sweep(?:-(\d+))?\.md")
 
@@ -97,7 +97,7 @@ def closed_since(cutoff: datetime) -> int:
 
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description="Say whether a sweep is due.")
-    parser.add_argument("--dir", default=MEASUREMENTS, help="measurements folder")
+    parser.add_argument("--dir", default=MEASUREMENTS, help="records folder")
     args = parser.parse_args(sys.argv[1:] if argv is None else argv)
     entry = newest_entry(Path(args.dir))
     if entry is None:

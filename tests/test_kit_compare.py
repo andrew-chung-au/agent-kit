@@ -25,6 +25,26 @@ TEMPLATE = KIT / "templates" / "Makefile.mk"
 LIVE = "_docs/agent-kit"
 OTHER = ".scratch/other"
 
+# One file name per character the scan refuses (issue #87). Built from escapes, so no invisible
+# character sits in this file.
+REFUSED_NAMES = {
+    "U+2028 line separator": "a\u2028b.md",
+    "U+2029 paragraph separator": "a\u2029b.md",
+    "U+202E right-to-left override": "a\u202eb.md",
+    "U+202A left-to-right embedding": "a\u202ab.md",
+    "U+2066 left-to-right isolate": "a\u2066b.md",
+    "U+200B zero-width space": "a\u200bb.md",
+    "U+FEFF byte order mark": "a\ufeffb.md",
+    "U+0085 next line (C1)": "a\x85b.md",
+    "U+061C Arabic letter mark": "a\u061cb.md",
+    "U+2060 word joiner": "a\u2060b.md",
+    "U+007F delete": "a\x7fb.md",
+    "in a sub-folder": "sub/folder/a\u202eb.md",
+    "in a folder name": "dir\u2028x/ok.md",
+}
+# Ordinary non-ASCII names stay accepted: accented Latin letters and CJK.
+ACCEPTED_NAMES = ["caf\u00e9.md", "\u65e5\u672c\u8a9e.md", "na\u00efve/r\u00e9sum\u00e9.md"]
+
 
 def snapshot(root: Path) -> dict:
     """Every path under root with its type, bytes and mode, so any write shows up."""
@@ -85,6 +105,32 @@ class Base(unittest.TestCase):
         self.assertRegex(done.stderr, r"\Akit-compare: [^\n]+\n\Z")
         if reason:
             self.assertIn(reason, done.stderr)
+
+
+class InvisibleNameTest(Base):
+    """kit-compare refuses a name that could change how its listing is read, on either side (issue #87)."""
+
+    def test_each_refused_name_is_an_error_on_the_other_side_and_on_the_live_side(self):
+        self.both("x.md")
+        for side_name, base in (("OTHER", self.other), ("live", self.live)):
+            for label, name in REFUSED_NAMES.items():
+                with self.subTest(side=side_name, name=label):
+                    bad = self.put(base, name)
+                    try:
+                        done = self.compare()
+                        self.assert_refused(done, "control character")
+                        self.assertNotIn("x.md", done.stdout)
+                    finally:
+                        shutil.rmtree(base / name.split("/")[0]) if "/" in name else bad.unlink()
+
+    def test_ordinary_non_ascii_names_are_still_compared(self):
+        self.both("x.md")
+        for name in ACCEPTED_NAMES:
+            self.both(name)
+        done = self.compare()
+        self.assertEqual(done.returncode, 0, done.stderr)
+        for name in ACCEPTED_NAMES:
+            self.assertIn(name, done.stdout)
 
 
 class OutputTest(Base):
