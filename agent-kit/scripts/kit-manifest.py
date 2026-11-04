@@ -16,8 +16,10 @@ executable bit is set, else 644; path relative to the kit folder, with "/".
 A kit file is a regular file anywhere under the kit folder, except MANIFEST.sha256 at
 its top, any __pycache__ folder and any *.pyc file. Other modes and timestamps are not
 recorded. A symlink (or any other non-regular entry) anywhere in the folder is an error,
-never followed or hashed, and so is a name holding a control character; then no file
-is written. The version must be a plain version (^[0-9]+(\\.[0-9]+)*$).
+never followed or hashed, and so is a name holding a control or invisible character (ASCII
+control and DEL, C1 controls, any Unicode format character such as a bidi override or a
+zero-width space, and the line and paragraph separators U+2028 and U+2029); then no file
+is written. Ordinary non-ASCII names (accented letters, CJK) are accepted. The version must be a plain version (^[0-9]+(\\.[0-9]+)*$).
 
 A manifest detects drift, not tampering: anyone who can change a kit file can change
 the manifest too. Exit 0 written, 2 refused (with a one-line reason). Standard library only.
@@ -29,11 +31,31 @@ import os
 import re
 import stat
 import sys
+import unicodedata
 from pathlib import Path
 
 MANIFEST = "MANIFEST.sha256"
 PLAIN_VERSION = re.compile(r"[0-9]+(\.[0-9]+)*")
-CONTROL = re.compile(r"[\x00-\x1f\x7f]")
+REFUSED_CATEGORIES = ("Cf", "Zl", "Zp")  # format (bidi, zero-width, BOM), line and paragraph separators
+
+
+class _RefusedName:
+    """Finds the first character a kit file name may not hold; `.search` works like a regex's.
+
+    Refused: ASCII control and DEL, C1 controls U+0080 to U+009F, and every character whose
+    Unicode category is Cf, Zl or Zp. The one place this set is defined: kit_files, kit-check
+    and kit-compare all use it, so a name cannot change how a list or message is read.
+    """
+
+    @staticmethod
+    def refuses(char: str) -> bool:
+        return ord(char) < 0x20 or 0x7F <= ord(char) <= 0x9F or unicodedata.category(char) in REFUSED_CATEGORIES
+
+    def search(self, text: str):
+        return next((char for char in text if self.refuses(char)), None)
+
+
+CONTROL = _RefusedName()
 
 
 class KitError(Exception):
@@ -75,7 +97,8 @@ def kit_files(kit: Path) -> dict:
             if not stat.S_ISREG(mode):
                 raise KitError(f"not a regular file in the kit folder: {rel}")
             if CONTROL.search(rel):
-                raise KitError(f"a kit file name holds a control character: {rel!r}")
+                raise KitError("a kit file name holds a control character or an invisible or "
+                               f"direction-changing one: {rel!r}")
             found[rel] = file_record(path)
     return found
 

@@ -27,11 +27,19 @@ REPO_MAKEFILE = REPO / "Makefile"
 TEMPLATE = KIT / "templates" / "Makefile.mk"
 LOGS = Path(".agent-kit") / "logs" / "permissions"
 GOOD_DATES = ["2026-11-03", "2026-01-01", "2026-12-31", "2028-02-29"]
+GOOD_TIMES = ["2026-11-03T00:00Z", "2026-11-03T10:30Z", "2026-11-03T23:59Z", "2028-02-29T12:00Z"]
 BAD_SINCE = ["2026-13-40", "2026-02-30", "2027-02-29", "$(x)", "$(shell touch MARKER)", "../x", "/etc/passwd",
              ".scratch/x", "0123456789abcdef0123456789abcdef01234567", "a1b2c3d", "deadbeef", "HEAD", "origin/main",
              "2026-1-3", "20261103", "2026/11/03", "2026-11-03x", "x2026-11-03", "2026-11-03\n", " 2026-11-03 ",
              "2026-11-03 10:00", "2026-11-03T00:00:00Z", "\u0662\u0660\u0662\u0666-\u0660\u0661-\u0660\u0663", "0000-00-00",
-             "`touch MARKER`", "2026-11-03; touch MARKER", "-1", "--help", "1.5"]
+             "`touch MARKER`", "2026-11-03; touch MARKER", "-1", "--help", "1.5",
+             # #93: a UTC minute is accepted only in the one exact form.
+             "2026-11-03T25:00Z", "2026-11-03T24:00Z", "2026-11-03T10:60Z", "2026-02-30T10:00Z", "2027-02-29T10:00Z",
+             "2026-13-01T10:00Z", "2026-11-03T10:00+10:00", "2026-11-03T10:00+0000", "2026-11-03T10:00",
+             "2026-11-03T10:00z", "2026-11-03T10:00:00Z", "2026-11-03T10:00:00.000Z", "2026-11-03 10:00Z",
+             "2026-11-03T1:00Z", "2026-11-03T10:0Z", "\u0662\u0660\u0662\u0666-11-03T10:00Z",
+             "2026-11-03T\u0661\u0660:00Z", "2026-11-03T10:00Z\n", " 2026-11-03T10:00Z", "2026-11-03T10:00Z ",
+             "\n2026-11-03T10:00Z", "2026-11-03T10:00ZZ", "2026-11-03T10:00Z; touch MARKER", "$(shell touch MARKER)T10:00Z"]
 BAD_DAYS = ["0", "-1", "1.5", "", "3651", "10000", "99999", "007", "01", "1e3", "1 2", "+5", " ", "../x", "/tmp", "1/2",
             "x", "$(shell touch MARKER)", "$(file >MARKER,x)", "$$", "`touch MARKER`", "1; touch MARKER", "5\ntouch MARKER",
             "\u0663", "0x10", "--help", "30 days"]
@@ -235,6 +243,38 @@ class SinceTest(Fixture):
         self.assertNotIn("MID-PATTERN", out)
         self.assertIn("NEW-PATTERN", out)
 
+    def test_the_start_minute_is_inclusive_and_the_millisecond_before_it_is_not(self):
+        self.log("2026-11-03.jsonl", [
+            ask("opencode", "t", "bash", "BEFORE-PATTERN", "2026-11-03T10:29:59.999Z"),
+            ask("opencode", "t", "bash", "AT-PATTERN", "2026-11-03T10:30:00.000Z"),
+            ask("opencode", "t", "bash", "AFTER-PATTERN", "2026-11-03T10:30:00.001Z")])
+        done = self.report("2026-11-03T10:30Z")
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertNotIn("BEFORE-PATTERN", done.stdout)
+        self.assertIn("AT-PATTERN", done.stdout)
+        self.assertIn("AFTER-PATTERN", done.stdout)
+
+    def test_a_date_and_that_days_midnight_timestamp_give_the_same_report(self):
+        for day in ("2026-11-02", "2026-11-03"):
+            with self.subTest(day=day):
+                by_date = self.report(day).stdout.replace("from " + day + " ", "from X ")
+                by_time = self.report(day + "T00:00Z").stdout.replace("from " + day + "T00:00Z ", "from X ")
+                self.assertEqual(by_date, by_time)
+
+    def test_the_header_shows_the_value_as_given(self):
+        self.assertIn("Permission report from 2026-11-03T10:30Z (3 log files", self.report("2026-11-03T10:30Z").stdout)
+        self.assertIn("Permission report from 2026-11-02 (3 log files", self.report("2026-11-02").stdout)
+        self.assertIn("Permission report (3 log files", self.report("").stdout)
+
+    def test_a_utc_minute_cuts_within_one_day(self):
+        self.log("2026-11-02.jsonl", [
+            ask("opencode", "m", "bash", "EARLY-MINUTE", "2026-11-02T09:59:59.999Z"),
+            ask("opencode", "m", "bash", "LATE-MINUTE", "2026-11-02T10:00:00.000Z")])
+        out = self.report("2026-11-02T10:00Z").stdout
+        self.assertNotIn("EARLY-MINUTE", out)
+        self.assertIn("LATE-MINUTE", out)
+        self.assertIn("NEW-PATTERN", out)
+
     def test_records_are_judged_by_their_own_time_not_by_the_file_name(self):
         self.log("2026-11-01.jsonl", [ask("opencode", "a", "bash", "LATE-IN-OLD-FILE", "2026-11-04T00:00:00.000Z"),
                                       ask("opencode", "a", "bash", "EARLY-IN-OLD-FILE", "2026-10-01T00:00:00.000Z")])
@@ -251,8 +291,8 @@ class SinceTest(Fixture):
         self.assertEqual(done.returncode, 0)
         self.assertIn("No permission requests in this range.", done.stdout)
 
-    def test_valid_dates_are_accepted(self):
-        for value in GOOD_DATES:
+    def test_valid_dates_and_utc_minutes_are_accepted(self):
+        for value in GOOD_DATES + GOOD_TIMES:
             with self.subTest(since=value):
                 self.assertEqual(self.report(value).returncode, 0)
 
@@ -262,7 +302,7 @@ class SinceTest(Fixture):
                 done = self.report(value)
                 self.assertNotEqual(done.returncode, 0)
                 self.assertEqual(done.stdout, "")
-                self.assertIn("SINCE must be a real date written YYYY-MM-DD", done.stderr)
+                self.assertIn("SINCE must be a real date written YYYY-MM-DD or a UTC minute written YYYY-MM-DDTHH:MMZ", done.stderr)
                 self.assertFalse((self.project / "MARKER").exists())
         # "Before any file is read": a refused value is refused even when there is no folder at all,
         # while a good value in the same place only says there are no logs.
@@ -325,7 +365,7 @@ class ReportTargetTest(MakeCase):
     def test_every_refused_since_fails_through_make_too(self):
         for kind, folder in self.each():
             for value in BAD_SINCE:
-                if value.endswith("\n") or value.startswith(" ") or value.endswith(" "):
+                if value.endswith("\n") or value.startswith(("\n", " ")) or value.endswith(" "):
                     continue  # make trims blanks and newlines from a command-line value
                 with self.subTest(kind=kind, since=value):
                     done = self.make(folder, "permission-report", "SINCE=" + value)
