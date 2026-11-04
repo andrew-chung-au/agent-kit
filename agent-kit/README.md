@@ -85,6 +85,8 @@ The kit's files are protected in every project, so changes need your approval. I
 
 **Versions in a project.** A pristine kit claims a plain version, such as `1.9`. Once a project changes a kit file, its kit is a derivative and claims `<base>+<repo>.<n>`, such as `1.9+vuln-triage.2`: `<n>` rises with each local change and restarts at 1 on a new base. The claim is `KIT_VERSION` in `agent-kit.conf`, and `make kit-check` compares the kit folder with the `MANIFEST.sha256` a released kit ships. Leave the version line at the top of this file alone in a derivative; it is one of the hashed files. `make kit-compare KIT_A=<kit folder> KIT_B=<other kit folder>` lists how kit A differs from kit B, read-only; both folders are named, there is no default. The manifest shows drift, not tampering. The kit's own repo ships no manifest between releases.
 
+**Installed files in a release.** The release zip unpacks only the kit folder. The files the kit installs outside that folder (`.devcontainer/`, the CI workflow, the push check) are not placed by the unzip; the human places them, using `installed-files.txt`, which ships inside the kit folder (so it is in the zip and in `MANIFEST.sha256`). No agent places an installed file. For the `human-machine` entries (the push check), compare the installed copy as in "Comparing the installed push check (human only)" in `environments.md`.
+
 The git hooks carry their own version number. `make hooks` upgrades an older installed version and leaves an equal or newer one alone, so projects with different kit versions can share one repository.
 
 ### Upgrading a project that already uses the kit
