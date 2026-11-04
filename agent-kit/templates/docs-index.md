@@ -8,9 +8,12 @@ No front matter; metadata lives here.
 | A choice that may be revisited, with reasons and alternatives | a decision record | a record, a plan |
 | Exact commands, numbers, full tables and caveats | a record | the README |
 | One headline result and its limit, owned by the owner | the README, linking to the record | run tables |
+| Proof for a decision (results, review, discussion) | where it was first recorded (issue, pull request or a record), linked from the decision | a copy in the decision record |
 | Anything stable and long-lived | a canonical doc | a log entry |
 
 Write once, link elsewhere: log entries link to stable decisions. The README holds one headline result and its limit, no run tables.
+
+A copy is allowed only if the reader would otherwise have to follow a link before acting, and the copy names its source and has a check or a named sync step. Otherwise, link.
 
 Word limits are defaults a project may change: README 300 words; this index 200 words plus one row per entry type.
 
