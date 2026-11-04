@@ -424,9 +424,54 @@ class SymlinkTest(HookCase):
         self.assert_refused()
         self.assertFalse(target.exists())
 
-    def test_the_file_is_opened_with_no_follow(self):
-        body = HOOK.read_text(encoding="utf-8")
-        self.assertIn("O_NOFOLLOW", body[body.index("def write("):body.index("def append(")])
+    def load_hook(self):
+        """The hook module itself, so write() and append() can be called directly."""
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("log_permission_under_test", HOOK)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module
+
+    def test_write_itself_refuses_a_symlink_with_eloop_for_an_existing_and_a_missing_target(self):
+        # Guards O_NOFOLLOW on its own: write() is called directly, so the lstat check in append()
+        # cannot stand in for it.
+        import errno
+        hook = self.load_hook()
+        existing = self.outside / "existing.jsonl"
+        existing.write_text("keep\n", encoding="utf-8")
+        for label, target in (("existing", existing), ("missing", self.outside / "missing.jsonl")):
+            with self.subTest(target=label):
+                link = self.work / (label + "-link.jsonl")
+                link.symlink_to(target)
+                with self.assertRaises(OSError) as caught:
+                    hook.write(link, b"line\n")
+                self.assertEqual(caught.exception.errno, errno.ELOOP)
+        self.assertEqual(existing.read_text(encoding="utf-8"), "keep\n")
+        self.assertFalse((self.outside / "missing.jsonl").exists())
+
+    def test_append_itself_returns_quietly_on_a_file_symlink_without_reaching_write(self):
+        # Guards the lstat check on the day's file: without it append() reaches write(), which raises
+        # ELOOP. Calling append() directly makes that visible (main() would swallow the error).
+        hook = self.load_hook()
+        self.folder.mkdir(parents=True)
+        record = {"event": "ask", "tool": "claude-code", "time": datetime.now(timezone.utc).isoformat(
+            timespec="milliseconds").replace("+00:00", "Z")}
+        for label, target in (("existing", self.outside / "existing.jsonl"), ("missing", self.outside / "missing.jsonl")):
+            with self.subTest(target=label):
+                if label == "existing":
+                    target.write_text("keep\n", encoding="utf-8")
+                link = self.folder / (record["time"][:10] + ".jsonl")
+                link.symlink_to(target)
+                calls = []
+                original = hook.write
+                hook.write = lambda *args: calls.append(args)
+                try:
+                    hook.append(self.project, record)  # must not raise
+                finally:
+                    hook.write = original
+                self.assertEqual(calls, [])
+                link.unlink()
+        self.assertEqual((self.outside / "existing.jsonl").read_text(encoding="utf-8"), "keep\n")
 
     def test_a_project_root_reached_through_a_symlink_still_logs(self):
         link = self.work / "project-link"
