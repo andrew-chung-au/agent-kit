@@ -70,7 +70,7 @@ This is the local sandbox profile: the agent works in a container with a token t
 2. Open only the project's `<repo>-sandbox` folder in the container. The first build runs `make hooks` there. Commit the `.devcontainer/devcontainer-lock.json` that the first rebuild creates.
 3. On your own machine, copy `agent-kit/environments/local-sandbox/pre-push` to `~/.agent-hooks/pre-push` and into each clean clone's `.git/hooks/pre-push`, and make it executable. This is the push check.
 4. Optional: if your project's install step needs Node or uv, build the push-check image from `agent-kit/environments/local-sandbox/push-check.Dockerfile` and set `AGENT_PUSH_CHECK_IMAGE` to it. Without it the push check uses `python:3.12`. Run `AGENT_PUSH_CHECK_PLAN=1 git push` first to see what it would check.
-5. If your checks need a database, use the Compose variant in `agent-kit/environments/local-sandbox/compose/` instead of the standard recipe.
+5. If your checks need a database, use the Compose variant in `agent-kit/environments/local-sandbox/compose/`: copy its three files into `.devcontainer/`, next to the standard `setup.sh`.
 
 Never run `make` in the clean clone. The reasons, the sandbox token and the exact commands are in [agent-kit/environments.md](agent-kit/environments.md#local-sandbox); the image is described under [the push-check image](agent-kit/environments.md#the-push-check-image). The steps for path 1 are written out in [agent-kit/README.md](agent-kit/README.md#adding-the-kit-to-a-project-folder); that document stays the reference.
 

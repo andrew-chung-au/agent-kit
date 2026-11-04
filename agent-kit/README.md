@@ -72,7 +72,7 @@ There is no tagged release or release zip yet (issue #9 tracks it). Get the kit 
 2. Open only the project's `<repo>-sandbox` folder in the container. `setup.sh` runs `make hooks` on the first build. Commit the `.devcontainer/devcontainer-lock.json` that the first rebuild creates.
 3. Copy `environments/local-sandbox/pre-push` to `~/.agent-hooks/pre-push` and into each clean clone's `.git/hooks/pre-push`, and make it executable. This is the push check; it needs git, Docker and coreutils on your machine.
 4. If the project's `make install` needs Node or uv, build the image from `environments/local-sandbox/push-check.Dockerfile` and set `AGENT_PUSH_CHECK_IMAGE` to it; otherwise the push check uses `python:3.12`. Dry-run it with `AGENT_PUSH_CHECK_PLAN=1 git push`.
-5. If the project's checks need a database, use the files in `environments/local-sandbox/compose/` instead of the standard recipe.
+5. If the project's checks need a database, use the files in `environments/local-sandbox/compose/`: copy its three files into `.devcontainer/`, next to the standard `setup.sh`.
 
 `environments.md` has the reasons, the token limits and the full rules. The Node, uv and Postgres pins in these files are unverified until you rebuild.
 
