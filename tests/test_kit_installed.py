@@ -224,6 +224,18 @@ class CommandLineTest(Base):
         done = self.run_cli("--installed", str(self.kit), str(self.repo))
         self.assertEqual((done.returncode, done.stdout), (0, "unchanged .config/dev.json\n"))
 
+    def test_installed_flag_non_utf8_kit_source_exits_two_without_a_traceback(self):
+        path = self.kit / "src" / "dev.json"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(b"\xff\xfe\n")
+        self.write_map("src/dev.json | .config/dev.json | repo | none\n")
+        self.installed(".config/dev.json", "a\n")
+        done = self.run_cli("--installed", str(self.kit), str(self.repo))
+        self.assertEqual(done.returncode, 2, done.stdout + done.stderr)
+        self.assertEqual(done.stdout, "")
+        self.assertRegex(done.stderr, r"\Akit-map: the kit source cannot be read as UTF-8 text: 'src/dev.json'")
+        self.assertNotIn("Traceback", done.stderr)
+
     def test_installed_flag_refusal_is_loud_and_exits_two(self):
         self.kit_source("src/x", "a\n")
         self.write_map("src/x | /abs | repo | none\n")
@@ -285,6 +297,20 @@ class KitCheckIntegrationTest(unittest.TestCase):
         # The installed line comes after the verdict line, not interleaved with the kit files.
         self.assertGreater(lines.index("drift .devcontainer/dev.json"),
                            lines.index("kit-check: pristine; claim 1.0 is correct"))
+
+    def test_a_kit_source_that_is_not_utf8_exits_two_not_one_and_prints_no_traceback(self):
+        (self.kit / "env").mkdir()
+        (self.kit / "env" / "dev.json").write_bytes(b"\xff\xfe\n")
+        self.kit_file("installed-files.txt", "env/dev.json | .devcontainer/dev.json | repo | none\n")
+        self.make_manifest()
+        self.installed(".devcontainer/dev.json", "a\n")
+        before = snapshot(self.project)
+        done = self.run_check()
+        self.assertEqual(done.returncode, 2, done.stdout + done.stderr)
+        self.assertEqual(done.stdout, "")
+        self.assertRegex(done.stderr, r"\Akit-check: [^\n]*kit source cannot be read as UTF-8 text: 'env/dev.json'")
+        self.assertNotIn("Traceback", done.stderr)
+        self.assertEqual(snapshot(self.project), before)
 
     def test_pristine_kit_and_matching_installed_file_exits_zero(self):
         self.kit_file("env/dev.json", "a\nb\n")

@@ -259,7 +259,10 @@ def _read_kit_source(kit_root: Path, source: str) -> str:
             raise MapError(f"the kit source goes through a symlink: {source!r}")
     if not current.is_file():
         raise MapError(f"the kit source is missing: {source!r}")
-    return current.read_bytes().decode("utf-8")
+    try:
+        return current.read_bytes().decode("utf-8")
+    except (OSError, UnicodeDecodeError) as exc:
+        raise MapError(f"the kit source cannot be read as UTF-8 text: {source!r} ({exc})") from None
 
 
 def scan_installed(kit_root, repo_root) -> list[Report]:
