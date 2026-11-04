@@ -67,11 +67,21 @@ kit-check: ## Say whether the kit folder is pristine or a derivative of KIT_VERS
 
 kit-other-chars := a b c d e f g h i j k l m n o p q r s t u v w x y z A B C D E F G H I J K L M N O P Q R S T U V W X Y Z 0 1 2 3 4 5 6 7 8 9 . _ / -
 kit-other-strip = $(if $(2),$(call kit-other-strip,$(subst $(firstword $(2)),,$(1)),$(wordlist 2,$(words $(2)),$(2))),$(1))
-kit-other-ok = $(and $(filter 1,$(words $(1))),$(if $(call kit-other-strip,$(1),$(kit-other-chars)),,ok),$(if $(subst x$(strip $(1))x,,x$(1)x),,ok),$(filter .scratch/%,$(1)),$(if $(findstring ..,$(1)),,ok))
+kit-root-ok = $(and $(filter 1,$(words $(1))),$(if $(call kit-other-strip,$(1),$(kit-other-chars)),,ok),$(if $(subst x$(strip $(1))x,,x$(1)x),,ok),$(filter-out /% -%,$(1)),$(if $(findstring ..,$(1)),,ok))
 
-kit-compare: ## List how the kit folder differs from another kit copy under .scratch/ (read-only): make kit-compare OTHER=.scratch/<folder>
-	$(if $(call kit-other-ok,$(value OTHER)),,$(error Usage: make kit-compare OTHER=.scratch/<folder> - one word under .scratch/ with letters digits . _ / - only))
-	@python3 -B _docs/agent-kit/scripts/kit-compare.py "$$OTHER"
+kit-compare: ## List how one kit folder differs from another (read-only, no default roots): make kit-compare KIT_A=<folder> KIT_B=<folder>
+	$(if $(call kit-root-ok,$(value KIT_A)),,$(error Usage: make kit-compare KIT_A=<folder> KIT_B=<folder> - each one word, a relative path with letters digits . _ / - only))
+	$(if $(call kit-root-ok,$(value KIT_B)),,$(error Usage: make kit-compare KIT_A=<folder> KIT_B=<folder> - each one word, a relative path with letters digits . _ / - only))
+	@python3 -B _docs/agent-kit/scripts/kit-compare.py "$$KIT_A" "$$KIT_B"
+
+# A plain relative path: one word of letters, digits, . _ / - only, no $ and no "..".
+# Reuses kit-other-chars and kit-other-strip above (no .scratch/ requirement here).
+kit-path-ok = $(and $(filter 1,$(words $(1))),$(if $(call kit-other-strip,$(1),$(kit-other-chars)),,ok),$(if $(subst x$(strip $(1))x,,x$(1)x),,ok),$(if $(findstring ..,$(1)),,ok))
+
+kit-feedback: ## Write a read-only feedback bundle under .scratch/ from a project's kit (reverse import): make kit-feedback PROJECT=<project root> KIT=<reference kit>
+	$(if $(call kit-path-ok,$(value PROJECT)),,$(error Usage: make kit-feedback PROJECT=<project root> KIT=<reference kit> - PROJECT: one word, letters digits . _ / - only, no ..))
+	$(if $(call kit-path-ok,$(value KIT)),,$(error Usage: make kit-feedback PROJECT=<project root> KIT=<reference kit> - KIT: one word, letters digits . _ / - only, no ..))
+	@python3 -B _docs/agent-kit/scripts/kit-feedback.py "$$PROJECT" "$$KIT"
 
 # --- When the human asks for a duplicate report ---------------------------------
 # Read-only, never a gate: it always exits 0 when it runs, and nothing (verify, test,

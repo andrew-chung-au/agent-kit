@@ -566,6 +566,7 @@ class MakeTargetTest(Base):
         self.released()
         shutil.copy(CHECK, self.kit / "scripts" / "kit-check.py")
         shutil.copy(GENERATOR, self.kit / "scripts" / "kit-manifest.py")
+        shutil.copy(KIT / "scripts" / "kit-map.py", self.kit / "scripts" / "kit-map.py")  # kit-check loads it for fs()
         self.released()  # the copied scripts are now part of the released kit
         (self.project / "Makefile").write_text((KIT / "templates" / "Makefile.mk").read_text(encoding="utf-8"),
                                                encoding="utf-8")
