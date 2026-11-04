@@ -279,6 +279,10 @@ def kit_file_diff(project_kit: Path, reference: Path):
     return states
 
 
+WHOLE_COPY_WARNING = ("WARNING: this file is copied whole (only the local-begin/local-end blocks are "
+                      "removed). Read it before anything goes public: it may hold personal text.")
+
+
 def build_bundle(project: Path, reference: Path) -> list[str]:
     """The bundle lines. Reads the project and reference read-only; writes nothing here."""
     project_kit = project_kit_dir(project)
@@ -348,6 +352,7 @@ def build_bundle(project: Path, reference: Path) -> list[str]:
             lines += body_lines
             lines.append("```")
         else:
+            lines.append(WHOLE_COPY_WARNING)
             lines.append("```")
             lines += body.splitlines()
             lines.append("```")

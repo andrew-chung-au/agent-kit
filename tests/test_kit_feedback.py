@@ -120,6 +120,18 @@ class BundleTest(Base):
         self.assertIn("## Changed installed file: .devcontainer/setup.sh", text)
         self.assertIn("DRIFT", text)  # the drift line itself is kept
 
+    def test_a_whole_copied_entry_carries_a_read_before_public_warning(self):
+        self.project_source("env/setup.sh", "base\n")
+        self.reference_source("env/setup.sh", "base\n")
+        self.write_map("env/setup.sh | .devcontainer/setup.sh | repo | none\n")
+        self.installed(".devcontainer/setup.sh", "DRIFT\n")
+        done = self.run_script()
+        self.assertEqual(done.returncode, 0, done.stderr)
+        text = self.bundle_text()
+        warning = text.index("WARNING: this file is copied whole")
+        self.assertIn("Read it before anything goes public", text)
+        self.assertLess(warning, text.index("```"), "the warning comes before the copied text")
+
     def real_prefix_entry(self):
         # The real map's own `prefix:` row (setup.sh), so the test follows the shipped rule.
         entries = [e for e in kit_map.parse_map(KIT, REPO) if e.allowed.startswith("prefix:")]
