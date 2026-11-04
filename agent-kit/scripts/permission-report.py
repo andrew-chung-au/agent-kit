@@ -1,15 +1,17 @@
 #!/usr/bin/env python3
 """Permission report: what the agent tools asked the human to approve (issue #36).
 
-Run from the project folder as `make permission-report [SINCE=<YYYY-MM-DD>]`, or:
-    python3 -B agent-kit/scripts/permission-report.py [YYYY-MM-DD]
+Run from the project folder as `make permission-report [SINCE=<YYYY-MM-DD or YYYY-MM-DDTHH:MMZ>]`, or:
+    python3 -B agent-kit/scripts/permission-report.py [YYYY-MM-DD | YYYY-MM-DDTHH:MMZ]
 
 Reads the log files in .agent-kit/logs/permissions/ (procedures/permission-log.md) and
 prints, per tool, permission type and pattern: times asked, replies (allowed, always,
 denied), distinct sessions, first and last time. Sessions are counted, not log lines.
 
-- SINCE limits the report by record time (UTC date). It must be a real date written
-  YYYY-MM-DD; anything else is refused before any file is read, and a commit is not a date.
+- SINCE limits the report by record time, in UTC. It is a real date written YYYY-MM-DD (the
+  start of that UTC day) or a real UTC minute written YYYY-MM-DDTHH:MMZ (a session summary's
+  start; records at or after the start of that minute count). Anything else (seconds, an
+  offset, a lower-case z, a commit) is refused before any file is read.
 - Lines that are not JSON objects are skipped and counted. Nothing in a log is executed.
 - Every text field shown is redacted again with scripts/secret-patterns.txt, so a log file
   edited or written by something else cannot make the report print a secret.
@@ -23,7 +25,7 @@ from __future__ import annotations
 import json
 import re
 import sys
-from datetime import date, datetime
+from datetime import datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -32,6 +34,7 @@ import permission_log_lib as lib  # noqa: E402
 FOLDER = Path(".agent-kit") / "logs" / "permissions"
 FILE_NAME = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}\.jsonl")
 DATE = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}")
+MINUTE = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}Z")
 TIME = re.compile(r"([0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2})(?:\.([0-9]{1,9}))?Z")
 OUTCOME = {"once": "allowed", "always": "always", "reject": "denied"}
 
@@ -42,16 +45,22 @@ def refuse(message: str) -> None:
 
 
 def parse_since(value: str):
-    """None for no limit; otherwise a date. Anything else is refused."""
+    """None for no limit; otherwise the start instant (naive UTC datetime). Anything else is refused.
+
+    A date means the start of that UTC day; a timestamp means the start of that UTC minute.
+    Both patterns are full matches on ASCII digits, then a real-calendar parse.
+    """
     if value == "":
         return None
-    if DATE.fullmatch(value):
-        try:
-            return date(int(value[:4]), int(value[5:7]), int(value[8:10]))
-        except ValueError:
-            pass
-    refuse("SINCE must be a real date written YYYY-MM-DD, for example 2026-11-03 "
-           "(a commit is not a time). Got: " + ascii(value[:40]))
+    try:
+        if DATE.fullmatch(value):
+            return datetime(int(value[:4]), int(value[5:7]), int(value[8:10]))
+        if MINUTE.fullmatch(value):
+            return datetime(int(value[:4]), int(value[5:7]), int(value[8:10]), int(value[11:13]), int(value[14:16]))
+    except ValueError:
+        pass
+    refuse("SINCE must be a real date written YYYY-MM-DD or a UTC minute written YYYY-MM-DDTHH:MMZ, "
+           "for example 2026-11-03 or 2026-11-03T10:30Z (a commit is not a time). Got: " + ascii(value[:40]))
 
 
 def parse_time(value):
@@ -96,7 +105,7 @@ def read(files, since):
                     continue
                 moment = parse_time(record.get("time"))
                 kind, tool, session = record.get("event"), text(record, "tool"), text(record, "sessionID")
-                if moment and since and moment.date() < since:
+                if moment and since and moment < since:
                     continue
                 if moment is None or tool is None or kind not in ("ask", "reply", "truncated"):
                     counts["unknown"] += 1  # an unknown record, or one this report cannot read
@@ -122,7 +131,7 @@ def read(files, since):
 
 def main(argv) -> int:
     if len(argv) > 2:
-        refuse("usage: permission-report.py [YYYY-MM-DD]")
+        refuse("usage: permission-report.py [YYYY-MM-DD | YYYY-MM-DDTHH:MMZ]")
     since = parse_since(argv[1] if len(argv) == 2 else "")
     files = []
     if FOLDER.is_dir():
@@ -144,7 +153,8 @@ def main(argv) -> int:
                 groups[asks[key]].outcomes[outcome] += 1
             else:
                 counts["unknown"] += 1
-    shown = "from %s " % since.isoformat() if since else ""
+    given = argv[1] if len(argv) == 2 else ""
+    shown = "from %s " % given if since else ""
     print("Permission report %s(%d log file%s, %s to %s)" % (
         shown, len(files), "" if len(files) == 1 else "s", files[0].name[:10], files[-1].name[:10]))
     rows = []
