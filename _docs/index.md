@@ -19,6 +19,7 @@ By folder: "no doc without an index entry" can't work for hundreds of entries. N
 | Type | Folder | Template | Filename pattern |
 |---|---|---|---|
 | Record: what was measured, found or read, with method and caveats (flat; the filename kind, such as `measure` or `source`, tells them apart; a sweep entry is `measure-pm-sweep`) | `_docs/records/` | `agent-kit/templates/measurement.md` (plus the sections in `agent-kit/procedures/sweep.md` for a sweep), `agent-kit/templates/source.md` | `<timestamp>-<kind>-<slug>.md`; a sweep entry is `<timestamp>-measure-pm-sweep.md` |
+| Plan: what we intend to do and in what order, such as the current status (rewritten in place, its Date line says how fresh it is) | `_docs/planning/` | none | `current-status.md`, or `<slug>.md` |
 | Decision | `_docs/decisions/` | `agent-kit/templates/adr.md` | `<issue>-<slug>.md` |
 | Human task | `_human-tasks/` | `agent-kit/templates/human-task.md` | `<timestamp>-human-task-<id>-<role>-<slug>.md` |
 
