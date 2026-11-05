@@ -26,7 +26,16 @@ fi
 if ! command -v make >/dev/null; then
   sudo apt-get update && sudo apt-get install -y make
 fi
-command -v opencode >/dev/null || curl -fsSL https://opencode.ai/install | bash
+# OpenCode 2 at a pinned version (unverified pin, like Node and uv). The v1
+# installer at /install refuses 2.x; v2 lives at /v2/install and takes --version.
+# `opencode --version` prints `opencode v2.2.5`, so match on `v<version>` (a
+# 2.2.50 release would not match). The v2 installer has no "already installed"
+# shortcut, so this guard is what stops a re-download on a rebuilt container.
+opencode_version="2.2.5"
+case "$(opencode --version 2>/dev/null || true)" in
+  *"v${opencode_version}") ;;
+  *) curl -fsSL https://opencode.ai/v2/install | bash -s -- --version "$opencode_version" ;;
+esac
 command -v claude >/dev/null || curl -fsSL https://claude.ai/install.sh | bash
 
 # uv at a pinned version (unverified pin). Not older than 0.13.4: earlier versions bundle
