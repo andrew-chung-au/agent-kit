@@ -27,6 +27,7 @@ GH_FEATURE = "ghcr.io/devcontainers/features/github-cli:1"
 NODE_PIN = "24.22.0"
 NVM_PIN = "0.40.8"
 UV_PIN = "0.13.6"
+OPENCODE_PIN = "2.2.5"
 PATH_VALUE = "${containerEnv:PATH}:/home/vscode/.local/bin:/home/vscode/.opencode/bin"
 
 
@@ -134,6 +135,20 @@ class PinsTest(unittest.TestCase):
     def test_the_uv_pin_is_not_older_than_the_tls_root_fix(self):
         """uv before 0.13.4 bundles a withdrawn TLS root (GHSA-hq85-5cpj-mr62)."""
         self.assertGreaterEqual(tuple(int(n) for n in UV_PIN.split(".")), (0, 13, 4))
+
+    def test_setup_pins_opencode_2_from_the_v2_installer(self):
+        """The recipe installs OpenCode 2 at the pin from the v2 installer, not v1."""
+        code = "\n".join(setup_code())
+        self.assertEqual(re.findall(r'^opencode_version="([^"]+)"', code, re.M), [OPENCODE_PIN])
+        # The major is 2: the v1 installer (/install) refuses 2.x.
+        self.assertEqual(OPENCODE_PIN.split(".")[0], "2")
+        # It installs from the v2 endpoint and passes the pin as --version.
+        self.assertIn("https://opencode.ai/v2/install", code)
+        self.assertNotIn("https://opencode.ai/install", code)
+        self.assertRegex(code, r'--version\s+"\$opencode_version"')
+        # The guard matches on v<version> so it re-runs only when the version differs.
+        # Whitespace-tolerant, so a harmless reformat does not break the test.
+        self.assertRegex(code, r'\*"v\$\{opencode_version\}"\s*\)\s*;;')
 
     def test_ci_template_node_pin_equals_the_feature_version(self):
         feature = json.loads(RECIPE.read_text(encoding="utf-8"))["features"][NODE_FEATURE]["version"]
