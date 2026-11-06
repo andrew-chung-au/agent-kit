@@ -18,8 +18,9 @@ def flat(path):
 class KitImportDocTest(unittest.TestCase):
     def test_doc_exists_and_is_short(self):
         self.assertTrue(DOC.is_file())
-        # 600 until #115; 713 is the text with the installed-files step (step 7, 113 words).
-        self.assertLessEqual(len(DOC.read_text(encoding="utf-8").split()), 713)
+        # 600 until #115; 713 with the installed-files step (step 7, 113 words); 900 with the
+        # "No manifest" path (#169, about 185 words).
+        self.assertLessEqual(len(DOC.read_text(encoding="utf-8").split()), 900)
 
     def test_doc_names_the_pieces(self):
         text = flat(DOC)
