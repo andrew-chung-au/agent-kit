@@ -86,6 +86,24 @@ def model_append(source: str, size: int, line: int, marked: bool, capped: bool, 
     return ("drop" if marked else "append+truncated"), True, looked
 
 
+def model_waits(source: str, delivered: list) -> list:
+    """The resubscribe loop's waits (issue #166), from the source's constants: one per ended stream.
+
+    `delivered[i]` says whether stream i brought any event. Raises ValueError if the source has no wait
+    between attempts, which would retry at once in a tight loop.
+    """
+    if "await wait(delay)" not in source:
+        raise ValueError("no wait between subscribe attempts")
+    low, high = const(source, "MIN_WAIT"), const(source, "MAX_WAIT")
+    delay, waits = low, []
+    for got in delivered:
+        if got:
+            delay = low
+        waits.append(delay)
+        delay = min(delay * 2, high)
+    return waits
+
+
 def problems(source: str) -> list:
     """Why a plugin source is not acceptable (empty list: it is)."""
     found = [why for regex, why in FORBIDDEN if re.search(regex, source)]
@@ -177,6 +195,42 @@ class PluginSourceTest(unittest.TestCase):
         self.assertIn("return () => controller.abort()", self.source)
         self.assertNotIn("client.app.log", self.source)  # V2 has no log sink
         self.assertNotIn("export const", self.source)  # the V1 named export
+
+    def test_it_resubscribes_until_unloaded_with_one_attempt_per_wait(self):
+        """Issue #166, as text: the loop, the stop on abort and the wait between attempts."""
+        loop = self.source[self.source.index("while (!controller.signal.aborted)"):self.source.index("return () => controller.abort()")]
+        subscribe = loop.index("ctx.event.subscribe(")
+        stop = loop.index("if (controller.signal.aborted) break")
+        pause = loop.index("await wait(delay)")
+        self.assertLess(subscribe, stop)
+        self.assertLess(stop, pause)
+        self.assertEqual(loop.count("ctx.event.subscribe("), 1)
+        self.assertEqual(loop.count("await wait("), 1)
+        self.assertIn("delay = Math.min(delay * 2, MAX_WAIT)", loop)
+        self.assertIn("if (got) delay = MIN_WAIT", loop)
+        self.assertIn('addEventListener("abort"', self.source)
+        self.assertIn("clearTimeout(timer)", self.source)
+
+    def test_each_wait_removes_its_abort_listener_whichever_comes_first(self):
+        """QA note on #166: a listener left behind after every normal wait would pile up."""
+        wait = self.source[self.source.index("const wait = "):self.source.index("// Resubscribe when the stream ends")]
+        done = re.search(r"const done = \(\) => \{([^}]*)\}", wait)
+        self.assertIsNotNone(done, "wait has no single done function")
+        self.assertIn("clearTimeout(timer)", done.group(1))
+        self.assertIn('controller.signal.removeEventListener("abort", done)', done.group(1))
+        self.assertIn("resolve()", done.group(1))
+        self.assertIn("setTimeout(done, ms)", wait)
+        self.assertIn('addEventListener("abort", done, { once: true })', wait)
+        self.assertEqual(wait.count("addEventListener("), 1)
+
+    def test_an_always_failing_stream_waits_more_each_time_up_to_the_cap(self):
+        """The refused case: a stream that ends at once every time gets one attempt per wait step."""
+        self.assertEqual(model_waits(self.source, [False] * 12)[:4], [1000, 2000, 4000, 8000])
+        self.assertTrue(all(w == 300000 for w in model_waits(self.source, [False] * 12)[9:]))
+        self.assertEqual(model_waits(self.source, [False, False, True, False])[2], 1000)
+        removed = self.source.replace("        await wait(delay)\n", "")
+        with self.assertRaises(ValueError):
+            model_waits(removed, [False])
 
     def test_the_handler_runs_inside_try_catch(self):
         handler = self.source[self.source.index("const handle = "):]

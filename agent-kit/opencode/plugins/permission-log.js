@@ -11,6 +11,8 @@ import path from "node:path"
 const CAP = 1048576 // bytes per daily file
 const MAX_PATTERN = 200 // characters, after redaction
 const NO_PATTERNS = "[redacted: no patterns]"
+const MIN_WAIT = 1000 // ms before resubscribing after the event stream ends
+const MAX_WAIT = 300000 // ms: the cap while streams keep ending with nothing
 const NEAR = 4096 // bytes: a marker can only follow a file this close to CAP (a record is far smaller)
 const capped = new Set() // files that hold the truncated marker
 const looked = new Set() // files whose tail this process has already checked for the marker
@@ -117,11 +119,28 @@ export default {
         // observe-only: never affect the session. V2 has no log sink for plugins, so a failure drops the record silently.
       }
     }
+    const wait = (ms) => new Promise((resolve) => {
+      const done = () => { clearTimeout(timer); controller.signal.removeEventListener("abort", done); resolve() }
+      const timer = setTimeout(done, ms)
+      controller.signal.addEventListener("abort", done, { once: true })
+    })
+    // Resubscribe when the stream ends, one attempt per wait; the wait doubles while streams bring nothing.
     void (async () => {
-      try {
-        for await (const event of ctx.event.subscribe({ types: ["permission.asked", "permission.replied"], signal: controller.signal })) handle(event)
-      } catch {
-        // the stream ended or the plugin is unloading
+      let delay = MIN_WAIT
+      while (!controller.signal.aborted) {
+        let got = false
+        try {
+          for await (const event of ctx.event.subscribe({ types: ["permission.asked", "permission.replied"], signal: controller.signal })) {
+            got = true
+            handle(event)
+          }
+        } catch {
+          // the stream failed; try again below unless the plugin is unloading
+        }
+        if (controller.signal.aborted) break
+        if (got) delay = MIN_WAIT
+        await wait(delay)
+        delay = Math.min(delay * 2, MAX_WAIT)
       }
     })()
     return () => controller.abort()
