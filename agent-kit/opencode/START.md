@@ -44,7 +44,36 @@ Setup does this when you say you use OpenCode (`setup.md`, step 4). To do it by 
    - ask it to list its agents: `pm`, `software-engineer` and `qa-engineer` should appear;
    - ask it to run `git add .`: the command should be denied;
    - ask the `pm` agent to edit `README.md`: the edit should be denied;
-   - with the plugin: trigger one prompt, and `.agent-kit/logs/permissions/<today>.jsonl` should gain one `ask` line, then a `reply` line once you answer.
+   - With the permission log plugin, run this hand check now and again after every OpenCode
+     upgrade. Use the normal interactive interface, not `--auto` (auto-approval skips the
+     prompt this checks). If `.scratch/` does not exist yet, run `mkdir -p .scratch` first
+     (it prompts too). Read the last two lines after each step:
+
+         tail -n 2 ".agent-kit/logs/permissions/$(date -u +%F).jsonl"
+
+     1. **Allow once.** Prompt it: "Run `touch .scratch/hand-check-allowed`." Choose **once**.
+        The command runs, and the log gains an `ask` with
+        `"pattern":"touch .scratch/hand-check-allowed"`, then a `reply` with
+        `"response":"once"` and the same `id`.
+     2. **Fake key.** In a terminal (not through the agent), print a safe test command:
+
+            printf 'echo sk-%s\n' aaaaaaaaaaaaaaaaaaaaaaaa
+
+        Paste the line it prints into OpenCode and choose **once**. The prompt still
+        appears, the `ask` line holds `"pattern":"echo [redacted]"`, and no log line holds the
+        key:
+
+            grep -c 'sk-a' ".agent-kit/logs/permissions/$(date -u +%F).jsonl"
+
+        It must print `0`.
+     3. **Reject.** Prompt it: "Run `touch .scratch/hand-check-rejected`." Choose **reject**.
+        The command does not run (`ls .scratch/hand-check-rejected` says no such file), the
+        log gains a `reply` with `"response":"reject"`, and the agent's turn ends: tell it to
+        continue.
+
+     Pass: all three prompts appeared, allow ran the command, reject did not, and the fake
+     key is redacted. If a prompt disappears or a rejected command runs, stop using the
+     plugin and report it.
 
    If a path rule doesn't match as expected, check OpenCode's permissions documentation for how it matches paths. The rules here assume paths relative to the project folder.
 
@@ -53,7 +82,7 @@ Setup does this when you say you use OpenCode (`setup.md`, step 4). To do it by 
 - **No hooks yet.** The Claude Code layer stops the Engineer finishing while `make verify` fails; OpenCode has no such check here. The Engineer runs **Verify** because its role file says so, and the git hooks, your push check and CI catch what it misses.
 - **Pattern matching only.** The rules match how a command is written, so a variant can get past them.
 - **Settings apply only inside OpenCode.** The core kit's git hooks still cover every tool.
-- **The permission log is complete for OpenCode only.** Claude Code arrives with #36. The plugin was written against `@opencode-ai/plugin` 1.19.0 and has not been checked in a real session yet; run the hand check in `procedures/permission-log.md` first.
+- **The permission log is complete for OpenCode only.** Claude Code arrives with #36. The plugin uses the V2 plugin API and needs OpenCode 2.x (written for 2.2.5; the real-session hand check is still pending); it is not compatible with 1.x. Run the hand check in step 6 first.
 
 ## Projects that already have an OpenCode setup
 

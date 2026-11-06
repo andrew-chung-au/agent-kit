@@ -166,13 +166,22 @@ class PluginSourceTest(unittest.TestCase):
     def test_the_checker_accepts_a_comparison_with_status(self):
         self.assertEqual([w for w in problems(self.source + "\nif (output.status === 1) {}") if "decision" in w], [])
 
-    def test_only_the_event_hook_is_returned_and_it_runs_inside_try_catch(self):
-        self.assertEqual(len(re.findall(r"\bevent: async \(\{ event \}\) =>", self.source)), 1)
-        handler = self.source[self.source.index("event: async"):]
+    def test_it_is_one_v2_default_export_that_subscribes_and_cleans_up(self):
+        self.assertEqual(len(re.findall(r"^export default \{", self.source, re.M)), 1)
+        self.assertEqual(len(re.findall(r"^export ", self.source, re.M)), 1)
+        self.assertIn('id: "agent-kit.permission-log"', self.source)
+        self.assertIn("setup(ctx)", self.source)
+        self.assertIn("ctx.event.subscribe(", self.source)
+        self.assertIn('types: ["permission.asked", "permission.replied"]', self.source)
+        self.assertIn("signal: controller.signal", self.source)
+        self.assertIn("return () => controller.abort()", self.source)
+        self.assertNotIn("client.app.log", self.source)  # V2 has no log sink
+        self.assertNotIn("export const", self.source)  # the V1 named export
+
+    def test_the_handler_runs_inside_try_catch(self):
+        handler = self.source[self.source.index("const handle = "):]
         self.assertIn("try {", handler)
-        self.assertRegex(handler, r"} catch \(error\) {")
-        self.assertIn("client.app.log", self.source)
-        self.assertIn('level: "warn"', self.source)
+        self.assertRegex(handler, r"} catch {")
 
     def test_it_appends_to_one_folder_and_nothing_else(self):
         self.assertIn('".agent-kit", "logs", "permissions"', self.source)
@@ -192,12 +201,15 @@ class PluginSourceTest(unittest.TestCase):
         self.assertIn('event: "truncated"', self.source)
         self.assertIn('"..."', self.source)
 
-    def test_it_knows_both_request_shapes_and_the_reply(self):
-        for name in ("permission.asked", "permission.updated", "permission.replied"):
+    def test_it_knows_the_v2_request_and_reply_shapes(self):
+        for name in ("permission.asked", "permission.replied"):
             self.assertIn(name, self.source)
+        self.assertNotIn("permission.updated", self.source)
         self.assertIn('event: "unknown"', self.source)
-        for key in ("requestID", "permissionID", "reply", "response", "patterns", "pattern"):
+        for key in ("action", "resources", "requestID", "reply", "response", "pattern", "event.data"):
             self.assertIn(key, self.source)
+        for gone in ("permissionID", "data.patterns", "event.properties"):
+            self.assertNotIn(gone, self.source)
 
     def test_only_whitelisted_field_names_are_written(self):
         written = set()
@@ -286,7 +298,7 @@ class CapBehaviourTest(unittest.TestCase):
         self.assertEqual(action, "drop")
 
     def test_the_marker_check_comes_before_any_append_of_a_normal_record(self):
-        body = self.source[self.source.index("function append("):self.source.index("export const")]
+        body = self.source[self.source.index("function append("):self.source.index("export default")]
         first_check = body.index("hasMarker(file)")
         normal_append = body.index("fs.appendFileSync(file, line)")
         marker_append = body.index('fs.appendFileSync(file, JSON.stringify({ event: "truncated"')
@@ -371,7 +383,8 @@ class RecordFormatDocTest(unittest.TestCase):
                        "`once` is allowed", "`always` is always", "`reject` is denied", "id of the ask",
                        "[redacted]", "200 characters", "1048576", "scripts/secret-patterns.txt",
                        "Never logged", "commands, titles, tool output, file contents, diffs",
-                       "`unknown`", "`truncated`", "1.19.0", "2.2.5", "#36", "claude-code",
+                       "`unknown`", "`truncated`", "2.2.5", "V2 plugin API", "not for OpenCode 1.x",
+                       "drops the record silently", "`once`, `always` or `reject`", "#36", "claude-code",
                        "subagent", "Hand check", "[redacted: no patterns]"):
             self.assertIn(needle, self.text)
 
@@ -419,8 +432,11 @@ class WiringTest(unittest.TestCase):
         self.assertRegex(text, r"(?m)^5\. \*\*Permission log \(optional\):\*\* copy `opencode/plugins/permission-log\.js` into `\.opencode/plugins/`")
         self.assertIn("restart it", text)
         self.assertRegex(text, r"(?m)^6\. \*\*Check it\.\*\*")
-        self.assertIn(".agent-kit/logs/permissions/<today>.jsonl", text)
-        self.assertRegex(text, r"permission log is complete for OpenCode only.*#36.*1\.19\.0", )
+        for needle in ("**Allow once.**", "**Fake key.**", "**Reject.**", "hand-check-allowed",
+                       "hand-check-rejected", "printf 'echo sk-%s", "grep -c 'sk-a'", "--auto"):
+            self.assertIn(needle, text)
+        self.assertNotIn("sk-aaaaaaaaaaaaaaaaaaaa", text.replace("sk-%s\\n' aaaa", ""))  # no complete key
+        self.assertRegex(text, r"permission log is complete for OpenCode only.*#36.*V2 plugin API.*OpenCode 2\.x.*2\.2\.5.*not compatible with 1\.x")
 
 
 class GitIgnoreBehaviourTest(KitTestCase):
