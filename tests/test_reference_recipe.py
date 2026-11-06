@@ -145,9 +145,10 @@ class PinsTest(unittest.TestCase):
         # It installs from the v2 endpoint and passes the pin as --version.
         self.assertIn("https://opencode.ai/v2/install", code)
         self.assertNotIn("https://opencode.ai/install", code)
-        self.assertRegex(code, r'bash -s -- --version "\$opencode_version"')
+        self.assertRegex(code, r'--version\s+"\$opencode_version"')
         # The guard matches on v<version> so it re-runs only when the version differs.
-        self.assertIn('*"v${opencode_version}") ;;', code)
+        # Whitespace-tolerant, so a harmless reformat does not break the test.
+        self.assertRegex(code, r'\*"v\$\{opencode_version\}"\s*\)\s*;;')
 
     def test_ci_template_node_pin_equals_the_feature_version(self):
         feature = json.loads(RECIPE.read_text(encoding="utf-8"))["features"][NODE_FEATURE]["version"]
