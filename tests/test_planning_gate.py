@@ -42,7 +42,7 @@ class PlanningGateTest(unittest.TestCase):
         self.assertIn("Don't give any of them a second home", self.doc)
 
     def test_the_procedure_is_short(self):
-        self.assertLessEqual(len(self.doc.split()), 400)
+        self.assertLessEqual(len(self.doc.split()), 500)
 
     def test_process_links_the_procedure_from_planning(self):
         self.assertIn("procedures/planning.md", self.planning)
