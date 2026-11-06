@@ -20,6 +20,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from fake_gh_rest import FAKE_GH
+
 REPO = Path(__file__).resolve().parent.parent
 KIT = REPO / "agent-kit"
 SCRIPT = KIT / "scripts" / "sweep-due.py"
@@ -27,31 +29,28 @@ SWEEP_MD = KIT / "procedures" / "sweep.md"
 SCRATCH = REPO / ".scratch"
 
 sys.dont_write_bytecode = True
+sys.path.insert(0, str(KIT / "scripts"))
+import github_api  # noqa: E402
+
+GH_REPO = github_api.conf_repo(str(REPO / "agent-kit.conf"))  # the repository the script names
 _spec = importlib.util.spec_from_file_location("sweep_due", SCRIPT)
 sweep_due = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(sweep_due)
 N = sweep_due.SWEEP_EVERY_N
 
-FAKE_GH = """\
-#!/usr/bin/env python3
-import os, sys
-here = os.path.dirname(os.path.abspath(__file__))
-with open(os.path.join(here, "calls.log"), "a") as log:
-    log.write(" ".join(sys.argv[1:]) + "\\n")
-fail = os.path.join(here, "fail")
-if os.path.exists(fail) and open(fail).read() != "with output":
-    sys.exit(1)
-with open(os.path.join(here, "issues.json"), "rb") as f:
-    sys.stdout.buffer.write(f.read())
-if os.path.exists(fail):
-    sys.exit(1)
-"""
-
 CUTOFF_NAME = "2026-10-31T0642Z-measure-pm-sweep.md"
 
 
 def closed(count, at="2026-11-01T10:00:00Z"):
+    """Closed issues in the shape `gh issue list --json number,closedAt` printed (see rest_item)."""
     return [{"number": i + 1, "closedAt": at} for i in range(count)]
+
+
+def rest_item(item):
+    """The same issue as GitHub's REST API returns it."""
+    if not isinstance(item, dict):
+        return item
+    return {("closed_at" if key == "closedAt" else key): value for key, value in item.items()}
 
 
 class Base(unittest.TestCase):
@@ -72,14 +71,22 @@ class Base(unittest.TestCase):
             (self.measure / name).write_text("entry\n")
 
     def gh_reply(self, value, fail=False, with_output=False):
+        if isinstance(value, list):
+            value = [rest_item(item) for item in value]
         data = value if isinstance(value, str) else json.dumps(value)
-        (self.bin / "issues.json").write_bytes(data.encode("utf-8"))
-        if fail or with_output:
-            (self.bin / "fail").write_text("with output" if with_output else "")
+        if fail:
+            entry = {"exit": 1}
+        elif with_output:
+            entry = {"stdout": data, "exit": 1}
+        elif isinstance(value, list):
+            entry = {"list": value}
+        else:
+            entry = {"stdout": data}
+        (self.bin / "config.json").write_text(json.dumps({"issues_list": entry}), encoding="utf-8")
 
     def calls(self):
         log = self.bin / "calls.log"
-        return log.read_text().splitlines() if log.exists() else []
+        return [" ".join(json.loads(x)) for x in log.read_text().splitlines()] if log.exists() else []
 
     def env(self):
         env = {k: v for k, v in os.environ.items() if k not in ("MAKEFLAGS", "MFLAGS", "MAKELEVEL")}
@@ -138,6 +145,20 @@ class DueTest(Base):
         self.gh_reply(closed(N, "2026-10-31T06:41:59Z") + closed(1, "2026-10-31T06:42:00Z"))
         self.assertEqual(self.run_script().stdout, "not due: 1 closed since 2026-10-31\n")
 
+    def test_pull_requests_in_the_issues_list_are_not_counted(self):
+        # GitHub's issues list also holds pull requests; `gh issue list` never did.
+        self.entries(CUTOFF_NAME)
+        items = closed(3) + [dict(item, pull_request={"url": "x"}) for item in closed(4)]
+        self.gh_reply(items)
+        self.assertEqual(self.run_script().stdout, "not due: 3 closed since 2026-10-31\n")
+
+    def test_every_page_is_counted(self):
+        self.entries(CUTOFF_NAME)
+        self.gh_reply(closed(250))
+        done = self.run_script()
+        self.assertEqual(done.stdout, "due: 250 closed since 2026-10-31\n")
+        self.assertEqual([c.rsplit("&page=", 1)[1] for c in self.calls()], ["1", "2", "3"])
+
     def test_newest_entry_sets_cutoff(self):
         self.entries("2026-10-01T0000Z-measure-pm-sweep.md", "2026-10-31T0642Z-measure-pm-sweep.md",
                      "2026-10-20T0000Z-measure-pm-sweep.md")
@@ -155,8 +176,8 @@ class DueTest(Base):
         self.gh_reply(closed(1))
         before = sorted(p.name for p in self.measure.iterdir())
         self.run_script()
-        self.assertEqual(len(self.calls()), 1)
-        self.assertTrue(self.calls()[0].startswith("issue list --state closed"))
+        self.assertEqual(self.calls(), [f"api repos/{GH_REPO}/issues?state=closed"
+                                        "&since=2026-10-31T06:42:00Z&per_page=100&page=1"])
         self.assertEqual(sorted(p.name for p in self.measure.iterdir()), before)
 
 

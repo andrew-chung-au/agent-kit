@@ -14,37 +14,33 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 import unittest
 from pathlib import Path
 
+from fake_gh_rest import FAKE_GH, rest_config
 from kit_repo import build_env, new_workdir
 
 REPO = Path(__file__).resolve().parent.parent
 KIT = REPO / "agent-kit"
+sys.path.insert(0, str(KIT / "scripts"))
+import github_api  # noqa: E402
+
+GH_REPO = github_api.conf_repo(str(REPO / "agent-kit.conf"))  # the repository the scripts name
 SCRIPT = KIT / "scripts" / "issue-close.sh"
 
 OWNER = "the-owner"
 OTHER = "someone-else"
 
-FAKE_GH = """\
-#!/usr/bin/env python3
-import json, os, sys
-here = os.path.dirname(os.path.abspath(__file__))
-args = sys.argv[1:]
-with open(os.path.join(here, "calls.log"), "a") as log:
-    log.write(json.dumps(args) + "\\n")
-config = json.load(open(os.path.join(here, "config.json")))
-kind = {("issue", "view"): "issue_view", ("repo", "view"): "repo_view",
-        ("issue", "close"): "close"}.get(tuple(args[:2]), "other")
-entry = config.get(kind, {})
-sys.stdout.write(entry.get("stdout", ""))
-sys.exit(entry.get("exit", 0))
-"""
-
 HEX_QA = "abc1234"
 HEX_MERGE = "def5678"
 
 # Timestamps increase with the number, so tests can order comments.
+def close_call(number: int, reason: str) -> list:
+    return ["api", f"repos/{GH_REPO}/issues/{number}", "--method", "PATCH", "-f", "state=closed",
+            "-f", f"state_reason={reason}"]
+
+
 def at(n: int) -> str:
     return f"2026-11-03T10:{n:02d}:00Z"
 
@@ -102,9 +98,9 @@ class CloseBase(unittest.TestCase):
         self.config()
 
     def config(self, view=None, **overrides):
-        config = {"issue_view": {"stdout": view if view is not None else issue(STANDARD)},
-                  "repo_view": {"stdout": json.dumps({"owner": {"login": OWNER}})},
-                  "close": {"stdout": "closed\n"}}
+        config = rest_config(view if view is not None else issue(STANDARD))
+        config.update({"repo_view": {"stdout": json.dumps({"owner": {"login": OWNER}})},
+                       "close": {"stdout": "{}"}})
         config.update(overrides)
         (self.ghdir / "config.json").write_text(json.dumps(config), encoding="utf-8")
         (self.ghdir / "calls.log").unlink(missing_ok=True)
@@ -114,7 +110,7 @@ class CloseBase(unittest.TestCase):
         return [json.loads(x) for x in log.read_text(encoding="utf-8").splitlines()] if log.exists() else []
 
     def closes(self):
-        return [c for c in self.calls() if c[:2] == ["issue", "close"]]
+        return [c for c in self.calls() if "--method" in c and c[c.index("--method") + 1] == "PATCH"]
 
     def run_script(self, *args, env=None):
         return subprocess.run(["bash", str(SCRIPT), *args], cwd=str(REPO), env=env or self.env,
@@ -145,9 +141,10 @@ class SuccessTest(CloseBase):
         done = self.close_ok(STANDARD)
         self.assertEqual(done.stdout, "issue-close: closed issue 7 (completed)\n")
         self.assertEqual(self.calls(), [
-            ["issue", "view", "7", "--json", "state,labels,author,comments"],
-            ["repo", "view", "--json", "owner"],
-            ["issue", "close", "7", "--reason", "completed"]])
+            ["api", f"repos/{GH_REPO}/issues/7"],
+            ["api", f"repos/{GH_REPO}/issues/7/comments?per_page=100&page=1"],
+            ["api", f"repos/{GH_REPO}"],
+            close_call(7, "completed")])
 
     def test_heavy(self):
         self.close_ok(HEAVY, labels=("approved", "tier:heavy"))
@@ -155,12 +152,12 @@ class SuccessTest(CloseBase):
 
     def test_light(self):
         self.close_ok(LIGHT, labels=("approved", "tier:light"))
-        self.assertEqual(self.closes(), [["issue", "close", "7", "--reason", "completed"]])
+        self.assertEqual(self.closes(), [close_call(7, "completed")])
 
     def test_not_planned_needs_no_label(self):
         done = self.close_ok(NOT_PLANNED, labels=(), reason="not-planned")
         self.assertEqual(done.stdout, "issue-close: closed issue 7 (not-planned)\n")
-        self.assertEqual(self.closes(), [["issue", "close", "7", "--reason", "not planned"]])
+        self.assertEqual(self.closes(), [close_call(7, "not_planned")])
 
     def test_explicit_completed_reason(self):
         self.close_ok(STANDARD, reason="completed")
@@ -227,19 +224,32 @@ class FailClosedTest(CloseBase):
         self.assert_refused(self.run_script("7"), "cannot read the repository owner")
 
     def test_empty_and_malformed_output(self):
-        for text in ("", "not json", "[]", "null", "{}", '{"state": "OPEN"}'):
+        # Not a JSON object: the REST read itself fails. An object without the fields: the check cannot tell.
+        for text in ("", "not json", "[]", "null", "{}", '{"state": "open"}'):
             with self.subTest(text=text):
                 self.config(view=text)
-                self.assert_refused(self.run_script("7"), "cannot tell whether issue 7 may be closed")
+                fragment = ("cannot tell whether issue 7 may be closed" if text.startswith("{")
+                            else "cannot read issue 7")
+                self.assert_refused(self.run_script("7"), fragment)
 
     def test_missing_fields(self):
         base = json.loads(issue(STANDARD))
-        for field in ("state", "labels", "author", "comments"):
+        for field in ("state", "labels", "author"):
             with self.subTest(field=field):
                 broken = dict(base)
                 del broken[field]
                 self.config(view=json.dumps(broken))
                 self.assert_refused(self.run_script("7"), "cannot tell")
+
+    def test_the_comments_cannot_be_read(self):
+        # With `gh issue view` the comments were a field of the issue; over the REST API they are
+        # a separate read, and a failed or malformed one refuses the close the same way.
+        for name, comments in (("fails", {"exit": 1}), ("prints nothing", {"stdout": ""}),
+                               ("not json", {"stdout": "oops"}), ("an object", {"stdout": "{}"}),
+                               ("a comment is text", {"stdout": '["x"]'})):
+            with self.subTest(name=name):
+                self.config(comments=comments)
+                self.assert_refused(self.run_script("7"), "cannot read issue 7")
 
     def test_malformed_comment_entry(self):
         self.config(view=issue([{"body": "QA: PASS"}]))
@@ -410,6 +420,46 @@ class RefusalTest(CloseBase):
         self.close_ok(NOT_PLANNED, labels=("approved",), reason="not-planned")
 
 
+class PaginationTest(CloseBase):
+    """GitHub returns 100 comments at most per page: every page is read before the checks."""
+
+    @staticmethod
+    def filler(count):
+        return [comment(f"Note {i}", 0) for i in range(count)]
+
+    def comment_pages(self):
+        return [c[1].rsplit("&page=", 1)[1] for c in self.calls() if "/comments?" in c[1]]
+
+    def test_evidence_after_the_first_page_counts(self):
+        # 253 comments: the Engineer, QA and Close comments are all on page 3.
+        self.config(view=issue(self.filler(250) + [engineer(1), qa_pass(2), close_comment(3)]))
+        done = self.run_script("7")
+        self.assertEqual((done.returncode, done.stderr), (0, ""))
+        self.assertEqual(self.comment_pages(), ["1", "2", "3"])
+        self.assertEqual(len(self.closes()), 1)
+
+    def test_a_fail_on_the_last_page_still_refuses(self):
+        self.config(view=issue([engineer(1), qa_pass(2)] + self.filler(198) + [qa_fail(3), close_comment(4)]))
+        self.assert_refused(self.run_script("7"), "the latest owner QA verdict is FAIL")
+        self.assertEqual(self.comment_pages(), ["1", "2", "3"])
+
+    def test_a_page_that_cannot_be_read_refuses(self):
+        # The second page fails: the script must not decide from the first page alone.
+        self.config(view=issue(self.filler(150) + STANDARD))
+        gh = self.ghdir / "gh"
+        gh.write_text(gh.read_text(encoding="utf-8").replace(
+            "entry = config.get(kind, {})",
+            'entry = config.get(kind, {})\nif query.get("page") == "2" and kind == "comments":\n    sys.exit(1)'),
+            encoding="utf-8")
+        self.assert_refused(self.run_script("7"), "cannot read issue 7")
+
+    def test_exactly_one_page_of_comments_reads_a_second_empty_page(self):
+        self.config(view=issue(self.filler(97) + STANDARD))
+        done = self.run_script("7")
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertEqual(self.comment_pages(), ["1", "2"])
+
+
 class StaticTest(unittest.TestCase):
     def code(self):
         text = SCRIPT.read_text(encoding="utf-8")
@@ -422,14 +472,12 @@ class StaticTest(unittest.TestCase):
             for match in re.finditer(r"\bgh (issue|repo|api|label|pr|auth|run)\b[^)>|]*", line):
                 found.append(re.sub(r"\s+2\s*$", "", match.group(0).strip()))
         self.assertEqual(sorted(found), sorted([
-            'gh issue view "$number" --json state,labels,author,comments',
-            "gh repo view --json owner",
-            'gh issue close "$number" --reason "not planned"',
-            'gh issue close "$number" --reason completed']))
+            'gh api "repos/$REPO/issues/$number" --method PATCH -f state=closed -f state_reason=not_planned',
+            'gh api "repos/$REPO/issues/$number" --method PATCH -f state=closed -f state_reason=completed']))
 
     def test_nothing_else_is_written(self):
         text = "\n".join(self.code())
-        for word in ("--label", "--add-label", "gh api", "issue edit", "issue reopen", "issue delete",
+        for word in ("--label", "--add-label", "issue edit", "issue reopen", "issue delete",
                      "issue comment", "--body", "eval ", "xargs"):
             self.assertNotIn(word, text)
 
@@ -451,13 +499,13 @@ class MakeTargetTest(CloseBase):
     def test_runs_the_script(self):
         done = self.make("issue-close", "N=7")
         self.assertEqual((done.returncode, done.stdout), (0, "issue-close: closed issue 7 (completed)\n"), done.stderr)
-        self.assertEqual(self.closes(), [["issue", "close", "7", "--reason", "completed"]])
+        self.assertEqual(self.closes(), [close_call(7, "completed")])
 
     def test_not_planned_reason(self):
         self.config(view=issue(NOT_PLANNED, labels=()))
         done = self.make("issue-close", "N=7", "REASON=not-planned")
         self.assertEqual(done.returncode, 0, done.stderr)
-        self.assertEqual(self.closes(), [["issue", "close", "7", "--reason", "not planned"]])
+        self.assertEqual(self.closes(), [close_call(7, "not_planned")])
 
     def test_bad_values_are_refused_before_any_shell_or_gh(self):
         for args in (["N=0123"], ["N=12 34"], ["N=1;x"], ["N=$(x)"], ["N=1234567890"], [],

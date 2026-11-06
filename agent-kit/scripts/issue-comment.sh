@@ -13,13 +13,16 @@
 # fails closed: if gh is missing, fails, prints nothing or malformed JSON, or a
 # field is missing, it refuses and posts nothing.
 #
-# The only gh calls it makes are these three shapes:
-#     gh issue view <N> --json labels,author
-#     gh repo view --json owner
-#     gh issue comment <N> --body-file -
-# (the last is the only write). No label, edit, close, reopen, delete or API call.
-# The gh arguments are fixed; FILE's text only goes to the scanner and to gh on
-# standard input, never to a shell. The bytes scanned are the bytes posted.
+# The repository is the GITHUB_REPO line of agent-kit.conf (github_api.py validates
+# it), and the REST API is used because `gh issue` cannot find the repository from the
+# git remote everywhere (Kiro Web). The only gh calls it makes are these three shapes:
+#     gh api repos/<repo>/issues/<N>
+#     gh api repos/<repo>
+#     gh api repos/<repo>/issues/<N>/comments --method POST -F body=@-
+# (the last is the only write; the first two are made by github_api.py). No label,
+# edit, close, reopen or delete call. The gh arguments are fixed; FILE's text only goes
+# to the scanner and to gh on standard input, never to a shell. The bytes scanned are
+# the bytes posted.
 #
 # Exit codes: 0 posted; 1 gh failed or printed no URL after the target check (no
 # retry); 2 bad N, FILE or prefix (no gh command ran); 3 the secret scan refused
@@ -52,8 +55,9 @@ scan_content "$file"
 
 # Target-issue rule. Every failure to find out is a refusal.
 command -v gh > /dev/null 2>&1 || die 4 "cannot check issue $number: gh was not found; nothing was posted"
-issue_json=$(gh issue view "$number" --json labels,author 2> /dev/null) || die 4 "cannot read issue $number with gh; nothing was posted"
-repo_json=$(gh repo view --json owner 2> /dev/null) || die 4 "cannot read the repository owner with gh; nothing was posted"
+github_repo || die 4 "cannot check issue $number: no valid GITHUB_REPO=\"<owner>/<name>\" line in agent-kit.conf; nothing was posted"
+issue_json=$(python3 -B "$here/github_api.py" head "$REPO" "$number" 2> /dev/null) || die 4 "cannot read issue $number with gh; nothing was posted"
+repo_json=$(python3 -B "$here/github_api.py" owner "$REPO" 2> /dev/null) || die 4 "cannot read the repository owner with gh; nothing was posted"
 python3 -B -c '
 import json, sys
 # Exit 0: the issue is "approved" or owner-authored. 1: readable but neither. 2: unreadable.
@@ -78,7 +82,7 @@ case "$?" in
   *) die 4 "cannot tell whether issue $number is approved or owner-authored; nothing was posted" ;;
 esac
 
-out=$(gh issue comment "$number" --body-file - 2> /dev/null < <(printf '%s' "$CONTENT"))
+out=$(gh api "repos/$REPO/issues/$number/comments" --method POST -F body=@- 2> /dev/null < <(printf '%s' "$CONTENT"))
 code=$?
 [ "$code" -eq 0 ] || die 1 "gh issue comment failed (exit $code); nothing was retried, so check GitHub before posting again"
 print_url "$out"
