@@ -9,7 +9,7 @@ Issue #159 (Heavy). The human approved this record in a comment on #159 (body sh
   - Put the checklist in `pm.md` as well or instead: rejected, `planning.md` is the procedure's home and two copies drift.
   - Say nothing more and trust the PM: rejected, that is the gap.
 - **Trade-offs:**
-  - `planning.md` grows; its word ceiling in `tests/test_planning_gate.py` stays at 400 and the existing text was trimmed to fit, not the ceiling raised. The checklist items are plain bullets, not checkboxes, to stay under it.
+  - `planning.md` grows; its word ceiling in `tests/test_planning_gate.py` stays at 400 and the existing text is trimmed to fit, not the ceiling raised.
   - A checklist can be ticked without care, as with the readiness gate; the human reading the groomed issue is the control.
   - "One intent" is a judgement, not a script.
 - **Evidence:** #159 and #156; `_docs/records/2026-11-06T0330Z-measure-spec-driven-frameworks.md`.

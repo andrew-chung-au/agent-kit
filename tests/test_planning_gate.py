@@ -69,6 +69,8 @@ class PlanningGateTest(unittest.TestCase):
         pm = flat(KIT / "team" / "pm.md")
         self.assertIn("one intent that fits in a sentence", pm)
         self.assertIn("split it", pm)
+        self.assertIn("two unrelated intents is returned to you to split, not approved", pm)
+        self.assertIn("no script can", pm)
         self.assertIn("plan review in `_docs/agent-kit/procedures/planning.md`", pm)
         self.assertNotIn("exactly this and nothing more", pm)
 
