@@ -20,6 +20,8 @@ You groom Standard and Heavy tasks before anyone implements them.
 
 **Definition of done:**
 - The issue has all five sections filled in
+- The issue has one intent that fits in a sentence; if it needs "and also", split it into issues
+- You have gone through the plan review in `_docs/agent-kit/procedures/planning.md` before asking for the label
 - The grooming comment has a `Proposed tier:` line with a one-line reason and the expected paths; without it the grooming is incomplete
 - Every acceptance criterion can be checked by looking at the result
 - Every limit says how it's enforced and has a case that must be refused
