@@ -80,6 +80,16 @@ With `AGENT_PUSH_CHECK_PLAN=1` the push check prints what it would check, runs n
 - **Open the clean clone in VS Code's Restricted Mode,** and don't let direnv or mise load settings there. `.vscode/tasks.json`, `.envrc` and `mise.toml` can run commands when a folder opens. The pre-commit hook asks for approval when an agent changes `.vscode/`, `.envrc` or `.gitmodules` at the repo root, but your review is what catches them.
 - **One Claude login volume per repo is safer.** The reference recipe shares one `claude-config` volume across all sandboxes, so an agent in one sandbox could change Claude settings that every other sandbox uses. Naming the volume `claude-config-${devcontainerId}` gives each repo its own; you then log in once per repo.
 - **Docker isn't available in the container.** A project whose checks need Docker can't run them there, and running them from Ubuntu would run agent code outside the sandbox. Either put that project in a codespace, or give it a Compose-based container recipe, so its services run as separate containers that the agent can reach but can't control (see "The Compose variant" below).
+- **Reopening fails with a `vscode-wayland` mount error (WSL 2 + Docker Desktop).** `docker start` fails before any build with `error mounting ... /tmp/vscode-wayland-<id>.sock ... no such file or directory`. Dev Containers baked a mount of the Wayland socket into the container, and that socket no longer exists (WSLg isn't running, or WSL restarted), so every reopen fails. This is VS Code and Docker Desktop behaviour, not a recipe defect, so the recipe is unchanged. Check, then fix, in the WSL shell:
+
+  ```
+  ls -l /run/user/$(id -u)/wayland-0              # "No such file or directory" confirms it
+  unset WAYLAND_DISPLAY && code --quit
+  docker ps -a --filter label=devcontainer.local_folder --format '{{.ID}}  {{.Label "devcontainer.local_folder"}}'
+  docker rm -f <ID>                               # the ID whose folder ends in <repo>-sandbox
+  ```
+
+  Docker names the container itself, so find it by the folder label rather than by name. Remove only the dev container, not a Compose service such as `db`. Nothing of yours is lost: the repo is a bind mount and the named volumes (the Claude login, and a Compose project's database volume) are separate and unaffected. Only tool installs inside the container go, and `setup.sh` reinstalls them when you reopen the sandbox. To stop it recurring, add `unset WAYLAND_DISPLAY` to `~/.bashrc`, or turn off `Dev > Containers: Mount Wayland Socket` where your VS Code version offers it; undo by removing the line or turning the setting back on. First reported 2026-11-05 (Docker Desktop 29.8.2, Dev Containers 0.469.0).
 
 ### The Compose variant (an app plus a database)
 
