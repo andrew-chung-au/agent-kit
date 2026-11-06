@@ -24,6 +24,8 @@ entry, for files installed outside the kit folder:
     local, ignored <install>   it differs only where the map allows (markers or a prefix)
     drift <install>       it differs outside what the map allows
     missing <install>     the install path is a `repo` entry with no file there
+    not installed (optional) <install>   an `optional` entry (a tool layer's file) with no file
+                          there: the project does not use it; not a failure
     not checked here (human compares from the clean clone) <install>   a human-machine
                           entry, whose install path the tool never opens
 These lines come from the one shared driver kit_map.scan_installed: this script holds no
