@@ -96,7 +96,7 @@ class IntakeFormTest(unittest.TestCase):
 
     def test_groomed_sections_are_read(self):
         self.assertEqual(
-            self.groomed, ["Why", "Goal", "Acceptance criteria", "Out of scope", "Constraints"]
+            self.groomed, ["Why", "Goal", "Acceptance criteria", "Out of scope", "Design", "Constraints"]
         )
 
     def test_form_passes(self):

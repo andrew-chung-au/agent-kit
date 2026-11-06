@@ -10,7 +10,7 @@ TEMPLATE = (
     / "templates"
     / "task-template.md"
 )
-EXPECTED = ["Why", "Goal", "Acceptance criteria", "Out of scope", "Constraints"]
+EXPECTED = ["Why", "Goal", "Acceptance criteria", "Out of scope", "Design", "Constraints"]
 
 
 def headings(text: str) -> list[str]:
@@ -25,10 +25,27 @@ class TaskTemplateTest(unittest.TestCase):
         self.assertNotEqual(headings("## Goal\n\n## Constraints\n"), EXPECTED)
 
     def test_why_below_goal_is_refused(self):
-        moved = ["Goal", "Why", "Acceptance criteria", "Out of scope", "Constraints"]
+        moved = ["Goal", "Why", "Acceptance criteria", "Out of scope", "Design", "Constraints"]
         self.assertNotEqual(moved, EXPECTED)
         text = "".join(f"## {h}\n\n" for h in moved)
         self.assertNotEqual(headings(text), EXPECTED)
+
+    def test_design_is_optional_between_out_of_scope_and_constraints(self):
+        """Issue #160."""
+        text = " ".join(TEMPLATE.read_text(encoding="utf-8").split())
+        section = text[text.index("## Design"):text.index("## Constraints")]
+        for needle in ("Optional", "real design choice", "one line of reason", "linking to an ADR",
+                       "None", "Light issue", "typo fix", "also needs a `## Decision record`",
+                       "alone does not satisfy that gate"):
+            self.assertIn(needle, section, needle)
+
+    def test_the_pm_role_file_explains_when_and_links_to_tiers(self):
+        pm = " ".join((TEMPLATE.parent.parent / "team" / "pm.md").read_text(encoding="utf-8").split())
+        for needle in ("**Design section:**", "optional", "real design choice", "Heavy rule",
+                       "`## Decision record`", "process.md` (Tiers)", "link to the record instead of copying it"):
+            self.assertIn(needle, pm, needle)
+        # The Tiers row is linked, not paraphrased.
+        self.assertNotIn("security boundary", pm.split("**Design section:**")[1].split("If something does not belong")[0])
 
 
 if __name__ == "__main__":

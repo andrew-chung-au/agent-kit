@@ -14,6 +14,10 @@ One or two sentences on what should be true when this is done.
 ## Out of scope
 - Something that does not belong in this task, moved to #TASK-NUMBER
 
+## Design
+
+Optional. Fill this in only when the issue makes a real design choice: the choice and one line of reason, linking to an ADR if one exists instead of copying it. "None" is the normal answer, and a Light issue or a typo fix leaves the section out. A Heavy issue's choice also needs a `## Decision record`; this section alone does not satisfy that gate.
+
 ## Constraints
 - Files this should stay inside
 - Libraries to use
