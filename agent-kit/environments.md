@@ -28,7 +28,18 @@ The codespace's own token can push to the repo, so nothing technical stops an ag
 
 ## Local sandbox
 
-The agent works in a dev container with a GitHub token that can't push, in its own clone of the repo. You review its commits from a second, clean clone that is never opened in the container, and push from there. The guide that sets this up lives outside the kit. The kit supplies reference copies of its files in `environments/local-sandbox/`:
+The agent works in a dev container with a GitHub token that can't push, in its own clone of the repo. You review its commits from a second, clean clone that is never opened in the container, and push from there. The guide that sets this up lives outside the kit.
+
+One script does the local part of the setup for you. Run it on your machine from a plain folder (one that is not inside any git work tree, for example `~/projects`), using a clean clone of the kit:
+
+```
+cd ~/projects
+bash ~/projects/agent-kit/agent-kit/scripts/bootstrap-project.sh https://github.com/<you>/<your-repo>.git
+```
+
+It creates `<repo>` and `<repo>-sandbox` side by side in that folder, adds the `sandbox` remote, installs the push check to `~/.agent-hooks/pre-push` and the clean clone's `.git/hooks/pre-push` (unsetting `core.hooksPath` first if it is set), and copies the kit to `_docs/agent-kit/`, `devcontainer.json` and `setup.sh` to `.devcontainer/`, and the CI template to `.github/workflows/verify.yml`. A sandbox is an ordinary clone with no marker of its own, so the script refuses to run anywhere inside a git work tree, which covers every sandbox and clean clone. It also refuses a kit that is not a git clone, has uncommitted changes, or whose `HEAD` is on no reviewed remote branch, so neither an agent's unsaved edits nor its committed but unpushed sandbox commits are copied. Branches of the `sandbox` remote never count, because `git fetch sandbox` is the review flow and brings unreviewed agent commits into the clean clone; nor does any remote whose URL is a local working clone (a folder with a `.git` inside), whatever its name. The check reads the refs from your last fetch: if your own clean clone is refused, check out the reviewed commit (for example `origin/main`), or run `git fetch` in it and retry. It can't tell a pushed but unreviewed commit from a reviewed one; your review before pushing is that gate. Only the kit's git-tracked files are copied, so an ignored file in the kit clone (a stray `.env`, caches) never lands in the project. A non-git folder that already has the clean or sandbox name is refused before anything is cloned. It prints each file it writes and stops at local files: it never pushes, and it leaves the git identity in `setup.sh` as a placeholder for you to fill in. A re-run changes nothing, and files you edited since (the identity in `setup.sh`, the CI placeholders, the copied kit) are kept, with a `kept` line and a diff hint; `--force` replaces them. The push check is always brought back in step with the kit. It is not a make target: at bootstrap time there is no Makefile, and `make` in a clean clone is forbidden. The rest of this section is what it does and why; to set a repo up by hand, do these steps yourself, always from a clean clone.
+
+The kit supplies reference copies of its files in `environments/local-sandbox/`:
 
 | File | Installed as | Notes |
 |---|---|---|

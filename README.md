@@ -64,13 +64,25 @@ There is no tagged release or release zip yet (issue #9 tracks it), so installin
 
 ### Path 2: kit plus dev container
 
-This is the local sandbox profile: the agent works in a container with a token that cannot push, and you review and push from a separate clean clone. Do steps 1 and 2 of path 1 first, then:
+This is the local sandbox profile: the agent works in a container with a token that cannot push, and you review and push from a separate clean clone.
 
-1. From your clone of this repository (a clean clone, never a sandbox), copy `agent-kit/environments/local-sandbox/devcontainer.json` and `setup.sh` into your project's `.devcontainer/`, and `agent-kit/templates/ci-verify.yml.template` to `.github/workflows/verify.yml`. Put your git name and noreply email in `setup.sh`.
-2. Open only the project's `<repo>-sandbox` folder in the container. The first build runs `make hooks` there. Commit the `.devcontainer/devcontainer-lock.json` that the first rebuild creates.
-3. On your own machine, copy `agent-kit/environments/local-sandbox/pre-push` to `~/.agent-hooks/pre-push` and into each clean clone's `.git/hooks/pre-push`, and make it executable. This is the push check.
+One script does the local setup for you. Clone this repository into a plain folder on your machine (one that is not inside any git work tree), then run the script from that folder:
+
+```
+cd ~/projects
+git clone <this repository's URL> agent-kit
+bash ~/projects/agent-kit/agent-kit/scripts/bootstrap-project.sh <your repository's URL>
+```
+
+It creates `<repo>` (the clean clone) and `<repo>-sandbox` in the current folder, adds the `sandbox` remote, installs the push check to `~/.agent-hooks/pre-push` and the clean clone's `.git/hooks/pre-push`, and copies the kit to `_docs/agent-kit/`, the recipe to `.devcontainer/` and the CI template to `.github/workflows/verify.yml`. It refuses to run inside any git work tree (a sandbox is one) and refuses a kit with uncommitted changes or a commit that is on no reviewed remote branch (the `sandbox` remote doesn't count), so unreviewed agent commits are never copied (`--kit <folder>` picks another kit clone; if yours is refused, `git fetch` in it and retry). It copies only the kit's git-tracked files. Re-running changes nothing: files you edited are kept, and `--force` replaces them. It stops at local files: it never pushes. Then:
+
+1. Put your git name and noreply email in `.devcontainer/setup.sh`, and resolve the CI template's placeholders (for a standalone repo, delete the two `paths:` filters and set `working-directory` to `.`).
+2. Run step 2 of path 1 (`"Set up this project using _docs/agent-kit/setup.md."`), then review, commit and push from the clean clone.
+3. Open only the project's `<repo>-sandbox` folder in the container. The first build runs `make hooks` there. Commit the `.devcontainer/devcontainer-lock.json` that the first rebuild creates.
 4. Optional: if your project's install step needs Node or uv, build the push-check image from `agent-kit/environments/local-sandbox/push-check.Dockerfile` and set `AGENT_PUSH_CHECK_IMAGE` to it. Without it the push check uses `python:3.12`. Run `AGENT_PUSH_CHECK_PLAN=1 git push` first to see what it would check.
 5. If your checks need a database, use the Compose variant in `agent-kit/environments/local-sandbox/compose/`: copy its three files into `.devcontainer/`, next to the standard `setup.sh`.
+
+To do the local setup by hand instead, the script's steps are: copy `agent-kit/environments/local-sandbox/devcontainer.json` and `setup.sh` into `.devcontainer/`, `agent-kit/templates/ci-verify.yml.template` to `.github/workflows/verify.yml`, and `agent-kit/environments/local-sandbox/pre-push` to `~/.agent-hooks/pre-push` and each clean clone's `.git/hooks/pre-push` (executable) — all from a clean clone, never a sandbox.
 
 Never run `make` in the clean clone. The reasons, the sandbox token and the exact commands are in [agent-kit/environments.md](agent-kit/environments.md#local-sandbox); the image is described under [the push-check image](agent-kit/environments.md#the-push-check-image). The steps for path 1 are written out in [agent-kit/README.md](agent-kit/README.md#adding-the-kit-to-a-project-folder); that document stays the reference.
 
