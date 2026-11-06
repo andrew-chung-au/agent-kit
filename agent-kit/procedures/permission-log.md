@@ -7,7 +7,7 @@ The record format for permission requests an agent tool asks the human to approv
 ```json
 {"event":"ask","tool":"opencode","time":"2026-11-03T09:15:02.114Z","sessionID":"ses_1","id":"per_1","type":"shell","pattern":"git push *","source":"permission.asked"}
 {"event":"reply","tool":"opencode","time":"2026-11-03T09:15:09.870Z","sessionID":"ses_1","id":"per_1","response":"once","source":"permission.replied"}
-{"event":"unknown","tool":"opencode","time":"2026-11-03T09:16:00.002Z","source":"permission.v2.asked"}
+{"event":"unknown","tool":"claude-code","time":"2026-11-03T09:16:00.002Z","source":"unparsed"}
 {"event":"truncated","tool":"opencode","time":"2026-11-03T23:59:58.500Z"}
 ```
 
@@ -15,10 +15,10 @@ The record format for permission requests an agent tool asks the human to approv
 
 **Limits:** secrets in `pattern` are replaced by `[redacted]` using `scripts/secret-patterns.txt`, then it is cut to 200 characters (a cut ends in `...`). If the patterns cannot be read it is `[redacted: no patterns]`. The first record that does not fit under 1048576 bytes ends that day's log: one `truncated` record is written, and every later record is dropped, even after a restart.
 
-**Never logged:** commands, titles, tool output, file contents, diffs. An unrecognised permission event becomes an `unknown` record with its name only; other events are ignored.
+**Never logged:** commands, titles, tool output, file contents, diffs. The Claude Code hook writes an `unknown` record (name only) for an unreadable event; the OpenCode plugin never does.
 
-**Tested against:** OpenCode 2.2.5 and its V2 plugin API (`@opencode/plugin`); not for OpenCode 1.x. V2 gives plugins no log sink, so a logging failure drops the record silently. Open: do subagent prompts appear (extra `sessionID` values)?
+**Tested against:** OpenCode 2.2.5 and its V2 plugin API (`@opencode/plugin`); not for OpenCode 1.x. V2 gives plugins no log sink, so a logging failure drops the record silently. If OpenCode's event stream ends, logging stops until OpenCode restarts (#166). Open: do subagent prompts appear (extra `sessionID` values)?
 
-**Hand check at each OpenCode upgrade:** the kit has no Node check. Follow the three steps in `opencode/START.md` (step 6): allow one command, reject one, run one holding a fake key. Pass: every prompt appears, decisions are unchanged, and no line holds the key.
+**Hand check at each OpenCode upgrade** (the kit has no Node check): the three steps and pass rule in `opencode/START.md` (step 6).
 
 **Result:** pending: `_human-tasks/2026-11-06T0305Z-human-task-155-engineer-opencode-2-permission-log-hand-check.md`.
