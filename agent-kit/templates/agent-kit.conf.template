@@ -8,6 +8,13 @@
 # Where the kit lives, relative to this folder.
 KIT_DIR="_docs/agent-kit"
 
+# The GitHub repository the kit's GitHub wrappers (the issue-* make targets and the sweep
+# check) talk to, as "<owner>/<name>". They use `gh api` with
+# this name, never the git remote, so they work where the remote is not github.com (Kiro
+# Web). Read as text, never sourced; exactly one line; protected, so an agent cannot retarget.
+# Without a valid value every wrapper refuses. Projects that don't use GitHub issues can omit it.
+GITHUB_REPO="<owner>/<name>"
+
 # The kit version this folder claims, checked by `make kit-check`: plain (1.9) for a
 # pristine kit, <base>+<repo>.<n> (1.9+myrepo.2) once its files are changed here.
 # KIT_VERSION=""

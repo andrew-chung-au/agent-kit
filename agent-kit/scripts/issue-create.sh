@@ -7,14 +7,17 @@
 # FILE's first line is `Title: <text>`, then one blank line, then the body.
 # On success it prints the new issue's URL and nothing else.
 #
-# This script can do ONE thing to GitHub: `gh issue create --title <t> --body-file -`.
-# It never adds a label, assignee, project or milestone, and never edits, closes
-# or deletes anything. The gh arguments are fixed; FILE's text only goes to the
-# scanner and to gh on standard input, never to a shell.
+# This script can do ONE thing to GitHub:
+#     gh api repos/<repo>/issues --method POST -f title=<t> -F body=@-
+# <repo> is the GITHUB_REPO line of agent-kit.conf (github_api.py validates it; the
+# REST API works where `gh issue` cannot find the repository, e.g. Kiro Web). It never
+# adds a label, assignee, project or milestone, and never edits, closes or deletes
+# anything. The gh arguments are fixed; FILE's text only goes to the scanner, to the
+# title field and to gh on standard input, never to a shell.
 #
-# Exit codes: 0 filed; 1 gh missing or failed, or printed no URL (no retry: a
-# retried create could file a duplicate); 2 bad FILE or title (no gh command
-# ran); 3 the secret scan refused (no gh command ran).
+# Exit codes: 0 filed; 1 gh missing or failed, no valid GITHUB_REPO, or gh printed no
+# URL (no retry: a retried create could file a duplicate); 2 bad FILE or title (no gh
+# command ran); 3 the secret scan refused (no gh command ran).
 # The bytes scanned are the bytes posted: FILE is read once (issue-text-lib.sh).
 set -u
 set -o pipefail
@@ -63,7 +66,8 @@ sys.stdout.write(text)
 scan_content "$file"
 
 command -v gh > /dev/null 2>&1 || die 1 "gh was not found; nothing was filed"
-out=$(gh issue create --title "$title" --body-file - 2> /dev/null < <(printf '%s' "$body"))
+github_repo || die 1 "no valid GITHUB_REPO=\"<owner>/<name>\" line in agent-kit.conf; nothing was filed"
+out=$(gh api "repos/$REPO/issues" --method POST -f "title=$title" -F body=@- 2> /dev/null < <(printf '%s' "$body"))
 code=$?
 [ "$code" -eq 0 ] || die 1 "gh issue create failed (exit $code); nothing was retried, so check GitHub before filing again"
 print_url "$out"

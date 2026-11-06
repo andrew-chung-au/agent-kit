@@ -6,9 +6,10 @@ Run through the make target, from the repo root:
 or directly:
     python3 -B agent-kit/scripts/issue-hash.py <issue number>
 
-It reads the issue with `gh issue view <N> --json body,author`, the owner
-with `gh repo view --json owner` and the comments with
-`gh issue view <N> --json comments`, and prints exactly five lines, in this order:
+It reads the issue (`gh api repos/<repo>/issues/<N>`), the owner (`gh api repos/<repo>`)
+and every page of the comments (`gh api "repos/<repo>/issues/<N>/comments?per_page=100&page=<P>"`),
+where <repo> is the GITHUB_REPO line of agent-kit.conf (github_api.py), and prints
+exactly five lines, in this order:
 
     Body sha256: <64 lowercase hex characters>
     Author: <login>
@@ -42,10 +43,12 @@ It only reads: it never posts, edits or creates anything. Standard library only.
 from __future__ import annotations
 
 import hashlib
-import json
+import os
 import re
-import subprocess
 import sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import github_api  # noqa: E402  (the repository and the gh api reads, shared with sweep-due.py)
 
 NUMBER = re.compile(r"[1-9][0-9]*")
 HASH_LINE = re.compile(r"Body sha256: ([0-9a-f]{64})")
@@ -55,24 +58,6 @@ UNKNOWN = "unknown"
 def body_digest(body: str) -> str:
     """sha256 of the body text exactly as received (UTF-8, nothing added or removed)."""
     return hashlib.sha256(body.encode("utf-8")).hexdigest()
-
-
-def run_gh(args):
-    """Run gh and return its parsed JSON, or raise ValueError with a short reason."""
-    try:
-        done = subprocess.run(["gh", *args], capture_output=True, text=True,
-                              encoding="utf-8", timeout=60)
-    except (OSError, subprocess.SubprocessError) as error:
-        raise ValueError(f"cannot run gh: {error}")
-    if done.returncode != 0:
-        raise ValueError(f"gh {' '.join(args[:2])} failed (exit {done.returncode})")
-    try:
-        data = json.loads(done.stdout)
-    except ValueError:
-        raise ValueError(f"gh {' '.join(args[:2])} returned malformed JSON")
-    if not isinstance(data, dict):
-        raise ValueError(f"gh {' '.join(args[:2])} returned unexpected JSON")
-    return data
 
 
 def text_field(value):
@@ -107,11 +92,12 @@ def recorded_hash(comments, owner):
     return found
 
 
-def read_recorded(number: str, owner, reasons):
+def read_recorded(repo, number: str, owner, reasons):
     """Return the recorded hash, 'none' or 'unknown'; a failed read adds a reason."""
     try:
-        data = run_gh(["issue", "view", number, "--json", "comments"])
-        comments = data.get("comments")
+        if repo is None:
+            return UNKNOWN
+        comments = github_api.comments(repo, number)
         if owner is None:
             return UNKNOWN
         return recorded_hash(comments, owner) or "none"
@@ -120,12 +106,14 @@ def read_recorded(number: str, owner, reasons):
         return UNKNOWN
 
 
-def read_issue(number: str):
+def read_issue(repo, number: str):
     """Return (body, author, owner, reasons); a field that could not be read is None."""
     reasons = []
     body = author = owner = None
+    if repo is None:
+        return body, author, owner, reasons
     try:
-        issue = run_gh(["issue", "view", number, "--json", "body,author"])
+        issue = github_api.head(repo, number)
         body = text_field(issue.get("body"))
         if body is None:
             reasons.append("issue body is missing or empty")
@@ -136,8 +124,7 @@ def read_issue(number: str):
     except ValueError as error:
         reasons.append(str(error))
     try:
-        repo = run_gh(["repo", "view", "--json", "owner"])
-        person = repo.get("owner")
+        person = github_api.owner(repo).get("owner")
         owner = text_field(person.get("login")) if isinstance(person, dict) else None
         if owner is None:
             reasons.append("repository owner is missing")
@@ -152,8 +139,15 @@ def main(argv=None) -> int:
         print("Usage: issue-hash.py <issue number> (a positive integer without leading zeros)",
               file=sys.stderr)
         return 2
-    body, author, owner, reasons = read_issue(args[0])
-    recorded = read_recorded(args[0], owner, reasons)
+    try:
+        repo = github_api.conf_repo()
+        reasons = []
+    except ValueError as error:
+        repo = None
+        reasons = [str(error)]
+    body, author, owner, more = read_issue(repo, args[0])
+    reasons += more
+    recorded = read_recorded(repo, args[0], owner, reasons)
     if reasons or author is None or owner is None:
         owned = UNKNOWN
         recorded = UNKNOWN

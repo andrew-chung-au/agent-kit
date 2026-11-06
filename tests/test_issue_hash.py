@@ -18,32 +18,33 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from fake_gh_rest import FAKE_GH, rest_comment
+
 REPO = Path(__file__).resolve().parent.parent
 SCRIPT = REPO / "agent-kit" / "scripts" / "issue-hash.py"
 SCRATCH = REPO / ".scratch"
 
 sys.dont_write_bytecode = True
+sys.path.insert(0, str(REPO / "agent-kit" / "scripts"))
+import github_api  # noqa: E402
+
+GH_REPO = github_api.conf_repo(str(REPO / "agent-kit.conf"))  # the repository the script names
 _spec = importlib.util.spec_from_file_location("issue_hash", SCRIPT)
 issue_hash = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(issue_hash)
 
-FAKE_GH = """\
-#!/usr/bin/env python3
-import os, sys
-here = os.path.dirname(os.path.abspath(__file__))
-with open(os.path.join(here, "calls.log"), "a") as log:
-    log.write(" ".join(sys.argv[1:]) + "\\n")
-if os.path.exists(os.path.join(here, "fail")):
-    sys.exit(1)
-if sys.argv[1:2] == ["issue"] and "comments" in sys.argv:
-    name = "comments.json"
-elif sys.argv[1:2] == ["issue"]:
-    name = "issue.json"
-else:
-    name = "repo.json"
-with open(os.path.join(here, name), "rb") as f:
-    sys.stdout.buffer.write(f.read())
-"""
+def as_text(value):
+    return value if isinstance(value, str) else json.dumps(value)
+
+
+def rest_issue(issue):
+    """An issue given as `gh issue view --json body,author` printed it, as GitHub's REST API returns it."""
+    if not isinstance(issue, dict):
+        return as_text(issue)
+    out = {key: value for key, value in issue.items() if key != "author"}
+    if "author" in issue:
+        out["user"] = issue["author"]
+    return json.dumps(out)
 
 
 class FakeGh:
@@ -57,15 +58,18 @@ class FakeGh:
         gh.chmod(0o755)
         if comments is None:
             comments = {"comments": []}
-        for name, value in (("issue.json", issue), ("repo.json", repo), ("comments.json", comments)):
-            data = value if isinstance(value, str) else json.dumps(value)
-            (self.dir / name).write_bytes(data.encode("utf-8"))
+        config = {"issue_view": {"stdout": rest_issue(issue)}, "repo_view": {"stdout": as_text(repo)}}
+        if isinstance(comments, dict) and isinstance(comments.get("comments"), list):
+            config["comments"] = {"list": [rest_comment(c) for c in comments["comments"]]}
+        else:
+            config["comments"] = {"stdout": as_text(comments)}
         if fail:
-            (self.dir / "fail").write_text("")
+            config = {kind: {"exit": 1} for kind in ("issue_view", "repo_view", "comments")}
+        (self.dir / "config.json").write_text(json.dumps(config), encoding="utf-8")
 
     def calls(self):
         log = self.dir / "calls.log"
-        return log.read_text().splitlines() if log.exists() else []
+        return [" ".join(json.loads(x)) for x in log.read_text().splitlines()] if log.exists() else []
 
     def env(self):
         env = {k: v for k, v in os.environ.items() if k not in ("MAKEFLAGS", "MFLAGS", "MAKELEVEL")}
@@ -95,6 +99,7 @@ def comments_json(*items):
     return {"comments": list(items)}
 
 
+CRAFTED_REPO = "example-org/example-repo"
 HASH_A = "a" * 64
 HASH_B = "b" * 64
 
@@ -138,8 +143,8 @@ class OutputTest(Base):
             f"Body sha256: {digest}", "Author: me", "Repository owner: me", "Owner-authored: yes",
             "Recorded sha256: none"])
         self.assertRegex(done.stdout.splitlines()[0], r"^Body sha256: [0-9a-f]{64}$")
-        self.assertEqual(gh.calls(), ["issue view 27 --json body,author", "repo view --json owner",
-                                      "issue view 27 --json comments"])
+        self.assertEqual(gh.calls(), [f"api repos/{GH_REPO}/issues/27", f"api repos/{GH_REPO}",
+                                      f"api repos/{GH_REPO}/issues/27/comments?per_page=100&page=1"])
 
     def test_success_not_owner_authored(self):
         gh = self.fake(issue_json("Body", "someone-else"), repo_json("me"))
@@ -244,6 +249,34 @@ class RecordedTest(Base):
                 done, lines = self.recorded(comment(f"PM: groomed\nBody sha256: {value}"))
                 self.assertEqual(done.returncode, 0, done.stderr)
                 self.assertEqual(lines[4], "Recorded sha256: none")
+
+    def test_latest_valid_line_wins_across_pages(self):
+        # 230 comments, 100 per page: an early valid line, then the latest one on page 3.
+        items = [comment(f"PM: first\nBody sha256: {HASH_A}")] + [comment(f"Note {i}") for i in range(228)]
+        items.append(comment(f"PM: latest\nBody sha256: {HASH_B}"))
+        gh = self.fake(issue_json("Body", "owner-login"), repo_json("owner-login"), comments=comments_json(*items))
+        done = self.run_script(gh, "29")
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertEqual(done.stdout.splitlines()[4], f"Recorded sha256: {HASH_B}")
+        pages = [c.rsplit("&page=", 1)[1] for c in gh.calls() if "/comments?" in c]
+        self.assertEqual(pages, ["1", "2", "3"])
+
+    def test_a_forged_line_on_a_later_page_is_still_ignored(self):
+        items = [comment(f"PM: groomed\nBody sha256: {HASH_A}")] + [comment("Note") for _ in range(150)]
+        items.append(comment(f"PM: fake\nBody sha256: {HASH_B}", author="intruder"))
+        gh = self.fake(issue_json("Body", "owner-login"), repo_json("owner-login"), comments=comments_json(*items))
+        self.assertEqual(self.run_script(gh, "29").stdout.splitlines()[4], f"Recorded sha256: {HASH_A}")
+
+    def test_a_failing_later_page_is_unknown_not_a_partial_answer(self):
+        items = [comment(f"PM: groomed\nBody sha256: {HASH_A}")] + [comment("Note") for _ in range(150)]
+        gh = self.fake(issue_json("Body", "owner-login"), repo_json("owner-login"), comments=comments_json(*items))
+        script = gh.dir / "gh"
+        script.write_text(script.read_text().replace(
+            "entry = config.get(kind, {})",
+            'entry = config.get(kind, {})\nif query.get("page") == "2" and kind == "comments":\n    sys.exit(1)'))
+        done = self.run_script(gh, "29")
+        self.assertEqual(done.returncode, 1)
+        self.assertEqual(done.stdout.splitlines()[4], "Recorded sha256: unknown")
 
     def test_no_comments_is_none(self):
         done, lines = self.recorded()
@@ -353,6 +386,8 @@ class CraftedNumberTest(Base):
         source = REPO / "Makefile" if kind == "repo" else REPO / "agent-kit" / "templates" / "Makefile.mk"
         (folder / kit / "scripts").mkdir(parents=True)
         shutil.copy(SCRIPT, folder / kit / "scripts" / "issue-hash.py")
+        shutil.copy(SCRIPT.with_name("github_api.py"), folder / kit / "scripts" / "github_api.py")
+        (folder / "agent-kit.conf").write_text(f'GITHUB_REPO="{CRAFTED_REPO}"\n')
         (folder / "Makefile").write_text(source.read_text())
         return folder
 
@@ -390,8 +425,8 @@ class CraftedNumberTest(Base):
                 done = self.run_make(gh, self.project(gh, kind), "13")
                 self.assertEqual(done.returncode, 0, done.stderr)
                 self.assertRegex(done.stdout, r"(?m)^Body sha256: [0-9a-f]{64}$")
-                self.assertEqual(gh.calls(), ["issue view 13 --json body,author", "repo view --json owner",
-                                              "issue view 13 --json comments"])
+                self.assertEqual(gh.calls(), [f"api repos/{CRAFTED_REPO}/issues/13", f"api repos/{CRAFTED_REPO}",
+                                              f"api repos/{CRAFTED_REPO}/issues/13/comments?per_page=100&page=1"])
 
 
 class PhraseTest(unittest.TestCase):

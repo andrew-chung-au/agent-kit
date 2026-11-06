@@ -9,7 +9,9 @@ or directly:
 It finds the newest `*-measure-pm-sweep*.md` entry in the records folder
 (default `_docs/records`), takes the cutoff time from the entry's name
 (`<YYYY-MM-DDTHHMMZ>-measure-pm-sweep[-<n>].md`, UTC), and counts issues closed
-at or after that time with `gh issue list --state closed`. It prints one line:
+at or after that time through the REST API (`gh api "repos/<repo>/issues?state=closed&since=<cutoff>&per_page=100&page=<P>"`,
+every page, pull requests left out; <repo> is the GITHUB_REPO line of agent-kit.conf, read by
+github_api.py). It prints one line:
 
     due: <count> closed since <date>       <count> has reached SWEEP_EVERY_N
     not due: <count> closed since <date>   it has not
@@ -18,18 +20,19 @@ at or after that time with `gh issue list --state closed`. It prints one line:
 
 Exit codes: 0 for the three answers above, 1 for `unknown`. A failed `gh`
 never reads as "not due". Standard library only; it never writes anything.
-The `gh` helper is copied from issue-hash.py on purpose, so each script runs
-alone (that file's hyphenated name can't be imported).
+The repository and the `gh api` helper live in github_api.py, next to this file.
 """
 from __future__ import annotations
 
 import argparse
-import json
+import os
 import re
-import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import github_api  # noqa: E402  (the repository and the gh api reads, shared with issue-hash.py)
 
 # The one place the cadence lives: a sweep is due after this many closed issues.
 # A draft placeholder. The human sets the real value.
@@ -38,21 +41,6 @@ SWEEP_EVERY_N = 5
 MEASUREMENTS = "_docs/records"
 ISSUE_LIMIT = 1000
 ENTRY = re.compile(r"(\d{4}-\d{2}-\d{2}T\d{4}Z)-measure-pm-sweep(?:-(\d+))?\.md")
-
-
-def run_gh(args):
-    """Run gh and return its parsed JSON, or raise ValueError with a short reason."""
-    try:
-        done = subprocess.run(["gh", *args], capture_output=True, text=True,
-                              encoding="utf-8", timeout=60)
-    except (OSError, subprocess.SubprocessError) as error:
-        raise ValueError(f"cannot run gh: {error}")
-    if done.returncode != 0:
-        raise ValueError(f"gh {' '.join(args[:2])} failed (exit {done.returncode})")
-    try:
-        return json.loads(done.stdout)
-    except ValueError:
-        raise ValueError(f"gh {' '.join(args[:2])} returned malformed JSON")
 
 
 def newest_entry(folder: Path):
@@ -75,15 +63,18 @@ def newest_entry(folder: Path):
 
 def closed_since(cutoff: datetime) -> int:
     """Count issues closed at or after cutoff; raise ValueError if they can't be read."""
-    issues = run_gh(["issue", "list", "--state", "closed", "--limit", str(ISSUE_LIMIT),
-                     "--json", "number,closedAt"])
-    if not isinstance(issues, list):
-        raise ValueError("gh issue list returned unexpected JSON")
-    if len(issues) >= ISSUE_LIMIT:
-        raise ValueError("too many closed issues to count safely")
+    repo = github_api.conf_repo()
+    # `since` keeps issues updated at or after the cutoff; closing updates an issue, so no
+    # issue closed since the cutoff is missed. closed_at is checked below.
+    since = cutoff.strftime("%Y-%m-%dT%H:%M:%SZ")
+    items = github_api.gh_api_pages(f"repos/{repo}/issues?state=closed&since={since}", ISSUE_LIMIT)
     count = 0
-    for issue in issues:
-        stamp = issue.get("closedAt") if isinstance(issue, dict) else None
+    for item in items:
+        if not isinstance(item, dict):
+            raise ValueError("an issue has no closedAt time")
+        if "pull_request" in item:
+            continue  # the issues list also returns pull requests; `gh issue list` did not
+        stamp = item.get("closed_at")
         if not isinstance(stamp, str):
             raise ValueError("an issue has no closedAt time")
         try:
