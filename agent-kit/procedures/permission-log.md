@@ -21,4 +21,4 @@ The record format for permission requests an agent tool asks the human to approv
 
 **Hand check at each OpenCode upgrade:** the kit has no Node check. Follow the three steps in `opencode/START.md` (step 6): allow one command, reject one, run one holding a fake key. Pass: every prompt appears, decisions are unchanged, and no line holds the key.
 
-**Result:** not yet run on 2.2.5.
+**Result:** pending: `_human-tasks/2026-11-06T0305Z-human-task-155-engineer-opencode-2-permission-log-hand-check.md`.

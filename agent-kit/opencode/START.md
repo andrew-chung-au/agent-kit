@@ -82,7 +82,7 @@ Setup does this when you say you use OpenCode (`setup.md`, step 4). To do it by 
 - **No hooks yet.** The Claude Code layer stops the Engineer finishing while `make verify` fails; OpenCode has no such check here. The Engineer runs **Verify** because its role file says so, and the git hooks, your push check and CI catch what it misses.
 - **Pattern matching only.** The rules match how a command is written, so a variant can get past them.
 - **Settings apply only inside OpenCode.** The core kit's git hooks still cover every tool.
-- **The permission log is complete for OpenCode only.** Claude Code arrives with #36. The plugin uses the V2 plugin API and needs OpenCode 2.x (checked on 2.2.5); it is not compatible with 1.x. Run the hand check in step 6 first.
+- **The permission log is complete for OpenCode only.** Claude Code arrives with #36. The plugin uses the V2 plugin API and needs OpenCode 2.x (written for 2.2.5; the real-session hand check is still pending); it is not compatible with 1.x. Run the hand check in step 6 first.
 
 ## Projects that already have an OpenCode setup
 
