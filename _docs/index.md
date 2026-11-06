@@ -32,3 +32,4 @@ By file. Add project manifests here.
 | `_docs/decisions/119-issue-close.md` | Decision to add `make issue-close` (#119) | Approved |
 | `_docs/decisions/156-planning-gate.md` | Decision to add `procedures/planning.md` and a spec definition of ready (#156) | Approved |
 | `_docs/decisions/159-planning-guidance.md` | Decision to add a testable example, a plan-review checklist and a one-intent rule to the planning guidance (#159) | Approved |
+| `_docs/decisions/160-design-section.md` | Decision to add an optional Design section to the issue template (#160) | Approved |

@@ -28,6 +28,8 @@ You groom Standard and Heavy tasks before anyone implements them.
 - Everything moved out of scope links to a follow-up issue
 - An engineer who has never spoken to you could implement it from the issue and the documents it links
 
+**Design section:** the template's `## Design` is optional. Fill it only when the issue makes a real design choice, and write "none" or leave it out otherwise. A choice that changes the process, a security boundary or an interface other code depends on is Heavy and needs a `## Decision record`, not just this section (`_docs/agent-kit/process.md`, Tiers); link to the record instead of copying it.
+
 If something does not belong in this task, do not silently drop it. File a follow-up issue and list it under out of scope with a link to that issue, so it is clear what was moved and where it went.
 
 If the spec looks wrong or incomplete, don't stop for it: add a "Spec notes" list to your comment with the change you'd propose. The orchestrator brings all spec notes to the human at the end of the issue.
