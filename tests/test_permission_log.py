@@ -211,6 +211,18 @@ class PluginSourceTest(unittest.TestCase):
         self.assertIn('addEventListener("abort"', self.source)
         self.assertIn("clearTimeout(timer)", self.source)
 
+    def test_each_wait_removes_its_abort_listener_whichever_comes_first(self):
+        """QA note on #166: a listener left behind after every normal wait would pile up."""
+        wait = self.source[self.source.index("const wait = "):self.source.index("// Resubscribe when the stream ends")]
+        done = re.search(r"const done = \(\) => \{([^}]*)\}", wait)
+        self.assertIsNotNone(done, "wait has no single done function")
+        self.assertIn("clearTimeout(timer)", done.group(1))
+        self.assertIn('controller.signal.removeEventListener("abort", done)', done.group(1))
+        self.assertIn("resolve()", done.group(1))
+        self.assertIn("setTimeout(done, ms)", wait)
+        self.assertIn('addEventListener("abort", done, { once: true })', wait)
+        self.assertEqual(wait.count("addEventListener("), 1)
+
     def test_an_always_failing_stream_waits_more_each_time_up_to_the_cap(self):
         """The refused case: a stream that ends at once every time gets one attempt per wait step."""
         self.assertEqual(model_waits(self.source, [False] * 12)[:4], [1000, 2000, 4000, 8000])

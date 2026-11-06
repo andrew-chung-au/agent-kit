@@ -120,8 +120,9 @@ export default {
       }
     }
     const wait = (ms) => new Promise((resolve) => {
-      const timer = setTimeout(resolve, ms)
-      controller.signal.addEventListener("abort", () => { clearTimeout(timer); resolve() }, { once: true })
+      const done = () => { clearTimeout(timer); controller.signal.removeEventListener("abort", done); resolve() }
+      const timer = setTimeout(done, ms)
+      controller.signal.addEventListener("abort", done, { once: true })
     })
     // Resubscribe when the stream ends, one attempt per wait; the wait doubles while streams bring nothing.
     void (async () => {
