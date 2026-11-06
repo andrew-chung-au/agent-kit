@@ -64,8 +64,14 @@ class ParseTest(Base):
         entries = kit_map.parse_map(KIT, REPO)
         self.assertEqual(
             sorted(e.install for e in entries),
-            [".devcontainer/devcontainer.json", ".devcontainer/setup.sh", ".git/hooks/pre-push",
-             ".github/workflows/verify.yml", "~/.agent-hooks/pre-push"])
+            sorted([".devcontainer/devcontainer.json", ".devcontainer/setup.sh", ".git/hooks/pre-push",
+                    ".github/workflows/verify.yml", "~/.agent-hooks/pre-push",
+                    # the tool layers' copied files (#170)
+                    ".opencode/agents/pm.md", ".opencode/agents/qa-engineer.md",
+                    ".opencode/agents/software-engineer.md", ".opencode/skills/sweep/SKILL.md",
+                    ".opencode/plugins/permission-log.js", ".claude/agents/pm.md",
+                    ".claude/agents/qa-engineer.md", ".claude/agents/software-engineer.md",
+                    ".claude/skills/sweep/SKILL.md"]))
         for entry in entries:
             with self.subTest(source=entry.source):
                 self.assertTrue((KIT / entry.source).is_file())
