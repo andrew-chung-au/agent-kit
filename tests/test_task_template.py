@@ -41,9 +41,11 @@ class TaskTemplateTest(unittest.TestCase):
 
     def test_the_pm_role_file_explains_when_and_links_to_tiers(self):
         pm = " ".join((TEMPLATE.parent.parent / "team" / "pm.md").read_text(encoding="utf-8").split())
-        for needle in ("**Design section:**", "optional", "real design choice", "Heavy",
-                       "`## Decision record`", "process.md`, Tiers", "link to the record instead of copying it"):
+        for needle in ("**Design section:**", "optional", "real design choice", "Heavy rule",
+                       "`## Decision record`", "process.md` (Tiers)", "link to the record instead of copying it"):
             self.assertIn(needle, pm, needle)
+        # The Tiers row is linked, not paraphrased.
+        self.assertNotIn("security boundary", pm.split("**Design section:**")[1].split("If something does not belong")[0])
 
 
 if __name__ == "__main__":
