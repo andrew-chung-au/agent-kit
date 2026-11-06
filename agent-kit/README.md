@@ -37,7 +37,7 @@ _docs/agent-kit/
   blueprints.md      what a project needs, and when
   process.md         lifecycle: planning, backlog, roles, verification, handover
   team/              pm.md, software-engineer.md, qa-engineer.md
-  procedures/        verify.md, session-summary.md, asking-the-human.md, sweep.md, processes.md, permission-log.md, kit-import.md, orchestrator-comments.md
+  procedures/        verify.md, session-summary.md, asking-the-human.md, sweep.md, processes.md, permission-log.md, kit-import.md, orchestrator-comments.md, planning.md
   templates/         AGENTS.md, agent-kit.conf, Makefile (core and GitHub parts), task, human-task, session-summary, docs-index, starter-docs, roadmap, source, measurement, adr, runbook, CI workflow, and GitHub issue and pull request templates
   scripts/           verify.sh, check-staged.sh, check-tier.sh, assert-clean.sh, install-hooks.sh, lib.sh, issue-*.sh and issue-hash.py (issue text), scan-issue-body.sh, kit-check.py, kit-compare.py, kit-feedback.py, kit-manifest.py, kit-map.py (kit and installed-file checks), check-claims.py, dup-report.py, sweep-due.py, permission-report.py, permission-logs-prune.py and helpers
   githooks/          pre-commit, pre-push and a Git LFS pass-through, installed at the repo root

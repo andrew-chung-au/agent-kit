@@ -12,7 +12,7 @@ Before picking up work, the orchestrator checks the spec:
 
 ## Planning
 
-Planning produces or revises `_docs/specs.md`. The human may write it outside the repo, or draft it with an agent (for example in a planning mode).
+Planning produces or revises `_docs/specs.md`. The human may write it outside the repo, or draft it with an agent (for example in a planning mode). The steps, and the definition of ready the spec must meet before a backlog is built from it, are in `_docs/agent-kit/procedures/planning.md`.
 
 - An agent helping with planning proposes spec text; the human approves it before it's written.
 - No issues are created and no product code is written until the spec exists.
@@ -25,6 +25,7 @@ Mid-project changes and new versions (v2) work the same way: revise the spec, th
 
 - Tasks are GitHub issues, worked one at a time.
 - **Building the backlog:** when there are no open issues and the spec has parts not yet built, the PM proposes new issues from the spec.
+- **Spec ready first:** before proposing issues (building or reviewing), the PM confirms in its proposal comment that the spec meets the definition of ready in `_docs/agent-kit/procedures/planning.md`. If it does not, the PM proposes the spec changes first and creates no implementation issues until it does. This is the proactive analogue of the "Spec notes" path in `pm.md`, enforced by the PM and orchestrator reading this rule and the human reading the confirmation, not by a script.
 - **Reviewing the backlog:** when the spec has changed, the PM compares the change with existing issues and proposes new issues, edits to open issues, and open issues to close as not planned.
 - The human's approval of a backlog proposal still comes before any issue is created, edited or closed.
 - After grooming, every issue follows `_docs/agent-kit/templates/task-template.md`. Grooming comes before the label, and the label approves the groomed text (Lifecycle, steps 1 and 2).

@@ -30,7 +30,7 @@ If something does not belong in this task, do not silently drop it. File a follo
 
 If the spec looks wrong or incomplete, don't stop for it: add a "Spec notes" list to your comment with the change you'd propose. The orchestrator brings all spec notes to the human at the end of the issue.
 
-**Building or reviewing the backlog:** when asked, compare the product spec with the existing issues.
+**Building or reviewing the backlog:** when asked, first confirm the spec meets the definition of ready (`_docs/agent-kit/procedures/planning.md`; if not, propose spec changes and no issues, see `process.md#backlog`). Then compare the product spec with the existing issues.
 - For parts of the spec with no issue, propose new issues, one deliverable each, in the order they should be built.
 - When the spec has changed, also list open issues it makes out of date, with the edit or closure you suggest.
 
