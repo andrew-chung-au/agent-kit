@@ -1,49 +1,52 @@
 #!/usr/bin/env bash
 # Set up a repository for the local sandbox profile in one command (issue #150).
 #
-# The human runs this from a clean clone, never a sandbox:
+# The human runs this on their own machine, from a plain folder (one that is not
+# inside any git work tree, for example ~/projects), using a clean clone of the kit:
 #
-#   bash <kit>/scripts/bootstrap-project.sh <github-url> [--kit <clean kit clone>]
+#   cd ~/projects
+#   bash ~/projects/agent-kit/agent-kit/scripts/bootstrap-project.sh <github-url> [--kit <kit folder>] [--force]
 #
-# <kit> is a clean clone of the agent kit (the folder that holds this script's
-# parent, scripts/). <github-url> is the project to set up. It:
+# --kit defaults to the kit this script sits in. It:
 #
-#   - creates <repo> (a clean clone) and <repo>-sandbox beside it if absent, and
-#     adds the 'sandbox' remote on the clean clone as a file:// path to the
-#     sandbox clone;
+#   - creates <repo> (a clean clone) and <repo>-sandbox in the current folder if
+#     absent, and adds the 'sandbox' remote on the clean clone as a file:// path;
 #   - installs the push check (environments/local-sandbox/pre-push) to
-#     ~/.agent-hooks/pre-push and into the clean clone's .git/hooks/pre-push,
-#     and unsets core.hooksPath in the clean clone if it is set;
-#   - copies the kit to <repo>/_docs/agent-kit/, devcontainer.json and setup.sh
-#     to <repo>/.devcontainer/, and the CI template to
-#     <repo>/.github/workflows/verify.yml;
-#   - refuses to run from inside a sandbox, and refuses a kit path that is one
-#     (the same two signals as setup.sh and install-hooks.sh);
+#     ~/.agent-hooks/pre-push and into the clean clone's .git/hooks/pre-push, and
+#     unsets core.hooksPath in the clean clone if it is set;
+#   - copies the kit to <repo>/_docs/agent-kit/, devcontainer.json and setup.sh to
+#     <repo>/.devcontainer/, and the CI template to <repo>/.github/workflows/verify.yml;
+#   - refuses to run inside a git work tree (a sandbox is one), and refuses a kit
+#     that is not a git work tree or has uncommitted changes under its folder;
 #   - prints each file it writes and the next step, and changes nothing else.
 #
-# Re-running it on a set-up machine changes nothing (idempotent). It is not a
-# make target: at bootstrap time there is no Makefile, and `make` in a clean
-# clone is forbidden (environments.md). It stops at local files; the human
-# fills in the git identity in setup.sh, reviews, and pushes. git and coreutils
-# only; nothing is installed and nothing touches the network except `git clone`.
+# Re-running changes nothing. Files you edit after the first run (the git identity
+# in setup.sh, the CI placeholders, the copied kit) are kept, never overwritten,
+# unless --force is given. The push check is the exception: it is always brought
+# back in step with the kit, because it must match it exactly.
+#
+# Not a make target: at bootstrap time there is no Makefile, and `make` in a clean
+# clone is forbidden (environments.md). Stops at local files; the human reviews and
+# pushes. git and coreutils only; the only network use is `git clone`.
 set -euo pipefail
 
 prog="$(basename "$0")"
 usage() {
-  echo "usage: $prog <github-url> [--kit <clean kit clone>]" >&2
-  echo "  Run from a clean clone, never a sandbox. See environments.md." >&2
+  echo "usage: $prog <github-url> [--kit <kit folder>] [--force]" >&2
+  echo "  Run from a plain folder (not inside a git work tree), using a clean clone of the kit." >&2
   exit 2
 }
 die() { echo "$prog: $*" >&2; exit 1; }
 
-# The kit holding this script: scripts/ is one level below the kit root.
 kit="$(cd "$(dirname "$0")/.." && pwd)"
-
 url=""
+force=0
+resolve_kit() { kit="$(cd "$1" 2>/dev/null && pwd || true)"; [ -n "$kit" ] || die "--kit path does not exist: $1"; }
 while [ "$#" -gt 0 ]; do
   case "$1" in
-    --kit) [ "$#" -ge 2 ] || usage; kit="$(cd "$2" 2>/dev/null && pwd || true)"; [ -n "$kit" ] || die "--kit path does not exist"; shift 2 ;;
-    --kit=*) kit="$(cd "${1#--kit=}" 2>/dev/null && pwd || true)"; [ -n "$kit" ] || die "--kit path does not exist"; shift ;;
+    --kit) [ "$#" -ge 2 ] || usage; resolve_kit "$2"; shift 2 ;;
+    --kit=*) resolve_kit "${1#--kit=}"; shift ;;
+    --force) force=1; shift ;;
     -h|--help) usage ;;
     -*) echo "$prog: unknown option: $1" >&2; usage ;;
     *) [ -z "$url" ] || usage; url="$1"; shift ;;
@@ -51,33 +54,27 @@ while [ "$#" -gt 0 ]; do
 done
 [ -n "$url" ] || usage
 
-# is_sandbox DIR: the two signals setup.sh and install-hooks.sh use for a clean
-# clone, read the other way round here. A folder is a sandbox (or any working
-# tree an agent commits in) when it has a 'sandbox' remote, or the clean-clone
-# push check in its .git/hooks/pre-push. Git and coreutils only; no repo there
-# means neither signal is present.
-is_sandbox() {
-  local dir="$1" common
-  common="$(git -C "$dir" rev-parse --git-common-dir 2>/dev/null || true)"
-  [ -n "$common" ] || return 1
-  case "$common" in /*) ;; *) common="$dir/$common" ;; esac
-  git -C "$dir" remote get-url sandbox >/dev/null 2>&1 && return 0
-  grep -qs '^# agent-kit-push-check' "$common/hooks/pre-push" && return 0
-  return 1
-}
-
-# Refuse the two places that must never be a sandbox: the folder the human ran
-# this from, and the kit it copies out of. Copying from a sandbox would carry an
-# agent's changes into a fresh project.
-if is_sandbox "$PWD"; then
-  die "this looks like a sandbox (it has a 'sandbox' remote or the clean-clone push check).
-  Run it from a clean clone instead. See environments.md."
+# 1. Where it runs. A sandbox is an ordinary clone with no marker of its own, so
+# the test is the one thing every sandbox shares: it is a git work tree. A plain
+# folder such as ~/projects passes; any clone, sandbox or clean, is refused (that
+# also stops a clone being nested inside another).
+if git -C "$PWD" rev-parse --git-dir >/dev/null 2>&1; then
+  die "the current folder is inside a git work tree (a sandbox is one).
+  Run it from a plain folder instead, for example: cd ~/projects"
 fi
+
+# 2. Where it copies from. The kit must be a git work tree with nothing
+# uncommitted under its folder, so an agent's unsaved edits are never copied.
+# The clean-clone marks (a 'sandbox' remote, the push check) are NOT a reason to
+# refuse: the human's own clean clone of the kit has them, and is the right source.
 [ -d "$kit/scripts" ] && [ -f "$kit/environments/local-sandbox/pre-push" ] ||
-  die "kit path '$kit' is not an agent kit (no scripts/ and environments/local-sandbox/pre-push).
-  Pass a clean clone of the kit with --kit <path>."
-if is_sandbox "$kit"; then
-  die "kit path '$kit' looks like a sandbox (it has a 'sandbox' remote or the clean-clone push check).
+  die "kit path '$kit' is not an agent kit (no scripts/ and environments/local-sandbox/pre-push)."
+git -C "$kit" rev-parse --git-dir >/dev/null 2>&1 ||
+  die "kit path '$kit' is not a git clone. Use a clean clone of the kit (git clone), not a copy or an unpacked zip."
+dirty="$(git -C "$kit" status --porcelain --untracked-files=all -- . 2>/dev/null || true)"
+if [ -n "$dirty" ]; then
+  die "kit path '$kit' has uncommitted changes, so it is not a clean clone:
+$(printf '%s\n' "$dirty" | head -n 5 | sed 's/^/    /')
   Copy the kit only from a clean clone, never a sandbox. See environments.md."
 fi
 
@@ -91,18 +88,31 @@ done
 
 name="$(basename "$url")"; name="${name%.git}"
 [ -n "$name" ] && [ "$name" != "/" ] || die "cannot derive a repo name from '$url'"
-# The two clones are created under the folder the script is run from, as
-# siblings: <cwd>/<repo> (the clean clone) and <cwd>/<repo>-sandbox.
 clean="$PWD/$name"
 sandbox="$PWD/$name-sandbox"
 
 wrote=0
 note() { echo "  wrote $1"; wrote=$((wrote + 1)); }
 skip() { echo "  ok    $1"; }
+kept() { echo "  kept  $1 (differs from the kit; yours is left alone. Compare: diff -ru '$2' '$1'. Replace with --force)"; }
+
+# install_file SRC DST: copy only when missing; keep a differing file unless --force.
+install_file() {
+  local src="$1" dst="$2"
+  if [ ! -e "$dst" ]; then
+    cp "$src" "$dst"; note "$dst"
+  elif cmp -s "$src" "$dst"; then
+    skip "$dst is up to date"
+  elif [ "$force" -eq 1 ]; then
+    cp "$src" "$dst"; note "$dst (replaced, --force)"
+  else
+    kept "$dst" "$src"
+  fi
+}
 
 echo "Bootstrapping '$name' for the local sandbox profile (kit: $kit)"
 
-# 1. The two clones, created under the folder this was run from.
+# 3. The two clones, side by side in the current folder.
 if [ -d "$clean" ]; then
   skip "clean clone exists: $clean"
 else
@@ -116,7 +126,7 @@ else
   echo "  cloned sandbox clone: $sandbox"
 fi
 
-# 2. The 'sandbox' remote on the clean clone, pointing at the sandbox clone.
+# 4. The 'sandbox' remote on the clean clone, pointing at the sandbox clone.
 if git -C "$clean" remote get-url sandbox >/dev/null 2>&1; then
   skip "clean clone already has a 'sandbox' remote"
 else
@@ -124,63 +134,48 @@ else
   echo "  added 'sandbox' remote on the clean clone -> file://$sandbox"
 fi
 
-# 3. The push check: ~/.agent-hooks/pre-push, then the clean clone's hook.
+# 5. The push check: ~/.agent-hooks/pre-push, then the clean clone's hook. These
+# must equal the kit's copy exactly, so a differing one is updated, not kept.
 hooks_dir="$HOME/.agent-hooks"
-installed_hook="$hooks_dir/pre-push"
 mkdir -p "$hooks_dir"
-if [ -f "$installed_hook" ] && cmp -s "$pre_push_src" "$installed_hook"; then
-  skip "$installed_hook is up to date"
-else
-  cp "$pre_push_src" "$installed_hook"
-  chmod +x "$installed_hook"
-  note "$installed_hook"
-fi
-
-# core.hooksPath would switch off .git/hooks/pre-push, so the push check would
-# never run. Unset it on the clean clone before installing the hook.
+for dst in "$hooks_dir/pre-push" "$clean/.git/hooks/pre-push"; do
+  if [ -f "$dst" ] && cmp -s "$pre_push_src" "$dst"; then
+    skip "$dst is up to date"
+  else
+    mkdir -p "$(dirname "$dst")"
+    cp "$pre_push_src" "$dst"
+    chmod +x "$dst"
+    note "$dst"
+  fi
+done
+# core.hooksPath would switch off .git/hooks/pre-push, so the push check would never run.
 if git -C "$clean" config --local --get core.hooksPath >/dev/null 2>&1; then
   git -C "$clean" config --local --unset core.hooksPath
   echo "  unset core.hooksPath on the clean clone (it would disable the push check)"
 fi
-clean_hook="$clean/.git/hooks/pre-push"
-if [ -f "$clean_hook" ] && cmp -s "$pre_push_src" "$clean_hook"; then
-  skip "$clean_hook is up to date"
-else
-  cp "$pre_push_src" "$clean_hook"
-  chmod +x "$clean_hook"
-  note "$clean_hook"
-fi
 
-# 4. The kit, at _docs/agent-kit/ (never beside it). Copy fresh each run so the
-#    files match the kit this script came from; nothing else under _docs/ moves.
+# 6. The kit, at _docs/agent-kit/ (never beside it). An existing copy is kept if it
+# differs, because the human may have merged a newer kit into it; --force replaces it.
 kit_dest="$clean/_docs/agent-kit"
 mkdir -p "$clean/_docs"
-if [ -d "$kit_dest" ] && diff -rq "$kit" "$kit_dest" >/dev/null 2>&1; then
-  skip "$kit_dest matches the kit"
-else
-  rm -rf "$kit_dest"
+if [ ! -e "$kit_dest" ]; then
   cp -a "$kit" "$kit_dest"
   note "$kit_dest/ (the kit)"
+elif diff -rq --exclude=.git "$kit" "$kit_dest" >/dev/null 2>&1; then
+  skip "$kit_dest matches the kit"
+elif [ "$force" -eq 1 ]; then
+  rm -rf "$kit_dest"
+  cp -a "$kit" "$kit_dest"
+  note "$kit_dest/ (replaced, --force)"
+else
+  kept "$kit_dest" "$kit"
 fi
 
-# 5. The dev container recipe at .devcontainer/, and CI at .github/workflows/.
+# 7. The dev container recipe and the CI workflow.
 mkdir -p "$clean/.devcontainer" "$clean/.github/workflows"
-for f in devcontainer.json setup.sh; do
-  dst="$clean/.devcontainer/$f"
-  if [ -f "$dst" ] && cmp -s "$recipe/$f" "$dst"; then
-    skip ".devcontainer/$f is up to date"
-  else
-    cp "$recipe/$f" "$dst"
-    note ".devcontainer/$f"
-  fi
-done
-ci_dst="$clean/.github/workflows/verify.yml"
-if [ -f "$ci_dst" ] && cmp -s "$ci_src" "$ci_dst"; then
-  skip ".github/workflows/verify.yml is up to date"
-else
-  cp "$ci_src" "$ci_dst"
-  note ".github/workflows/verify.yml (fill in its standalone placeholders)"
-fi
+install_file "$recipe/devcontainer.json" "$clean/.devcontainer/devcontainer.json"
+install_file "$recipe/setup.sh" "$clean/.devcontainer/setup.sh"
+install_file "$ci_src" "$clean/.github/workflows/verify.yml"
 
 echo
 if [ "$wrote" -eq 0 ]; then
@@ -197,5 +192,5 @@ Next, from the clean clone ($clean):
   3. In your tool, run: "Set up this project using _docs/agent-kit/setup.md."
   4. Review the diff, commit and push from this clean clone. Never run 'make'
      here. Open only the '$name-sandbox' folder in the container.
-See _docs/agent-kit/environments.md for the whole picture.
+Re-running this script keeps the files you edit. See _docs/agent-kit/environments.md.
 EOF

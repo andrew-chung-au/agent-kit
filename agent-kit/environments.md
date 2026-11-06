@@ -30,13 +30,14 @@ The codespace's own token can push to the repo, so nothing technical stops an ag
 
 The agent works in a dev container with a GitHub token that can't push, in its own clone of the repo. You review its commits from a second, clean clone that is never opened in the container, and push from there. The guide that sets this up lives outside the kit.
 
-One script does the local part of the setup for you. From a folder on your machine, run it from a clean clone of the kit (never a sandbox):
+One script does the local part of the setup for you. Run it on your machine from a plain folder (one that is not inside any git work tree, for example `~/projects`), using a clean clone of the kit:
 
 ```
-bash agent-kit/scripts/bootstrap-project.sh <github-url> [--kit <clean kit clone>]
+cd ~/projects
+bash ~/projects/agent-kit/agent-kit/scripts/bootstrap-project.sh https://github.com/<you>/<your-repo>.git
 ```
 
-It creates `<repo>` and `<repo>-sandbox` side by side, adds the `sandbox` remote, installs the push check to `~/.agent-hooks/pre-push` and the clean clone's `.git/hooks/pre-push` (unsetting `core.hooksPath` first if it is set), and copies the kit to `_docs/agent-kit/`, `devcontainer.json` and `setup.sh` to `.devcontainer/`, and the CI template to `.github/workflows/verify.yml`. It refuses to run from a sandbox and refuses a kit path that is one, so it never copies an agent's changes into a fresh project; it is idempotent, prints each file it writes, and stops at local files (it never pushes, and it leaves the git identity in `setup.sh` as a placeholder for you to fill in). It is not a make target: at bootstrap time there is no Makefile, and `make` in a clean clone is forbidden. The rest of this section is what it does and why; to set a repo up by hand, do these steps yourself, always from a clean clone.
+It creates `<repo>` and `<repo>-sandbox` side by side in that folder, adds the `sandbox` remote, installs the push check to `~/.agent-hooks/pre-push` and the clean clone's `.git/hooks/pre-push` (unsetting `core.hooksPath` first if it is set), and copies the kit to `_docs/agent-kit/`, `devcontainer.json` and `setup.sh` to `.devcontainer/`, and the CI template to `.github/workflows/verify.yml`. A sandbox is an ordinary clone with no marker of its own, so the script refuses to run anywhere inside a git work tree, which covers every sandbox and clean clone. It also refuses a kit that is not a git clone or has uncommitted changes, so an agent's unsaved edits are never copied. It prints each file it writes and stops at local files: it never pushes, and it leaves the git identity in `setup.sh` as a placeholder for you to fill in. A re-run changes nothing, and files you edited since (the identity in `setup.sh`, the CI placeholders, the copied kit) are kept, with a `kept` line and a diff hint; `--force` replaces them. The push check is always brought back in step with the kit. It is not a make target: at bootstrap time there is no Makefile, and `make` in a clean clone is forbidden. The rest of this section is what it does and why; to set a repo up by hand, do these steps yourself, always from a clean clone.
 
 The kit supplies reference copies of its files in `environments/local-sandbox/`:
 

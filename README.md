@@ -66,13 +66,15 @@ There is no tagged release or release zip yet (issue #9 tracks it), so installin
 
 This is the local sandbox profile: the agent works in a container with a token that cannot push, and you review and push from a separate clean clone.
 
-One script does the local setup for you. From a folder on your machine (not inside a clone, never a sandbox), run it from a clean clone of this repository:
+One script does the local setup for you. Clone this repository into a plain folder on your machine (one that is not inside any git work tree), then run the script from that folder:
 
 ```
-bash agent-kit/scripts/bootstrap-project.sh <github-url> [--kit <clean kit clone>]
+cd ~/projects
+git clone <this repository's URL> agent-kit
+bash ~/projects/agent-kit/agent-kit/scripts/bootstrap-project.sh <your repository's URL>
 ```
 
-It creates `<repo>` (the clean clone) and `<repo>-sandbox` beside it, adds the `sandbox` remote, installs the push check to `~/.agent-hooks/pre-push` and the clean clone's `.git/hooks/pre-push`, and copies the kit to `_docs/agent-kit/`, the recipe to `.devcontainer/` and the CI template to `.github/workflows/verify.yml`. It refuses to run from a sandbox, is safe to re-run (idempotent), and stops at local files: it never pushes. Then:
+It creates `<repo>` (the clean clone) and `<repo>-sandbox` in the current folder, adds the `sandbox` remote, installs the push check to `~/.agent-hooks/pre-push` and the clean clone's `.git/hooks/pre-push`, and copies the kit to `_docs/agent-kit/`, the recipe to `.devcontainer/` and the CI template to `.github/workflows/verify.yml`. It refuses to run inside any git work tree (a sandbox is one) and refuses a kit with uncommitted changes (`--kit <folder>` picks another kit clone). Re-running changes nothing: files you edited are kept, and `--force` replaces them. It stops at local files: it never pushes. Then:
 
 1. Put your git name and noreply email in `.devcontainer/setup.sh`, and resolve the CI template's placeholders (for a standalone repo, delete the two `paths:` filters and set `working-directory` to `.`).
 2. Run step 2 of path 1 (`"Set up this project using _docs/agent-kit/setup.md."`), then review, commit and push from the clean clone.
