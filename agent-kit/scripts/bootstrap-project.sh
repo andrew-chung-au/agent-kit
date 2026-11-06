@@ -17,7 +17,10 @@
 #   - copies the kit to <repo>/_docs/agent-kit/, devcontainer.json and setup.sh to
 #     <repo>/.devcontainer/, and the CI template to <repo>/.github/workflows/verify.yml;
 #   - refuses to run inside a git work tree (a sandbox is one), and refuses a kit
-#     that is not a git work tree or has uncommitted changes under its folder;
+#     that is not a git clone, has uncommitted changes under its folder, or whose
+#     HEAD is on no remote branch (committed but unpushed, so unreviewed);
+#   - refuses up front a non-git folder already holding the clean or sandbox name;
+#   - copies only the kit's git-tracked files, so ignored files never ride along;
 #   - prints each file it writes and the next step, and changes nothing else.
 #
 # Re-running changes nothing. Files you edit after the first run (the git identity
@@ -77,6 +80,15 @@ if [ -n "$dirty" ]; then
 $(printf '%s\n' "$dirty" | head -n 5 | sed 's/^/    /')
   Copy the kit only from a clean clone, never a sandbox. See environments.md."
 fi
+# Committed is not enough: an agent's sandbox commits are committed too. The kit's
+# HEAD must be on a remote branch, which in a clean clone means it came from (or
+# was pushed to) GitHub after the human's review. This reads the remote-tracking
+# refs from the last fetch, so a stale clone fails safe: fetch and retry.
+if [ -z "$(git -C "$kit" branch -r --contains HEAD 2>/dev/null)" ]; then
+  die "kit path '$kit' is at a commit that is on no remote branch (committed but not pushed,
+  as in a sandbox). Copy the kit only from a clean clone of a reviewed, pushed commit.
+  If this is your clean clone, run 'git -C \"$kit\" fetch' and retry."
+fi
 
 recipe="$kit/environments/local-sandbox"
 pre_push_src="$recipe/pre-push"
@@ -90,6 +102,13 @@ name="$(basename "$url")"; name="${name%.git}"
 [ -n "$name" ] && [ "$name" != "/" ] || die "cannot derive a repo name from '$url'"
 clean="$PWD/$name"
 sandbox="$PWD/$name-sandbox"
+# Before cloning anything: an existing folder with either name must be a clone.
+for dir in "$clean" "$sandbox"; do
+  if [ -e "$dir" ] && [ ! -d "$dir/.git" ]; then
+    die "'$dir' exists but is not a git clone. Move it aside or pick another folder, then re-run.
+  Nothing was changed."
+  fi
+done
 
 wrote=0
 note() { echo "  wrote $1"; wrote=$((wrote + 1)); }
@@ -154,18 +173,37 @@ if git -C "$clean" config --local --get core.hooksPath >/dev/null 2>&1; then
   echo "  unset core.hooksPath on the clean clone (it would disable the push check)"
 fi
 
-# 6. The kit, at _docs/agent-kit/ (never beside it). An existing copy is kept if it
-# differs, because the human may have merged a newer kit into it; --force replaces it.
+# 6. The kit, at _docs/agent-kit/ (never beside it). Only git-tracked files are
+# copied, so an ignored file in the kit clone (a stray .env, __pycache__) never
+# lands in the project. An existing copy is kept if it differs, because the human
+# may have merged a newer kit into it; --force replaces it.
 kit_dest="$clean/_docs/agent-kit"
+# copy_kit DEST: the kit's tracked files, with modes and symlinks as they are.
+copy_kit() {
+  local f
+  mkdir -p "$1"
+  while IFS= read -r -d '' f; do
+    (cd "$kit" && cp -P -p --parents -- "$f" "$1/")
+  done < <(git -C "$kit" ls-files -z -- .)
+}
+# kit_matches: DEST holds exactly the tracked files, each byte for byte.
+kit_matches() {
+  local f n=0
+  while IFS= read -r -d '' f; do
+    cmp -s "$kit/$f" "$kit_dest/$f" || return 1
+    n=$((n + 1))
+  done < <(git -C "$kit" ls-files -z -- .)
+  [ "$(find "$kit_dest" \( -type f -o -type l \) -printf . | wc -c)" -eq "$n" ]
+}
 mkdir -p "$clean/_docs"
 if [ ! -e "$kit_dest" ]; then
-  cp -a "$kit" "$kit_dest"
+  copy_kit "$kit_dest"
   note "$kit_dest/ (the kit)"
-elif diff -rq --exclude=.git "$kit" "$kit_dest" >/dev/null 2>&1; then
+elif kit_matches; then
   skip "$kit_dest matches the kit"
 elif [ "$force" -eq 1 ]; then
   rm -rf "$kit_dest"
-  cp -a "$kit" "$kit_dest"
+  copy_kit "$kit_dest"
   note "$kit_dest/ (replaced, --force)"
 else
   kept "$kit_dest" "$kit"

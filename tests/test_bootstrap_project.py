@@ -40,14 +40,19 @@ class BootstrapCase(unittest.TestCase):
         self.clean = self.projects / NAME
         self.sandbox = self.projects / f"{NAME}-sandbox"
         self.installed_hook = self.home / ".agent-hooks" / "pre-push"
-        # The kit under test: a committed copy of the working-tree kit, so the
-        # script's "clean clone" check sees a clean git work tree.
+        # The kit under test: the working-tree kit, committed and pushed to a bare
+        # "GitHub" remote, then cloned, exactly as a human's clean clone would be.
+        seed = self.work / "kitseed"
+        shutil.copytree(KIT, seed / "agent-kit", ignore=shutil.ignore_patterns("__pycache__"))
+        self.git("init", "-q", "-b", "main", cwd=seed)
+        self.git("add", "--all", cwd=seed)
+        self.git(*IDENT, "commit", "-q", "-m", "kit", cwd=seed)
+        self.kit_origin = self.work / "kit-origin.git"
+        self.git("clone", "-q", "--bare", str(seed), str(self.kit_origin), cwd=self.work)
+        shutil.rmtree(seed)
         self.kit_repo = self.work / "kitrepo"
+        self.git("clone", "-q", str(self.kit_origin), str(self.kit_repo), cwd=self.work)
         self.kit = self.kit_repo / "agent-kit"
-        shutil.copytree(KIT, self.kit, ignore=shutil.ignore_patterns("__pycache__"))
-        self.git("init", "-q", "-b", "main", cwd=self.kit_repo)
-        self.git("add", "--all", cwd=self.kit_repo)
-        self.git(*IDENT, "commit", "-q", "-m", "kit", cwd=self.kit_repo)
         self.script = self.kit / "scripts" / "bootstrap-project.sh"
         self.pre_push = self.kit / "environments" / "local-sandbox" / "pre-push"
         self.recipe = self.kit / "environments" / "local-sandbox"
@@ -222,6 +227,23 @@ class RunLocationTest(BootstrapCase):
     def test_a_plain_folder_is_accepted(self):
         self.ok()
 
+    def test_a_stray_non_git_folder_with_the_repo_name_is_refused_before_cloning(self):
+        self.clean.mkdir()
+        (self.clean / "notes.txt").write_text("mine\n", encoding="utf-8")
+        r = self.bootstrap()
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("not a git clone", r.stderr)
+        self.assertNotIn("fatal:", r.stderr)
+        self.assertFalse(self.sandbox.exists(), "the sandbox was cloned before the refusal")
+        self.assertFalse((self.home / ".agent-hooks").exists())
+        self.assertEqual(sorted(p.name for p in self.clean.iterdir()), ["notes.txt"])
+
+    def test_a_stray_non_git_folder_with_the_sandbox_name_is_refused_before_cloning(self):
+        self.sandbox.mkdir()
+        r = self.bootstrap()
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertFalse(self.clean.exists(), "the clean clone was created before the refusal")
+
 
 class KitPathTest(BootstrapCase):
     def test_a_kit_with_a_tracked_edit_is_refused(self):
@@ -255,8 +277,57 @@ class KitPathTest(BootstrapCase):
         (other / "agent-kit" / "marker.txt").write_text("other\n", encoding="utf-8")
         self.git("add", "--all", cwd=other)
         self.git(*IDENT, "commit", "-q", "-m", "m", cwd=other)
+        self.git("push", "-q", "origin", "HEAD:refs/heads/other", cwd=other)
         self.ok("--kit", str(other / "agent-kit"))
         self.assertTrue((self.clean / "_docs" / "agent-kit" / "marker.txt").is_file())
+
+    def commit_kit_edit(self):
+        """A committed, unpushed edit on top of the cloned HEAD: what an agent leaves in a sandbox."""
+        (self.kit / "setup.md").write_text("an agent's committed edit\n", encoding="utf-8")
+        self.git("add", "--all", cwd=self.kit_repo)
+        self.git(*IDENT, "commit", "-q", "-m", "agent edit", cwd=self.kit_repo)
+
+    def test_a_committed_but_unpushed_kit_edit_is_refused(self):
+        self.commit_kit_edit()
+        r = self.bootstrap()
+        self.refused(r)
+        self.assertIn("no remote branch", r.stderr)
+        self.assertIn("fetch", r.stderr, "the message should say how a stale clean clone recovers")
+
+    def test_the_same_edit_is_accepted_once_it_is_on_a_remote_branch(self):
+        self.commit_kit_edit()
+        self.git("push", "-q", "origin", "HEAD:main", cwd=self.kit_repo)
+        self.ok()
+        self.assertEqual((self.clean / "_docs" / "agent-kit" / "setup.md").read_text(encoding="utf-8"),
+                         "an agent's committed edit\n")
+
+    def test_a_kit_clone_with_no_remote_is_refused(self):
+        self.git("remote", "remove", "origin", cwd=self.kit_repo)
+        r = self.bootstrap()
+        self.refused(r)
+        self.assertIn("no remote branch", r.stderr)
+
+    def test_git_ignored_files_in_the_kit_are_not_copied(self):
+        (self.kit / ".gitignore").write_text("ignored.txt\n.env\n", encoding="utf-8")
+        self.git("add", "--all", cwd=self.kit_repo)
+        self.git(*IDENT, "commit", "-q", "-m", "ignore", cwd=self.kit_repo)
+        self.git("push", "-q", "origin", "HEAD:main", cwd=self.kit_repo)
+        (self.kit / "ignored.txt").write_text("x\n", encoding="utf-8")
+        (self.kit / ".env").write_text("SECRET=placeholder\n", encoding="utf-8")
+        self.ok()
+        dest = self.clean / "_docs" / "agent-kit"
+        self.assertTrue((dest / ".gitignore").is_file())
+        self.assertFalse((dest / "ignored.txt").exists(), "an ignored file rode along")
+        self.assertFalse((dest / ".env").exists(), "an ignored .env rode along")
+        # The ignored files must not make a re-run see the copy as different.
+        r = self.ok()
+        self.assertIn("matches the kit", r.stdout)
+        self.assertIn("Nothing changed", r.stdout)
+
+    def test_executable_bits_survive_the_tracked_copy(self):
+        self.ok()
+        copied = self.clean / "_docs" / "agent-kit" / "scripts" / "bootstrap-project.sh"
+        self.assertTrue(copied.stat().st_mode & 0o111, "the copied script lost its executable bit")
 
     def test_a_clean_clone_of_the_kit_is_an_accepted_source(self):
         """The human's own clean clone has the 'sandbox' remote and the push check: still fine."""
