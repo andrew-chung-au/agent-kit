@@ -42,7 +42,7 @@ class PlanningGateTest(unittest.TestCase):
         self.assertIn("Don't give any of them a second home", self.doc)
 
     def test_the_procedure_is_short(self):
-        self.assertLessEqual(len(self.doc.split()), 400)
+        self.assertLessEqual(len(self.doc.split()), 500)
 
     def test_process_links_the_procedure_from_planning(self):
         self.assertIn("procedures/planning.md", self.planning)
@@ -51,6 +51,28 @@ class PlanningGateTest(unittest.TestCase):
         for needle in ("definition of ready", "procedures/planning.md", "proposes the spec changes first",
                        "creates no implementation issues", "Spec notes", "not by a script"):
             self.assertIn(needle, self.backlog, needle)
+
+    def test_it_has_a_testable_example_and_a_plan_review_checklist(self):
+        """Issue #159."""
+        review = self.doc[self.doc.index("## Plan review"):]
+        self.assertIn("WHEN", self.doc)
+        self.assertIn("THE SYSTEM SHALL", self.doc)
+        self.assertIn("or any testable form, is fine", self.doc)
+        for needle in ("The intent matches what was asked", "Nothing extra crept into scope",
+                       "observable and testable", "including an awkward one", "cares about most",
+                       "What is missing is named", "exactly this and nothing more"):
+            self.assertIn(needle, review, needle)
+        self.assertEqual(review.count(" - "), 7)
+
+    def test_the_pm_has_the_one_intent_rule_and_links_the_review_without_copying_it(self):
+        """Issue #159: the checklist lives only in planning.md."""
+        pm = flat(KIT / "team" / "pm.md")
+        self.assertIn("one intent that fits in a sentence", pm)
+        self.assertIn("split it", pm)
+        self.assertIn("two unrelated intents is returned to you to split, not approved", pm)
+        self.assertIn("no script can", pm)
+        self.assertIn("plan review in `_docs/agent-kit/procedures/planning.md`", pm)
+        self.assertNotIn("exactly this and nothing more", pm)
 
     def test_the_pm_role_file_and_readme_and_index_know_it(self):
         self.assertIn("definition of ready", flat(KIT / "team" / "pm.md"))
