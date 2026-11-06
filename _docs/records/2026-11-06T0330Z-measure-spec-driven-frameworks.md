@@ -45,7 +45,7 @@ Research and writing only. Nothing was installed or run, and no kit file is chan
 - **Human-owned spec.** Archive merges deltas into `specs/` automatically. In the kit the human approves every spec change, so a merge would need a human gate, and `_docs/specs.md` is protected. Resolvable only by not using the auto-merge. (I)
 - **Protected files.** `init` writes under `.claude/` and `.opencode/`, both on the kit's `PROTECTED` list, so every init or update needs the human's commit approval. Resolvable but noisy. (V for the paths, I for the effect)
 - **GitHub issues as the backlog.** A change folder and an issue would both describe the same work. Two sources of truth is exactly what the kit's "write once, link elsewhere" rule forbids. Resolvable only by making the issue the one home. (I)
-- **Roles and QA.** The kit's QA checks the issue's acceptance criteria. OpenSpec's scenarios would be a second set. Which one QA checks against would have to be decided. (I)
+- **Roles and QA.** Under option (b), the PM would write the proposal, the delta specs and any design note while grooming, since those replace or extend the groomed issue; the Engineer would write and tick off `tasks.md` while implementing; QA would write nothing in the change folder. The kit's QA checks the issue's acceptance criteria, and OpenSpec's scenarios would be a second set, so which one QA checks against would have to be decided; keeping the acceptance criteria authoritative and treating scenarios as a source for them avoids two sets. (I)
 - **Decision point and Verify.** OpenSpec says there are no phase gates and `verify` does not block. That is the opposite of the kit's hash freeze, QA PASS and Verify gate. Not resolvable without weakening the kit. (V for OpenSpec's stance, I for the conflict)
 - **Installing and dependencies.** The kit is bash, git, make and the Python standard library, and says to ask before installing. A binary or Node tool is a new dependency with supply-chain risk, and piping a download into a shell is a pattern I would treat as risky. (I)
 
@@ -106,12 +106,14 @@ Options for later, each its own decision:
 
 Not recommended: adopting the tool, Spec Kit's constitution and extensions, or BMAD's role set. Revisit OpenSpec Stores only if the kit needs planning shared across several repos.
 
-**Follow-up issues (filed, unlabelled, waiting for the human):**
-- #159: planning guidance: testable requirement wording, a plan review checklist, and one intent per issue (items 1 to 3). Proposed Heavy: it changes a role's responsibilities.
-- #160: optional design section in the task template (item 4).
-- #161: structured format for spec notes (item 5).
-- Not filed: an idea-assessment step before specs (Spec Kit's go, clarify or stop), only if early-stage work keeps starting on weak ideas.
+**Proposed follow-up issues** (titles with one-line goals; this record files none):
+- *Planning guidance: testable requirement wording, a plan review checklist, and one intent per issue.* Goal: `procedures/planning.md` and `team/pm.md` give a testable-requirement example, a plan-review checklist and a one-intent sizing rule (items 1 to 3). Proposed Heavy: it changes a role's responsibilities.
+- *Optional design section in the issue template for Standard issues with design choices.* Goal: the task template has an optional Design section, with the Heavy ADR gate unchanged (item 4).
+- *Structured format for spec notes (added, changed, removed), with the human still approving.* Goal: spec notes use one fixed layout and nothing merges into the spec automatically (item 5).
+- *Idea assessment before specs.* Goal: a short go, clarify or stop step (as in Spec Kit) before planning starts. Propose only if early-stage work keeps starting on weak ideas.
+
+Outside this issue, the human later chose to have the first three filed; they are #159, #160 and #161.
 
 ## 9. Hands-on trial plan (not run)
 
-If you want evidence before deciding on (b): in a throwaway clone outside any kit project, run the standalone installer from a downloaded and read script (not piped), run `openspec init --tools none` with telemetry disabled by setting `OPENSPEC_TELEMETRY=0`, then create one example change. It installs one binary under the user's home folder and writes only `openspec/`. Undo: delete the binary and the throwaway clone. This needs the human's approval first, and nothing is installed under this issue.
+If you want evidence before deciding on (b): in a throwaway clone outside any kit project, run the standalone installer from a downloaded and read script (not piped), run `openspec init --tools none` with telemetry disabled by setting `OPENSPEC_TELEMETRY=0`, then create one example change. It installs one binary under the user's home folder and writes only `openspec/`. Undo: delete the binary, its copy of the built-in schemas under `~/.local/share/openspec/binary-schemas` (the OpenSpec data folder on macOS and Linux, per its [installation](https://github.com/Fission-AI/OpenSpec/blob/main/docs/installation.md) Uninstalling section), and the throwaway clone. This needs the human's approval first, and nothing is installed under this issue.
