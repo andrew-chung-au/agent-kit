@@ -452,6 +452,20 @@ class UntrustedDataTest(Base):
         (self.live / "evil.md").symlink_to("x.md")
         self.assert_refused(self.compare(), "symlink in the kit folder: evil.md")
 
+    def test_a_symlink_named_like_a_skipped_name_is_an_error(self):
+        # #143: *.pyc and __pycache__ are skipped when real, never when they are symlinks.
+        self.both("x.md")
+        for tree in ("other", "live"):
+            for name, target in (("x.pyc", "nowhere"), ("__pycache__", "x.md"), ("sub/y.pyc", "../x.md")):
+                with self.subTest(tree=tree, name=name):
+                    link = getattr(self, tree) / name
+                    link.parent.mkdir(parents=True, exist_ok=True)
+                    link.symlink_to(target)
+                    try:
+                        self.assert_refused(self.compare(), f"symlink in the kit folder: {name}")
+                    finally:
+                        link.unlink()
+
     def test_a_dangling_symlink_is_an_error(self):
         (self.other / "gone.md").symlink_to("nowhere")
         self.assert_refused(self.compare(), "gone.md")
