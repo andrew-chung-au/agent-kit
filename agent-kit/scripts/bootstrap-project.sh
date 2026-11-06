@@ -18,7 +18,8 @@
 #     <repo>/.devcontainer/, and the CI template to <repo>/.github/workflows/verify.yml;
 #   - refuses to run inside a git work tree (a sandbox is one), and refuses a kit
 #     that is not a git clone, has uncommitted changes under its folder, or whose
-#     HEAD is on no remote branch (committed but unpushed, so unreviewed);
+#     HEAD is on no reviewed remote branch (unpushed, or only on the 'sandbox'
+#     remote or another local working clone, so unreviewed);
 #   - refuses up front a non-git folder already holding the clean or sandbox name;
 #   - copies only the kit's git-tracked files, so ignored files never ride along;
 #   - prints each file it writes and the next step, and changes nothing else.
@@ -81,13 +82,38 @@ $(printf '%s\n' "$dirty" | head -n 5 | sed 's/^/    /')
   Copy the kit only from a clean clone, never a sandbox. See environments.md."
 fi
 # Committed is not enough: an agent's sandbox commits are committed too. The kit's
-# HEAD must be on a remote branch, which in a clean clone means it came from (or
-# was pushed to) GitHub after the human's review. This reads the remote-tracking
-# refs from the last fetch, so a stale clone fails safe: fetch and retry.
-if [ -z "$(git -C "$kit" branch -r --contains HEAD 2>/dev/null)" ]; then
-  die "kit path '$kit' is at a commit that is on no remote branch (committed but not pushed,
-  as in a sandbox). Copy the kit only from a clean clone of a reviewed, pushed commit.
-  If this is your clean clone, run 'git -C \"$kit\" fetch' and retry."
+# HEAD must be on a branch of a reviewed remote, which in a clean clone means it
+# came from (or was pushed to) GitHub after the human's review.
+#
+# A clean clone normally has a 'sandbox' remote, and `git fetch sandbox` is the
+# review flow, so sandbox/* refs carry unreviewed agent commits and never count.
+# Neither does any remote whose URL is a local working clone (a folder with a .git
+# inside), whatever it is named: that is someone's sandbox, not a review gate. The
+# test is a file test only, so git never runs in that folder (environments.md).
+#
+# This reads the remote-tracking refs from the last fetch, so a stale clone fails
+# safe: fetch and retry.
+is_working_clone_url() {
+  local u="$1"
+  case "$u" in file://*) u="${u#file://}" ;; /*|./*|../*) ;; *) return 1 ;; esac
+  [ -e "$u/.git" ]
+}
+reviewed_remotes=()
+while IFS= read -r r; do
+  [ -n "$r" ] && [ "$r" != "sandbox" ] || continue
+  is_working_clone_url "$(git -C "$kit" remote get-url "$r" 2>/dev/null || true)" && continue
+  reviewed_remotes+=("refs/remotes/$r")
+done < <(git -C "$kit" remote 2>/dev/null)
+on_reviewed=""
+if [ "${#reviewed_remotes[@]}" -gt 0 ]; then
+  on_reviewed="$(git -C "$kit" for-each-ref --contains HEAD --format='%(refname)' "${reviewed_remotes[@]}" 2>/dev/null |
+    grep -v '/HEAD$' || true)"
+fi
+if [ -z "$on_reviewed" ]; then
+  die "kit path '$kit' is at a commit that is on no reviewed remote branch: it is unpushed,
+  or only on the 'sandbox' remote or another local working clone (unreviewed agent work).
+  Copy the kit only from a clean clone of a reviewed, pushed commit (for example: git checkout origin/main).
+  If this is your clean clone and the commit is pushed, run 'git -C \"$kit\" fetch' and retry."
 fi
 
 recipe="$kit/environments/local-sandbox"
@@ -182,8 +208,10 @@ kit_dest="$clean/_docs/agent-kit"
 copy_kit() {
   local f
   mkdir -p "$1"
+  # Portable flags only (no GNU cp --parents), so it also runs on macOS.
   while IFS= read -r -d '' f; do
-    (cd "$kit" && cp -P -p --parents -- "$f" "$1/")
+    mkdir -p "$1/$(dirname "$f")"
+    cp -P -p "$kit/$f" "$1/$f"
   done < <(git -C "$kit" ls-files -z -- .)
 }
 # kit_matches: DEST holds exactly the tracked files, each byte for byte.
@@ -193,7 +221,10 @@ kit_matches() {
     cmp -s "$kit/$f" "$kit_dest/$f" || return 1
     n=$((n + 1))
   done < <(git -C "$kit" ls-files -z -- .)
-  [ "$(find "$kit_dest" \( -type f -o -type l \) -printf . | wc -c)" -eq "$n" ]
+  # Count by NUL terminators (no GNU find -printf), so names with newlines count once.
+  local found
+  found="$(find "$kit_dest" \( -type f -o -type l \) -print0 | tr -dc '\000' | wc -c)"
+  [ "$((found))" -eq "$n" ]
 }
 mkdir -p "$clean/_docs"
 if [ ! -e "$kit_dest" ]; then

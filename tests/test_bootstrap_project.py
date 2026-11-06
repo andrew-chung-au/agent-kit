@@ -291,7 +291,7 @@ class KitPathTest(BootstrapCase):
         self.commit_kit_edit()
         r = self.bootstrap()
         self.refused(r)
-        self.assertIn("no remote branch", r.stderr)
+        self.assertIn("no reviewed remote branch", r.stderr)
         self.assertIn("fetch", r.stderr, "the message should say how a stale clean clone recovers")
 
     def test_the_same_edit_is_accepted_once_it_is_on_a_remote_branch(self):
@@ -301,11 +301,61 @@ class KitPathTest(BootstrapCase):
         self.assertEqual((self.clean / "_docs" / "agent-kit" / "setup.md").read_text(encoding="utf-8"),
                          "an agent's committed edit\n")
 
+    def kit_sandbox_with_agent_commit(self):
+        """A sandbox clone of the kit (a working clone) with an unreviewed agent commit on main."""
+        sb = self.work / "kit-sandbox"
+        self.git("clone", "-q", str(self.kit_origin), str(sb), cwd=self.work)
+        (sb / "agent-kit" / "setup.md").write_text("unreviewed agent edit\n", encoding="utf-8")
+        self.git("add", "--all", cwd=sb)
+        self.git(*IDENT, "commit", "-q", "-m", "agent edit", cwd=sb)
+        return sb
+
+    def fetch_and_check_out(self, remote, url):
+        self.git("remote", "add", remote, url, cwd=self.kit_repo)
+        self.git("fetch", "-q", remote, cwd=self.kit_repo)
+        self.git("checkout", "-q", "--detach", f"{remote}/main", cwd=self.kit_repo)
+
+    def test_a_kit_checked_out_from_the_sandbox_remote_is_refused(self):
+        """QA's bypass at a5c7d7a: the normal review flow fetches sandbox/main into the clean clone."""
+        sb = self.kit_sandbox_with_agent_commit()
+        self.fetch_and_check_out("sandbox", f"file://{sb}")
+        r = self.bootstrap()
+        self.refused(r)
+        self.assertIn("sandbox", r.stderr)
+        # The fixture really is QA's case: the agent's edit is what is checked out.
+        self.assertEqual((self.kit / "setup.md").read_text(encoding="utf-8"), "unreviewed agent edit\n")
+
+    def test_a_working_clone_remote_under_another_name_is_refused(self):
+        """Renaming the sandbox remote doesn't help: a local working clone is never a review gate."""
+        sb = self.kit_sandbox_with_agent_commit()
+        for name, url in (("agentbox", str(sb)), ("other", f"file://{sb}")):
+            with self.subTest(name=name):
+                self.fetch_and_check_out(name, url)
+                self.refused(self.bootstrap())
+                self.git("checkout", "-q", "main", cwd=self.kit_repo)
+                self.git("remote", "remove", name, cwd=self.kit_repo)
+
+    def test_a_sandbox_commit_is_accepted_once_it_is_pushed_to_origin(self):
+        sb = self.kit_sandbox_with_agent_commit()
+        self.fetch_and_check_out("sandbox", f"file://{sb}")
+        self.git("push", "-q", "origin", "HEAD:main", cwd=self.kit_repo)
+        self.ok()
+        self.assertEqual((self.clean / "_docs" / "agent-kit" / "setup.md").read_text(encoding="utf-8"),
+                         "unreviewed agent edit\n")
+
+    def test_sandbox_refs_at_the_reviewed_head_do_not_block(self):
+        """The usual state: the sandbox remote is fetched and holds the same commit as origin."""
+        sb = self.work / "kit-sandbox"
+        self.git("clone", "-q", str(self.kit_origin), str(sb), cwd=self.work)
+        self.git("remote", "add", "sandbox", f"file://{sb}", cwd=self.kit_repo)
+        self.git("fetch", "-q", "sandbox", cwd=self.kit_repo)
+        self.ok()
+
     def test_a_kit_clone_with_no_remote_is_refused(self):
         self.git("remote", "remove", "origin", cwd=self.kit_repo)
         r = self.bootstrap()
         self.refused(r)
-        self.assertIn("no remote branch", r.stderr)
+        self.assertIn("no reviewed remote branch", r.stderr)
 
     def test_git_ignored_files_in_the_kit_are_not_copied(self):
         (self.kit / ".gitignore").write_text("ignored.txt\n.env\n", encoding="utf-8")
