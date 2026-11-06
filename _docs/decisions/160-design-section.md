@@ -12,5 +12,5 @@ Issue #160 (Heavy). The human approved this record in a comment on #160 (body sh
   - A PM may fill the section by habit; "none is normal" in the template limits that.
   - A choice can be recorded in two places (Design and an ADR); the rule is to link, not copy.
   - The section is in the issue body, so it is covered by the body hash and a later edit needs re-approval.
-  - Tests that count template sections needed updating (`tests/test_task_template.py`, `tests/test_issue_intake_form.py`).
+  - Tests that count template sections need updating by the Engineer.
 - **Evidence:** #160; `_docs/records/2026-11-06T0330Z-measure-spec-driven-frameworks.md`; `process.md` Tiers.
