@@ -226,6 +226,110 @@ class GeneratorRefusalTest(Base):
         self.assertFalse((self.kit / "MANIFEST.sha256").exists())
 
 
+class SkippedNameSymlinkTest(Base):
+    """#143: a symlink is refused whatever its name; the skips are for regular files and folders only.
+
+    `*.pyc`, `__pycache__` and the kit root's `MANIFEST.sha256` are skipped when they are real.
+    A symlink with one of those names used to be skipped too, so it rode into an installed kit
+    unrecorded and unchecked.
+    """
+
+    def assert_refused(self, done, rel):
+        self.assertEqual(done.returncode, 2, done.stdout + done.stderr)
+        self.assertIn(f"symlink in the kit folder: {rel}", done.stderr)
+        self.assertIn("nothing written", done.stderr)
+        manifest = self.kit / "MANIFEST.sha256"
+        # (a symlink of that name under test is still there, and still a symlink: nothing replaced it)
+        self.assertFalse(manifest.exists() and not manifest.is_symlink(), "a manifest was written")
+        self.assertFalse((self.kit / "MANIFEST.sha256.tmp").exists(), os.listdir(self.kit))
+
+    def links(self, name):
+        """Every kind of symlink the issue names, with the name given: (label, relative path, target)."""
+        self.write("real-file.md")
+        (self.kit / "real-folder").mkdir(exist_ok=True)
+        for where in ("", "templates/", "templates/deep/er/"):
+            yield f"to a file, {where or 'root'}", f"{where}{name}", "real-file.md" if not where else "../" * where.count("/") + "real-file.md"
+            yield f"to a folder, {where or 'root'}", f"{where}{name}", "real-folder" if not where else "../" * where.count("/") + "real-folder"
+            yield f"dangling, {where or 'root'}", f"{where}{name}", "nowhere"
+            yield f"to outside, {where or 'root'}", f"{where}{name}", "/etc/hostname"
+
+    def refuse_every_link(self, name):
+        count = 0
+        for label, rel, target in self.links(name):
+            with self.subTest(link=label, rel=rel):
+                link = self.kit / rel
+                link.symlink_to(target)
+                try:
+                    self.assert_refused(self.generate(), rel)
+                finally:
+                    link.unlink()
+                count += 1
+        self.assertEqual(count, 12)
+
+    def test_a_symlink_named_dot_pyc_is_refused(self):
+        self.refuse_every_link("x.pyc")
+
+    def test_a_symlink_named_pycache_is_refused(self):
+        self.refuse_every_link("__pycache__")
+
+    def test_a_symlink_named_manifest_at_the_kit_root_is_refused(self):
+        self.write("real-file.md")
+        (self.kit / "real-folder").mkdir()
+        for label, target in (("a file", "real-file.md"), ("a folder", "real-folder"), ("dangling", "nowhere"),
+                              ("outside", "/etc/hostname")):
+            with self.subTest(link=label):
+                link = self.kit / "MANIFEST.sha256"
+                link.symlink_to(target)
+                try:
+                    self.assert_refused(self.generate(), "MANIFEST.sha256")
+                finally:
+                    link.unlink()
+
+    def test_a_refusal_leaves_an_existing_manifest_unchanged(self):
+        self.released()
+        before = (self.kit / "MANIFEST.sha256").read_bytes()
+        (self.kit / "templates" / "x.pyc").symlink_to("nowhere")
+        done = self.generate()
+        self.assertEqual(done.returncode, 2)
+        self.assertEqual((self.kit / "MANIFEST.sha256").read_bytes(), before)
+
+    def test_real_pyc_files_and_a_real_pycache_folder_are_still_skipped(self):
+        self.write("x.pyc", b"\x00junk")
+        self.write("templates/y.pyc", b"\x00junk")
+        self.write("scripts/__pycache__/z.cpython-311.pyc", b"\x00junk")
+        self.write("__pycache__/w.txt", "not listed either\n")
+        self.released()
+        listed = [line.split("  ", 2)[2] for line in self.manifest().splitlines()[1:]]
+        self.assertEqual(listed, sorted(["README.md", "githooks/pre-commit", "process.md", "scripts/verify.sh",
+                                         "templates/deep/er/x.md"]))
+
+    def test_a_real_manifest_at_the_kit_root_is_still_not_hashed_into_itself(self):
+        self.released()
+        self.released()
+        self.assertNotIn("MANIFEST.sha256", "".join(self.manifest().splitlines()[1:]))
+
+    def test_a_regular_file_named_manifest_below_the_root_is_still_listed(self):
+        self.write("templates/MANIFEST.sha256", "x\n")
+        self.released()
+        self.assertIn("  templates/MANIFEST.sha256", self.manifest())
+
+    def test_kit_check_reports_each_case_as_its_symlink_error(self):
+        self.released()
+        for rel, target in (("x.pyc", "nowhere"), ("templates/y.pyc", "../process.md"), ("__pycache__", "templates"),
+                            ("scripts/__pycache__", "nowhere")):
+            with self.subTest(rel=rel):
+                link = self.kit / rel
+                link.symlink_to(target)
+                try:
+                    done = self.check()
+                    self.assertEqual(done.returncode, 2, done.stdout + done.stderr)
+                    self.assertIn(f"symlink in the kit folder: {rel}", done.stderr)
+                    self.assertNotIn("pristine", done.stdout)
+                    self.assertNotIn("unchanged", done.stdout)
+                finally:
+                    link.unlink()
+
+
 class InvisibleNameTest(Base):
     """A kit file name cannot change how a list or message is read (issue #87).
 

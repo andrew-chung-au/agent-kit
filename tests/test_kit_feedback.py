@@ -685,6 +685,25 @@ class RefusalTest(Base):
         self.assertFalse(sorted((self.run_dir / ".scratch").glob("kit-feedback-*")))
         self.assertEqual(snapshot(SCRATCH), before)
 
+    def test_a_symlink_named_like_a_skipped_name_is_refused_and_writes_no_bundle(self):
+        # #143: kit_files skips *.pyc and __pycache__ only when they are real.
+        self.project_source("env/x", "a\n")
+        self.reference_source("env/x", "a\n")
+        self.write_map("env/x | env/x | repo | none\n")
+        for name, target in (("x.pyc", "nowhere"), ("__pycache__", "env"), ("env/y.pyc", "x")):
+            for tree in (self.pkit, self.reference):
+                with self.subTest(name=name, tree=tree.name):
+                    before = snapshot(SCRATCH)
+                    (tree / name).symlink_to(target)
+                    try:
+                        done = self.run_script()
+                    finally:
+                        (tree / name).unlink()
+                    self.assertEqual(done.returncode, 2, done.stdout + done.stderr)
+                    self.assertIn(f"symlink in the kit folder: {name}", done.stderr)
+                    self.assertFalse(sorted((self.run_dir / ".scratch").glob("kit-feedback-*")))
+                    self.assertEqual(snapshot(SCRATCH), before)
+
     def test_the_missing_map_error_carries_no_absolute_path(self):
         # The parser's own message quotes the kit root in full; _scrub must still catch it.
         self.project_source("env/x", "a\n")
