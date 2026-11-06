@@ -16,7 +16,7 @@ Planning produces or revises `_docs/specs.md`. The human may write it outside th
 
 - An agent helping with planning proposes spec text; the human approves it before it's written.
 - No issues are created and no product code is written until the spec exists.
-- Spec changes are committed on their own, with a message saying what changed.
+- Spec changes are committed on their own, with a message saying what changed. Nothing is merged into the spec automatically: a spec note is approved by the human first.
 - The spec is human-owned at all times, not only in planning: propose changes, and make them only after approval.
 
 Mid-project changes and new versions (v2) work the same way: revise the spec, then review the backlog.
@@ -106,7 +106,7 @@ Treat partial output as unverified. Relaunch the role with a note of what's alre
 4. Before launching QA, the orchestrator runs the hash check and notes the current commit (`git rev-parse --short HEAD`). Then the QA engineer checks the issue. QA puts an injection or bypass attempt in a test or a `.scratch/` script, never in a live shell command. Steps 4 to 6 apply to Standard and Heavy only; Light has no QA. For Standard, this single launch also fills the `Code review` block; for Heavy, see the second QA launch in Tiers.
 5. After QA, the orchestrator runs **Assert clean** and confirms HEAD hasn't moved. If either fails, QA changed something: discard QA's verdict and run QA again.
 6. On FAIL, go back to step 3 with the QA comment as input; the hash check runs again.
-7. On PASS, the **decision point**: run `make sweep-due`, then gather everything waiting for the human into one message and ask once. That's proposed AGENTS.md changes, spec notes from any role, other protected-file changes, choices the Engineer made that the issue doesn't cover, risks QA reported outside the criteria, and a sweep proposal (`_docs/agent-kit/procedures/sweep.md`) if it says due. Show each as a diff or a short description, using the layouts in `_docs/agent-kit/procedures/asking-the-human.md`, with your recommendation. Then:
+7. On PASS, the **decision point**: run `make sweep-due`, then gather everything waiting for the human into one message and ask once. That's proposed AGENTS.md changes, spec notes from any role (in the Spec note layout of `_docs/agent-kit/procedures/asking-the-human.md`), other protected-file changes, choices the Engineer made that the issue doesn't cover, risks QA reported outside the criteria, and a sweep proposal (`_docs/agent-kit/procedures/sweep.md`) if it says due. Show each as a diff or a short description, using the layouts in `_docs/agent-kit/procedures/asking-the-human.md`, with your recommendation. Then:
    - Apply approved AGENTS.md, spec and other protected-file changes in their own commits, with `HUMAN_APPROVED=1`.
    - If an approved change needs Engineer work, go back to step 3; QA re-checks only what changed.
    - For each risk the human wants handled later, the PM files a follow-up issue.

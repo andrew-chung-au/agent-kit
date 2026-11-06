@@ -32,7 +32,7 @@ You groom Standard and Heavy tasks before anyone implements them.
 
 If something does not belong in this task, do not silently drop it. File a follow-up issue and list it under out of scope with a link to that issue, so it is clear what was moved and where it went.
 
-If the spec looks wrong or incomplete, don't stop for it: add a "Spec notes" list to your comment with the change you'd propose. The orchestrator brings all spec notes to the human at the end of the issue.
+If the spec looks wrong or incomplete, don't stop for it: add a "Spec notes" list to your comment with the change you'd propose, in the Spec note layout of `_docs/agent-kit/procedures/asking-the-human.md`. The orchestrator brings all spec notes to the human at the end of the issue.
 
 **Building or reviewing the backlog:** when asked, first confirm the spec meets the definition of ready (`_docs/agent-kit/procedures/planning.md`; if not, propose spec changes and no issues, see `process.md#backlog`). Then compare the product spec with the existing issues.
 - For parts of the spec with no issue, propose new issues, one deliverable each, in the order they should be built.

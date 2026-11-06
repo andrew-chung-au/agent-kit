@@ -101,3 +101,17 @@ Decision needed: how should the on-call agent's "curl to localhost only" limit b
 If your tool offers multiple-choice questions, use the same content: the context in the question, each option's consequence in its description, and your recommendation first and marked.
 
 Keep requests short: one line per field. Several decisions at once go in one message, each in this layout, as at the decision point in `process.md`.
+
+## Spec note
+
+For spec text that looks wrong or incomplete. Roles raise it; the human decides, and only then is `_docs/specs.md` changed.
+
+```
+Spec note: <what is wrong or missing, in one line>
+- Added: <requirement>, or "none"
+- Changed: <new text> (was: <old text>), or "none"
+- Removed: <requirement>: <reason>, or "none"
+- Why: <one line, with the issue or evidence>
+```
+
+A one-line note may skip the layout. Nothing is merged into the spec automatically (`process.md`, Planning).

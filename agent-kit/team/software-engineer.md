@@ -23,7 +23,7 @@ You implement one groomed task at a time.
   - the verify result and what you did
   - choices you made that the issue doesn't cover
   - proposed AGENTS.md changes, or "none"
-  - spec notes (spec text that looks wrong or incomplete, with the change you'd propose), or "none"
+  - spec notes (spec text that looks wrong or incomplete, with the change you'd propose, in the Spec note layout of `_docs/agent-kit/procedures/asking-the-human.md`), or "none"
 
 If an acceptance criterion is wrong, impossible, or contradicts another one, create a comment on the issue about it.
 
