@@ -22,13 +22,23 @@ class SpecNoteLayoutTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         text = flat(KIT / "procedures" / "asking-the-human.md")
-        cls.section = text[text.index("## Spec note"):text.index("If your tool offers multiple-choice")]
+        cls.text = text
+        cls.section = text[text.index("## Spec note"):]
 
     def test_the_layout_has_added_changed_removed_and_why(self):
         for needle in ("Spec note: <what is wrong or missing, in one line>", "- Added: <requirement>",
                        "- Changed: <new text> (was: <old text>)", "- Removed: <requirement>: <reason>",
                        "- Why: <one line"):
             self.assertIn(needle, self.section, needle)
+
+    def test_the_section_is_last_and_leaves_the_decision_question_whole(self):
+        """QA on #161: the Spec note must not split the Decision question from its closing paragraphs."""
+        decision = self.text[self.text.index("## Decision question"):self.text.index("## Spec note")]
+        self.assertIn("If your tool offers multiple-choice questions", decision)
+        self.assertIn("Keep requests short: one line per field.", decision)
+        self.assertNotIn("multiple-choice", self.section)
+        self.assertNotIn("Keep requests short", self.section)
+        self.assertNotIn("\n## ", (KIT / "procedures" / "asking-the-human.md").read_text().split("## Spec note", 1)[1])
 
     def test_it_is_optional_for_a_one_line_note_and_never_merges_automatically(self):
         self.assertIn("A one-line note may skip the layout", self.section)
