@@ -44,12 +44,24 @@ If different: the REST read returns something `gh issue view` did not; report th
 
 ## Record the result
 
-Write pass or fail for each step, and paste the `make issue-hash` output. Commit this file with the result so a later run can compare. Results contain no secrets either.
+Result recorded on 2026-11-07 by the orchestrator from the output below. Both steps passed: the REST close and comment reached GitHub, and the Kiro Web read returned the recorded hash.
 
 | Step | Pass or fail | Output or note |
 |---|---|---|
-| 1 | | |
-| 2 | | |
+| 1 | pass | `gh api repos/andrew-chung-au/agent-kit/issues/172 --jq .state` printed `closed`. The `Orchestrator: Close` comment was posted at https://github.com/andrew-chung-au/agent-kit/issues/172#issuecomment-6708521027. |
+| 2 | pass | Kiro Web on `andrew-chung-au/agent-kit`; `make issue-hash N=172` exited 0. Output pasted below; `Body sha256:` equals `Recorded sha256:`. |
+
+Step 2 output:
+
+```
+Body sha256: d369ddd89f0e29722f00ce7bdfac2284a3a97045c2e0a171803cd029fecdcfa7
+Author: andrew-chung-au
+Repository owner: andrew-chung-au
+Owner-authored: yes
+Recorded sha256: d369ddd89f0e29722f00ce7bdfac2284a3a97045c2e0a171803cd029fecdcfa7
+```
+
+Results contain no secrets.
 
 ## Risk
 
