@@ -99,17 +99,20 @@ Risk: publishes the commits to GitHub. Can't be undone without rewriting history
 
 Paste the output or write pass or fail for each step. Commit this file with the result so a later run can compare. Results contain no secrets either.
 
+Note: this was not a dedicated test run. The flow was exercised in normal use (pilot for #50) when the sandbox's commits were reviewed, merged and pushed; the entries below are reconstructed from the history on GitHub, not pasted from a terminal.
+
 | Step | Pass or fail | Output or note |
 |---|---|---|
-| Before 1 | | |
-| Before 2 | | |
-| Before 3 | | |
-| 1 | | |
-| 2 | | |
-| 3 | | |
-| 4 | | |
-| 5 | | |
-| 6 | | |
+| Before 1 | (confirm) | Not recorded at the time. |
+| Before 2 | (confirm) | Not recorded at the time. |
+| Before 3 | (confirm) | Not recorded at the time. Docker was needed for the push check, and pushes went through. |
+| 1 | (confirm) | Not recorded at the time. |
+| 2 | (confirm) | Not recorded at the time. |
+| 3 | (confirm) | Not recorded at the time. |
+| 4 | (confirm) | Not recorded at the time. |
+| 5 | pass (inferred) | Merge commits on `main` authored by the human on 2026-11-02: 8419348 "Merge #50" (13:45Z), f126d39 "Merge #13" (14:13Z), 200dfea "Merge #37" (14:32Z). |
+| 6 | pass (inferred) | Those merges are on `origin/main`, so the push succeeded. Whether the push check output was seen is not recorded. |
+
 
 ## Risk
 

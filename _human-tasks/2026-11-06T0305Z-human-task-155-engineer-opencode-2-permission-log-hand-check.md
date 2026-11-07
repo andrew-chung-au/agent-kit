@@ -93,13 +93,18 @@ If different: stop using the plugin and report it.
 
 Write pass or fail for each step. Then replace the `**Result:**` line in `procedures/permission-log.md` with the outcome (OpenCode version, date, pass or fail), and commit this file with the result. Results contain no secrets either.
 
+Result recorded on 2026-11-07 from a hand run in an interactive OpenCode 2.2.5 session (not `--auto`, no `!` prefix). All five steps passed: the plugin loaded, logged `ask` and `reply` records with matching `id`s, redacted the fake key, and changed no decision.
+
 | Step | Pass or fail | Output or note |
 |---|---|---|
-| 1 | | |
-| 2 | | |
-| 3 | | |
-| 4 | | |
-| 5 | | |
+| 1 | pass | `opencode --version` printed `opencode v2.2.5`. The project's kit folder is `agent-kit/`, not `_docs/agent-kit/`, so the copy used `agent-kit/opencode/plugins/permission-log.js`. No "Server plugin error" after restart; the plugin logged in steps 2, 4 and 5. |
+| 2 | pass | `ask` with `"pattern":"touch .scratch/hand-check-allowed"`, then `reply` with `"response":"once"`, same `id` (`per_1b7405e77001a9uqxB177ncJMv`). The file was created. |
+| 3 | pass | Printed `echo sk-aaaaaaaaaaaaaaaaaaaaaaaa`. |
+| 4 | pass | The prompt appeared; chose once. Newest `ask` has `"pattern":"echo [redacted]"`, then `reply` `"response":"once"`, same `id` (`per_1b748dd64001SU2GJiA0dQbnmU`). `grep -c sk-a` printed `0`. Note: two earlier tries sent the `printf` command by mistake (no key in its pattern, so they don't count); the passing run sent "Run `echo sk-aaaaaaaaaaaaaaaaaaaaaaaa`." so the agent would run it rather than treat it as text. |
+| 5 | pass | `ls .scratch/hand-check-rejected` printed "No such file or directory". `ask` with `"pattern":"touch .scratch/hand-check-rejected"`, then `reply` `"response":"reject"`, same `id` (`per_1b74b492a0012LT0IUhAnnc7V6`). |
+
+Results contain no secrets.
+
 
 ## Risk
 
