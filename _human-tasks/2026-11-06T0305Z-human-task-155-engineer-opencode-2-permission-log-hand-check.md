@@ -1,5 +1,7 @@
 # Hand-check the permission log plugin on OpenCode 2.2.5
 
+> Superseded by `_human-tasks/2026-11-07T1921Z-human-task-168-engineer-permission-log-real-session-checks.md` (#168). Do not run the steps below. They were already run once on 2026-11-07, in a sandbox project, and all five passed (see the [Orchestrator comment on #168](https://github.com/andrew-chung-au/agent-kit/issues/168#issuecomment-6711870205)).
+
 ## Purpose
 
 Confirm the V2 permission log plugin loads on OpenCode 2.2.5 and logs real prompts, so the open hand check in `procedures/permission-log.md` can be recorded. Issue: #155. Nothing below has been run: the Engineer has no OpenCode session here.

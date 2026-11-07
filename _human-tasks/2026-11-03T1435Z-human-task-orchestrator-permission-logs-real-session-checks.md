@@ -2,6 +2,8 @@
 
 > Written before asking the human, per `agent-kit/templates/human-task.md`. The repository is public: no secrets, tokens, private paths or machine names appear here. The one key-shaped string below is a made-up value.
 
+> Superseded by `_human-tasks/2026-11-07T1921Z-human-task-168-engineer-permission-log-real-session-checks.md` (#168). Do not run the steps below.
+
 ## Purpose
 
 **Status (2026-11-03): not yet run.** Turn on both permission loggers in the local sandbox, run the real-session checks that no agent can run (no OpenCode or live Claude Code session is available to the agents), and set the labels #56's dry runs need. Issues: #20 and #71 (OpenCode plugin), #36 (Claude Code logger), #56 (dry runs and measurements, which count prompts from these logs). The format and limits are in `agent-kit/procedures/permission-log.md`; the install steps are in `agent-kit/opencode/START.md` and `agent-kit/claude-code/START.md`.
