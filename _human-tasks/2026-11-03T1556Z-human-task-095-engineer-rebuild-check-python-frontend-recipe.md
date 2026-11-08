@@ -141,20 +141,34 @@ If different: stop and tell the orchestrator what was printed.
 
 Paste the output or write pass or fail for each step. Commit this file with the result so a later run can compare. Results contain no secrets either. Also record the date and who confirmed each unverified pin: Node, nvm, npm, uv, the Node feature options (`nvmVersion`, `pnpmVersion`), `pipx` in the base image, the nvm Node path in `setup.sh`, and the CI template's action majors (the first CI run confirms those).
 
+Result recorded on 2026-11-07 by andrew, from a run on the host in a throwaway dev container (`~/clone/recipe-check`, container user `vscode`, host container `24ef0e4909b8`) built from the clean clone's recipe. The rebuild log ended with `Setup complete`.
+
 | Step | Pass or fail | Output or note |
 |---|---|---|
-| 1 | | |
-| 2 | | |
-| 3 | | |
-| 4 | | |
-| 5 | | |
-| 6 | | |
-| 7 | | |
-| 8 | | |
-| 9 | | |
-| 10 | | |
-| 11 | | |
-| 12 | | |
+| 1 | pass | `node --version` printed `v24.22.0`. Confirms the Node pin. |
+| 2 | pass | `npm --version` printed `11.19.1`, matching the guessed value. |
+| 3 | pass | `uv --version` printed `uv 0.13.6 (x86_64-unknown-linux-gnu)`. The first attempt, made while setup was still running, printed `bash: uv: command not found`; it passed after `Setup complete`. |
+| 4 | pass | `nvm --version` printed `0.40.8`. Confirms the Node feature's `nvmVersion`. |
+| 5 | pass | `command -v yarn` printed nothing after `Setup complete`. An earlier run mid-setup printed `/usr/local/share/nvm/versions/node/v24.22.0/bin/yarn`, before the `corepack disable` line; that was timing, not a failure. |
+| 6 | pass | `command -v pnpm` printed nothing after `Setup complete`; mid-setup it printed a path under the same nvm directory. `pnpmVersion: "none"` confirmed. |
+| 7 | pass | `command -v claude` printed `~/.local/bin/claude`. Confirms the `PATH` entry. |
+| 8 | pass | `command -v opencode` printed `~/.opencode/bin/opencode`. Confirms the `PATH` entry. |
+| 9 | pass | `make install` installed both sides. Frontend: `up to date, audited 1 package`, `found 0 vulnerabilities`. Backend: uv warned that the bind-mounted `.venv` was linked to a non-existent host interpreter (a `cpython-3.14` path), removed it and recreated it with `CPython 3.12.16` at `/usr/local/bin/python3`, then resolved and checked. Warning is expected when a host-made venv is mounted; not a failure. |
+| 10 | pass | `make tool-versions` printed `git: git version 2.56.0`, `gh: gh version 2.103.3 (2026-10-26)`, `node: v24.22.0`, `npm: 11.19.1`, `python3: Python 3.12.16`, `uv: uv 0.13.6 (x86_64-unknown-linux-gnu)`, `docker: missing`. |
+| 11 | pass | `git status --short` showed only `?? .devcontainer/devcontainer-lock.json`. Its Node entry is `"ghcr.io/devcontainers/features/node:2"`, resolved to `ghcr.io/devcontainers/features/node@sha256:2a19d3b0b3879437637cfd292eb29fee0afcfbe6364e33db9afc4f80c5c1f956`. Committed in the throwaway as `f8cd6d0`. |
+| 12 | pass | `git remote` listed `origin` and `sandbox`. Rebuilding that throwaway clean clone failed at once: `setup.sh: this is a clean clone (it has a 'sandbox' remote or the clean-clone push check).` with the two advice lines, `postCreateCommand ... failed with exit code 1`, and no install lines before it. |
+
+Pin notes:
+- **Node** `24.22.0`: confirmed by step 1.
+- **nvm** `0.40.8`: confirmed by step 4.
+- **npm** `11.19.1`: confirmed by step 2 (not a separate pin; it ships with Node).
+- **uv** `0.13.6`: confirmed by step 3.
+- **Node feature options** `nvmVersion: "0.40.8"` and `pnpmVersion: "none"`: confirmed by steps 4 and 6.
+- **`pipx` in the base image**: not run directly (`command -v pipx` was skipped). Indirectly confirmed, because `setup.sh` installs uv with `pipx install --force uv==0.13.6` and step 3 found that exact uv.
+- **nvm Node path** in `setup.sh`: not printed by `command -v node`. Indirectly confirmed by the mid-setup `yarn` and `pnpm` paths, both under `/usr/local/share/nvm/versions/node/v24.22.0/bin/`.
+- **CI template action majors**: not confirmed by this run; the first CI run confirms them.
+
+The clean-clone container from step 12 was left to the human to remove with `docker rm -f`.
 
 ## Risk
 
