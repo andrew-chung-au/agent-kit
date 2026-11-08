@@ -12,7 +12,8 @@ or directly:
     python3 -B <kit>/scripts/kit-baseline.py <live kit folder> <clone of the kit repository>
 
 Both are plain relative paths (letters, digits . _ / - only), as for `make kit-compare`;
-put the clone under `.scratch/`. In the clone the kit is the `agent-kit/` folder. Only
+put the clone under `.scratch/`. In the clone the kit is the `agent-kit/` folder. A path in a
+commit holding a control or invisible character is skipped, as in kit-manifest.py. Only
 commits that changed `agent-kit/` are looked at, newest first, at most 2000. A file counts
 as matching when its path (inside the kit folder) and its content are the same. File modes
 are ignored, because a copy or an unzip may drop them.
@@ -35,7 +36,7 @@ one candidate (the newest is named).
 
 Exit codes: 0 a clear unique best (the `baseline:` line names it); 1 no clear best, the
 candidates are listed for the human; 2 an error, nothing compared (a one-line `kit-baseline:`
-reason): a bad argument, a symlink in the live kit, a clone that is not a git work tree.
+reason): a bad argument, a symlink in the live kit, a clone that is not a git work tree, a shallow clone.
 
 It writes nothing (the `git` commands it runs only read: rev-parse, log, ls-tree), refuses a
 symlink in the live kit like kit-manifest.py, and ignores `*.pyc`, `__pycache__` and
@@ -141,6 +142,8 @@ def commit_blobs(source: Path, commit: str) -> dict:
             path = raw.decode("utf-8")
         except UnicodeDecodeError:
             continue
+        if kit_manifest.CONTROL.search(path):
+            continue  # same check as kit-manifest.py: a name cannot forge or hide output lines
         if path.startswith(prefix) and not skipped(path[len(prefix):]):
             found[path[len(prefix):]] = fields[2]
     return found
@@ -153,6 +156,8 @@ def history(source: Path) -> list:
     top = git(source, "rev-parse", "--show-toplevel").decode("utf-8", "replace").strip()
     if os.path.realpath(top) != os.path.realpath(source):
         raise BaselineError("the source is not the top folder of a git work tree")
+    if git(source, "rev-parse", "--is-shallow-repository").strip() != b"false":
+        raise BaselineError("the source clone is shallow; use a full clone, not --depth")
     out = git(source, "log", f"--max-count={MAX_COMMITS}", "--format=%H %cs", "--", KIT_IN_SOURCE)
     commits = []
     for line in out.decode("ascii", "replace").splitlines():

@@ -272,6 +272,22 @@ class RefusalTest(Base):
         self.assert_error(self.run_script(f"{self.rel}/livelink", f"{self.rel}/src"), "holds a symlink")
         self.assert_error(self.run_script(f"{self.rel}/live", f"{self.rel}/srclink"), "holds a symlink")
 
+    def test_commit_paths_with_newline_or_escape_cannot_forge_or_inject_output(self):
+        fake = "baseline: " + "1" * 40 + " (12 of 12 live files)"
+        files = self.base_files()
+        files["x\n" + fake] = "forged\n"
+        files["esc\x1b]0;title\x07.md"] = "escape\n"
+        files["bidi\u202e.md"] = "bidi\n"
+        c1 = self.commit(files)
+        self.make_live(self.base_files())
+        result = self.run_script()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout.count("baseline:"), 1)
+        self.assertIn(f"baseline: {c1} (8 of 8 live files)", result.stdout)
+        self.assertNotIn("\x1b", result.stdout)
+        self.assertNotIn("\u202e", result.stdout)
+        self.assertIn("0 only in the commit", result.stdout)
+
     def test_a_source_that_is_not_a_git_work_tree_is_refused(self):
         self.live_from_c2()
         (self.work / "plain").mkdir()
@@ -288,6 +304,17 @@ class RefusalTest(Base):
         self.history()
         self.live_from_c2()
         self.assert_error(self.run_script(source=f"{self.rel}/src/agent-kit"), "not the top folder")
+
+    def test_a_shallow_source_is_refused(self):
+        self.history()
+        self.live_from_c2()
+        shallow = self.work / "shallow"
+        done = subprocess.run(["git", "clone", "-q", "--depth", "1", f"file://{self.src}", str(shallow)],
+                              env={**os.environ, **GIT_ENV}, capture_output=True, text=True)
+        self.assertEqual(done.returncode, 0, done.stderr)
+        result = self.run_script(source=f"{self.rel}/shallow")
+        self.assert_error(result, "shallow")
+        self.assertEqual(len(result.stderr.strip().splitlines()), 1)
 
     def test_an_empty_live_kit_is_refused(self):
         self.history()
@@ -402,6 +429,9 @@ class DocTest(unittest.TestCase):
                        "Record the commit, count and differing files in the report; the claim follows **Version**"):
             with self.subTest(phrase=phrase):
                 self.assertIn(phrase, self.text)
+
+    def test_the_clone_must_be_full(self):
+        self.assertIn("(a full clone, not `--depth`)", self.text)
 
     def test_an_unreadable_manifest_is_still_a_stop(self):
         self.assertIn("An unreadable manifest is a stop; the human decides the baseline.", self.text)
