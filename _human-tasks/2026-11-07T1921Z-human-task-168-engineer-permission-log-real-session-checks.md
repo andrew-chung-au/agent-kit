@@ -405,38 +405,42 @@ If different: stop and tell the orchestrator the count. A `2` means the plugin i
 
 Write the OpenCode and Claude Code versions, today's date, and pass or fail for each step. Write the answers to the subagent questions (steps 12 and 16): whether the prompts appear in each tool's log, and whether the subagent's session can be told apart. If you skipped Part E, write "Part E skipped". Then the orchestrator records the outcome in `agent-kit/procedures/permission-log.md` and `agent-kit/opencode/START.md`. Commit this file with the result so a later run can compare. Results contain no secrets either.
 
+Result recorded on 2026-11-08 by andrew. OpenCode `v2.2.5`; Claude Code `2.1.319`. Part E (steps 19 to 30) was skipped, as allowed above. The plugin was already installed and loaded before this run, so step 7 needed no OpenCode restart; the record below says so rather than claiming one.
+
 | Step | Pass or fail | Output or note |
 |---|---|---|
-| 1 | | |
-| 2 | | |
-| 3 | | |
-| 4 | | |
-| 5 | | |
-| 6 | | |
-| 7 | | |
-| 8 | | |
-| 9 | | |
-| 10 | | |
-| 11 | | |
-| 12 | | |
-| 13 | | |
-| 14 | | |
-| 15 | | |
-| 16 | | |
-| 17 | | |
-| 18 | | |
-| 19 | | |
-| 20 | | |
-| 21 | | |
-| 22 | | |
-| 23 | | |
-| 24 | | |
-| 25 | | |
-| 26 | | |
-| 27 | | |
-| 28 | | |
-| 29 | | |
-| 30 | | |
+| 1 | pass | `mkdir -p .opencode/plugins` printed nothing. The folder and plugin already existed from the earlier install. |
+| 2 | pass | `cp` printed nothing. `cmp` against `agent-kit/opencode/plugins/permission-log.js` printed nothing, so the copy is byte-identical. |
+| 3 | pass | `git add .opencode/plugins/permission-log.js` printed nothing. |
+| 4 | pass | `HUMAN_APPROVED=1 git commit` made `99bf7c2`: `1 file changed, 148 insertions(+)`, `create mode 100644 .opencode/plugins/permission-log.js`. |
+| 5 | pass | `git check-ignore .agent-kit/logs/` printed `.agent-kit/logs/`. |
+| 6 | pass | `grep -c log_permission.py .claude/settings.json` printed `1`. |
+| 7 | pass | No OpenCode restart: the plugin was already loaded in this session and wrote the records below; `git log -1 --format=%h -- .opencode/plugins/permission-log.js` printed `99bf7c2`. A fresh Claude Code session was started, and `/hooks` listed the `PermissionRequest` hook (`python3 "$CLAUDE_PROJECT_DIR"/agent-kit/claude-code/…`). No "Server plugin error" was seen. |
+| 8 | pass | Prompt appeared and the command ran. `ask` for `touch .scratch/permlog-allowed`, `"tool":"opencode"`, `"type":"shell"`, id `per_1b8af220a001gi0AKwjwFii0D7`, session A `ses_e48bfacc1ffeolJ6E9vlFxVqiN`; `reply` with the same id and `"response":"once"`. |
+| 9 | pass | `printf` printed `echo sk-` followed by 24 letters, as expected. The key text is not repeated here. |
+| 10 | pass | Prompt appeared and the command ran. Newest `ask` had `"pattern":"echo [redacted]"`, id `per_1b8b0bbd7001y0nlNbc6OLdA6x`, followed by a `reply` with the same id and `"response":"once"`. |
+| 11 | pass | `grep -c sk-a` printed `0`: the key never reached the log. |
+| 12 | pass | The OpenCode subagent's `touch .scratch/permlog-subagent-opencode` produced an `ask`, id `per_1b8b15848001aYFTTo4bk7Ieaj`, session `ses_e474eb29fffeFEtjO1lXDMvwt4`. That differs from session A, so the OpenCode subagent's session can be told apart. |
+| 13 | pass | Chose **reject** for `touch .scratch/permlog-rejected`. `ls .scratch/permlog-rejected` printed `No such file or directory`. |
+| 14 | pass | `reply` with `"response":"reject"` and id `per_1b8b2573b0011DEPgZBiZNB9Nx`, the same as its `ask`. |
+| 15 | pass | First attempt ran in Claude Code's **auto** mode: no dialog appeared and nothing was logged (auto mode emits no `PermissionRequest`). Repeated in manual mode (`--permission-mode manual`, Shift+Tab to manual) and the dialog appeared; chose **1. Yes** (allow once). `ask` for `touch .scratch/permlog-claude-allowed`, `"tool":"claude-code"`, `"type":"bash"`, no `id`, session B `5393bbd7-d747-416e-8547-1fdf7f4a455f`. The file was created. |
+| 16 | pass | The subagent's `touch .scratch/permlog-subagent-claude` produced an `ask` with the same `sessionID` as session B (`5393bbd7-…`). So in Claude Code the subagent's session **cannot** be told apart. The command ran. |
+| 17 | pass | Chose **No** (deny) for `touch .scratch/permlog-claude-denied`. The file was not created. The hook cannot record the outcome, so only the `ask` line exists. |
+| 18 | pass | `make permission-report SINCE=2026-11-08T00:58Z` reported 5 log files (older days exist) and the expected rows: `claude-code` / `bash`, the three commands, each asked 1 with `-` outcomes; `opencode` / `shell`, `touch .scratch/permlog-allowed` asked 1 allowed 1, `echo [redacted]` asked 1 allowed 1, `touch .scratch/permlog-subagent-opencode` asked 1 allowed 1, `touch .scratch/permlog-rejected` asked 1 denied 1. `Outcomes not recorded for: claude-code`, `Skipped lines (not JSON objects): 0`, `Unknown or unrecognised records: 0`. One extra row, `claude --help`, came from a diagnostic probe run by the assistant; other rows are allowed. |
+| 19 | skipped | Part E skipped by choice. |
+| 20 | skipped | Part E skipped. |
+| 21 | skipped | Part E skipped. |
+| 22 | skipped | Part E skipped. |
+| 23 | skipped | Part E skipped. |
+| 24 | skipped | Part E skipped. |
+| 25 | skipped | Part E skipped. |
+| 26 | skipped | Part E skipped. |
+| 27 | skipped | Part E skipped. |
+| 28 | skipped | Part E skipped. |
+| 29 | skipped | Part E skipped. |
+| 30 | skipped | Part E skipped. |
+
+Note for the docs: Claude Code in **auto** mode (now a permission mode) shows no dialog for commands it considers safe, so the hook logs nothing even though it is registered. The manual-mode run above is what the check records. The `claude --help` row in step 18 is a probe, not one of the checked commands.
 
 ## Risk
 
