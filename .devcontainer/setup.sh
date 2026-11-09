@@ -10,7 +10,11 @@ fi
 if ! command -v make >/dev/null; then
   sudo apt-get update && sudo apt-get install -y make
 fi
-command -v opencode >/dev/null || curl -fsSL https://opencode.ai/install | bash
+opencode_version="2.2.5"
+case "$(opencode --version 2>/dev/null || true)" in
+  *"v${opencode_version}") ;;
+  *) curl -fsSL https://opencode.ai/v2/install | bash -s -- --version "$opencode_version" ;;
+esac
 command -v claude >/dev/null || curl -fsSL https://claude.ai/install.sh | bash
 
 git config --global user.name "Andrew Chung"
