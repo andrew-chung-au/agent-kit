@@ -5,7 +5,7 @@ How a repo that carries a kit reviews a newer kit against its own, file by file,
 ## Forward import (this repo meets a newer kit)
 
 1. Unpack the new kit into a new, empty folder under `.scratch/`, never over the live kit folder.
-2. Run `make kit-check` on the live kit: pristine or derivative. A missing or unreadable manifest is a stop; the human decides the baseline.
+2. Run `make kit-check` on the live kit: pristine or derivative. An unreadable manifest is a stop; the human decides the baseline. A missing one means **No manifest**, below.
 3. Read the new kit's `MANIFEST.sha256`. A new kit without one is refused and the question goes to the human (a release ships the manifest, #9).
 4. Classify every file from three states: the live kit's manifest, the live file, the new kit's manifest. `make kit-compare KIT_A=<live kit folder> KIT_B=.scratch/<folder>` lists which differ (read-only).
 5. Apply the table. List every file with its outcome before anything is staged; the human reads that list first.
@@ -21,6 +21,8 @@ How a repo that carries a kit reviews a newer kit against its own, file by file,
 | Unchanged | Removed | Remove, with the human's approval |
 | Modified | Removed | Decision question |
 | Not present | New file | Add |
+
+**No manifest.** Clone this kit's repository into `.scratch/kit-src` (a full clone, not `--depth`), then run its script, not `make` (projects before 1.10 lack the `kit-baseline` target): `python3 -B .scratch/kit-src/agent-kit/scripts/kit-baseline.py <live kit folder> .scratch/kit-src` (read-only). It lists the best commits and differences. Only a `baseline:` line naming a commit (at least three quarters of the live files, no tie) is a candidate; otherwise ask the human with the best candidates, never picking one silently. The approval request names the commit, the match count (for example 79 of 85) and every differing file. After approval, put these in a `.scratch/` script: `git -C .scratch/kit-src archive <commit> agent-kit | tar -x -C .scratch/baseline` (create the folder first), then `python3 -B <kit>/scripts/kit-manifest.py .scratch/baseline/agent-kit <version>`, the version in that README header. That manifest is the baseline, never written into the live kit folder. Step 4 compares: `make kit-compare KIT_A=.scratch/baseline/agent-kit KIT_B=<live kit folder>`; every file it lists differs from the baseline, so none is Unchanged or overwritten without its recorded decision (the Refused rule). Record the commit, count and differing files in the report; the claim follows **Version**.
 
 **Refused:** a locally modified file is never overwritten or removed without that file's decision recorded in the report.
 

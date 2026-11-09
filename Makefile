@@ -72,6 +72,11 @@ kit-compare: ## List how one kit folder differs from another (read-only, no defa
 	$(if $(call kit-root-ok,$(value KIT_B)),,$(error Usage: make kit-compare KIT_A=<folder> KIT_B=<folder> - each one word, a relative path with letters digits . _ / - only))
 	@python3 -B agent-kit/scripts/kit-compare.py "$$KIT_A" "$$KIT_B"
 
+kit-baseline: ## Find the commit of a clone of the kit repo that a live kit with no manifest was copied from (read-only): make kit-baseline KIT=<live kit folder> SOURCE=<clone folder>
+	$(if $(call kit-root-ok,$(value KIT)),,$(error Usage: make kit-baseline KIT=<live kit folder> SOURCE=<clone folder> - each one word, a relative path with letters digits . _ / - only))
+	$(if $(call kit-root-ok,$(value SOURCE)),,$(error Usage: make kit-baseline KIT=<live kit folder> SOURCE=<clone folder> - each one word, a relative path with letters digits . _ / - only))
+	@python3 -B agent-kit/scripts/kit-baseline.py "$$KIT" "$$SOURCE"
+
 kit-path-ok = $(and $(filter 1,$(words $(1))),$(if $(call kit-other-strip,$(1),$(kit-other-chars)),,ok),$(if $(subst x$(strip $(1))x,,x$(1)x),,ok),$(if $(findstring ..,$(1)),,ok))
 
 kit-feedback: ## Write a read-only feedback bundle under .scratch/ from a project's kit (reverse import): make kit-feedback PROJECT=<project root> KIT=<reference kit>

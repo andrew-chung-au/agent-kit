@@ -34,4 +34,5 @@ By file. Add project manifests here.
 | `_docs/decisions/159-planning-guidance.md` | Decision to add a testable example, a plan-review checklist and a one-intent rule to the planning guidance (#159) | Approved |
 | `_docs/decisions/160-design-section.md` | Decision to add an optional Design section to the issue template (#160) | Approved |
 | `_docs/decisions/161-spec-note-layout.md` | Decision to add a fixed layout for spec notes (#161) | Approved |
+| `_docs/decisions/169-kit-baseline.md` | Decision to find a no-manifest kit's baseline with `kit-baseline.py` and make its manifest by hand (#169) | Approved |
 | `_docs/decisions/172-github-repo-source.md` | Decision that the GitHub wrappers take the repository from `GITHUB_REPO` in `agent-kit.conf` and use `gh api` (#172) | Approved |
