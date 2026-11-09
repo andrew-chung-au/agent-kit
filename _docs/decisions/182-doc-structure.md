@@ -1,6 +1,6 @@
 # Decision: split the kit docs by purpose, one home per fact
 
-Issue #182 (Heavy, proposed). The human approved the recommendations in `_docs/planning/182-target-structure.md` in the session on 2026-11-09. This record was written from that approval; it was not copied from a hashed issue body, so the Heavy gate in `process.md` (an ADR in the issue body, approved by hash) was not followed to the letter. The human should confirm it.
+Issue #182 (Heavy). The human approved the recommendations in `_docs/planning/182-target-structure.md` in the session on 2026-11-09 and confirmed this record in that session. It was not copied from a hashed issue body, so the Heavy gate in `process.md` (an ADR in the issue body, approved by hash) was met by the human's confirmation in chat, not by hash.
 
 - **Decision:** Each kit doc has one stated purpose and reader. `README.md` is the overview and a which-file index. `install-and-upgrade.md` is the only home for install and upgrade steps. `releasing.md` holds the release steps. `CHANGELOG.md` holds the per-version notes. `environments.md` keeps the profiles and the sandbox rules; `environments/local-sandbox/README.md` holds the one-time sandbox setup and reference. Intended copies have a named source and a test that fails when they drift (`tests/test_intended_copies.py`).
 - **Reason:** The README did eight jobs and `environments.md` four. The same install and upgrade facts lived in three files and drifted. A reader had to cross-read three files to answer one question (see #181).
