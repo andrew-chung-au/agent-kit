@@ -697,8 +697,8 @@ class DocsTest(unittest.TestCase):
         self.assertEqual(len(re.findall(r"`make kit-compare KIT_A=<live kit folder> KIT_B=\.scratch/<folder>`", text)), 2)
         self.assertNotIn("OTHER=", text)
         # 600 until #115; 713 with the installed-files step; 900 with the "No manifest" path (#169),
-        # as in test_kit_import_doc.py.
-        self.assertLessEqual(len(text.split()), 900)
+        # 960 with the zip and clone pointers (#181).
+        self.assertLessEqual(len(text.split()), 960)
         self.assertIn("| Modified | Changed | Decision question", text)
 
     def test_version_and_manifest_are_untouched(self):

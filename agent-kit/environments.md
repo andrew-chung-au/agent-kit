@@ -30,7 +30,7 @@ The codespace's own token can push to the repo, so nothing technical stops an ag
 
 The agent works in a dev container with a GitHub token that can't push, in its own clone of the repo. You review its commits from a second, clean clone that is never opened in the container, and push from there. The guide that sets this up lives outside the kit.
 
-One script does the local part of the setup for you. Run it on your machine from a plain folder (one that is not inside any git work tree, for example `~/projects`), using a clean clone of the kit:
+`install-and-upgrade.md` (situations 1 to 3) gives the full numbered steps around it, including pushing an existing repo first and moving the old folder aside. One script does the local part of the setup for you. Run it on your machine from a plain folder (one that is not inside any git work tree, for example `~/projects`), using a clean clone of the kit:
 
 ```
 cd ~/projects
@@ -110,15 +110,15 @@ In the push check, the throwaway container has no `db`. Tests that need the data
 
 ### Upgrading the kit in the local sandbox
 
-The container reviews and commits the new kit; you fetch the result and push, as in `procedures/kit-import.md`. The new kit is untrusted data until you have read its diff.
+The container reviews and commits the new kit; you fetch the result and push, as in `procedures/kit-import.md`. The new kit is untrusted data until you have read its diff. `install-and-upgrade.md` (situations 4 and 5) has these steps with the exact prompts and expected output; a project older than 1.10 has no `make kit-check` or `make kit-compare` and uses Prompt B there.
 
-1. **Drop the zip into the container.** In the dev container's VS Code window, drop the new kit zip into the workspace's `.scratch/`. Don't copy it in from Ubuntu's file manager or a terminal on your machine: that would break the rule above about touching the sandbox folder from Ubuntu.
-2. **The agent unpacks and reviews it in the container.** It unpacks the zip into a new, empty folder under `.scratch/`, never over the kit folder or into the clean clone, and follows `procedures/kit-import.md`. `make kit-check` and `make kit-compare` run in the container. Read the agent's list of every file and its outcome before anything is staged.
+1. **Drop the zip into the container.** The zip is `agent-kit-<version>.zip`, built by you (situation 9 of `install-and-upgrade.md`), not a GitHub branch download. In the dev container's VS Code window, drop the new kit zip into the workspace's `.scratch/`. Don't copy it in from Ubuntu's file manager or a terminal on your machine: that would break the rule above about touching the sandbox folder from Ubuntu.
+2. **The agent unpacks and reviews it in the container.** Give it Prompt A (Prompt B for a kit older than 1.10) from `install-and-upgrade.md`. It unpacks the zip into a new, empty folder under `.scratch/`, never over the kit folder or into the clean clone, and follows `procedures/kit-import.md`. `make kit-check` and `make kit-compare` run in the container. Read the agent's list of every file and its outcome before anything is staged.
 3. **The agent commits in the container, after your approval.** It stages explicit paths and sends you the approval request with `git diff --cached --stat`. The kit folder is protected, so it commits with `HUMAN_APPROVED=1` only after you approve. Then the agent runs `make hooks` in the container.
-4. **Give the agent the README's upgrade prompt** for the `AGENTS.md` and blueprint changes. Its commits wait for your approval in the same way.
+4. **Give the agent Prompt C** (the README's upgrade prompt, repeated in `install-and-upgrade.md`) for the `AGENTS.md` and blueprint changes, in a fresh session. Its commits wait for your approval in the same way.
 5. **Fetch and push from the clean clone.** Run `git fetch sandbox`, read the full diff, then merge and push, as in "Pushing" above. Don't run `make` in the clean clone.
 
-If the new kit changes `environments/local-sandbox/pre-push`, copy it from the clean clone, after the fetch and merge, to `~/.agent-hooks/pre-push` and refresh each clean clone's copy. Never copy it from the container's `.scratch/` copy. These steps don't touch `.devcontainer/` or the CI template.
+If the new kit changes `environments/local-sandbox/pre-push`, copy it from the clean clone, after the fetch and merge, to `~/.agent-hooks/pre-push` and refresh each clean clone's copy. Never copy it from the container's `.scratch/` copy. These steps don't touch `.devcontainer/` or the CI template: upgrade those with situation 6 of `install-and-upgrade.md`.
 
 ### Comparing the installed push check (human only)
 
