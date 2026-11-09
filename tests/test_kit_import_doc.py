@@ -73,8 +73,8 @@ class KitImportDocTest(unittest.TestCase):
         self.assertIn("`procedures/kit-import.md`", text)
 
     def test_readme_step_four_names_the_readable_config_slot(self):
-        text = flat(KIT / "README.md")
-        self.assertIn("the only config files you may read are those listed in the `readable config` slot",
+        text = flat(KIT / "install-and-upgrade.md")
+        self.assertIn("the only config files you may read are those listed in the readable config slot",
                       text.lower())
         self.assertIn("ask me for anything else", text)
 

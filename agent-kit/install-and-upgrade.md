@@ -14,7 +14,6 @@ Find your situation in the table, then follow only that section, top to bottom. 
 | **AGENT IN SANDBOX** | The AI tool's chat, started from the CONTAINER TERMINAL (for example `claude` or `opencode`). A fresh session each time it says so | paste prompts here |
 | **PROJECT TERMINAL** | Codespace or local checkout only: a terminal in the project folder | already in the right folder |
 | **AGENT IN PROJECT** | Codespace or local checkout only: the AI tool's chat, started from the PROJECT TERMINAL | paste prompts here |
-| **RELEASE FOLDER** | A terminal on your machine, in `~/kit-release-<version>`: a new empty folder outside every repository | `cd ~/kit-release-<version>` first |
 | **EDITOR** | A text editor on your machine, opening a file in the CLEAN CLONE | edit the file |
 
 Every command block below begins with a comment showing the place, for example `# CLEAN CLONE`; the comment is part of what you paste and does nothing. "The agent" never means a terminal: its commands run by itself inside the CONTAINER TERMINAL or PROJECT TERMINAL.
@@ -24,7 +23,7 @@ Every command block below begins with a comment showing the place, for example `
 - **Kit repository:** the GitHub repository holding the kit, `https://github.com/andrew-chung-au/agent-kit.git`. The kit is its `agent-kit/` folder.
 - **Kit clone:** the KIT CLONE above. (Older docs also say "the clean clone of the kit".)
 - **Clean clone** and **sandbox:** your project's two clones, `<repo>` and `<repo>-sandbox`, side by side in `~/projects`. The agent works in the sandbox and cannot push.
-- **Kit zip:** `agent-kit-<version>.zip`, built by you as in situation 9. A GitHub "Download ZIP" or a release's source zip is not a kit zip: it holds a whole repo and no `MANIFEST.sha256`, and `procedures/kit-import.md` refuses it.
+- **Kit zip:** `agent-kit-<version>.zip`, built by you as in `releasing.md`. A GitHub "Download ZIP" or a release's source zip is not a kit zip: it holds a whole repo and no `MANIFEST.sha256`, and `procedures/kit-import.md` refuses it.
 
 ## Which situation are you in?
 
@@ -38,7 +37,7 @@ Every command block below begins with a comment showing the place, for example `
 | 6 | After 4 or 5, the kit's `.devcontainer/` recipe changed | Local sandbox | Situation 6 |
 | 7 | New or existing repo, no kit | Codespace or local checkout | Situation 7 |
 | 8 | Existing repo with a kit | Codespace or local checkout | Situation 8 |
-| 9 | You need a kit zip for 4, 5 or 8 | Your machine | Situation 9 |
+| 9 | You need a kit zip for 4, 5 or 8 (human only) | Your machine | `releasing.md` |
 
 Not sure whether your kit is older than 1.10? Run this in the CLEAN CLONE (or CONTAINER TERMINAL or PROJECT TERMINAL, whichever has the project's files):
 
@@ -160,7 +159,7 @@ Create an empty repository on GitHub first, with one commit (for example a READM
 
    Expect the push check to run and the push to succeed.
 
-9. **If `make install` needs Node or uv:** see "The push-check image" in `environments.md`, run in the CLEAN CLONE.
+9. **If `make install` needs Node or uv:** see "The push-check image" in `environments/local-sandbox/README.md`, run in the CLEAN CLONE.
 
 ## Situation 2: existing repo, no kit, no dev container, local sandbox
 
@@ -209,7 +208,7 @@ You need the sandbox (situation 2) and a current kit (situation 4 or 5).
 
 ## Situation 4: kit 1.10 or later and a dev container, upgrade the kit, local sandbox
 
-1. **WHERE: RELEASE FOLDER** (situation 9, once per release). Have the kit zip `agent-kit-<version>.zip` on your machine.
+1. **WHERE: your machine.** Build the kit zip once per release with `releasing.md`, or use the one you were given. Have the kit zip `agent-kit-<version>.zip` on your machine.
 
 2. **WHERE: SANDBOX WINDOW.** Drag `agent-kit-<version>.zip` into the Explorer's `.scratch/` folder in the window. Do not copy it in from Ubuntu's file manager or a terminal on your machine. Check:
 
@@ -257,7 +256,7 @@ You need the sandbox (situation 2) and a current kit (situation 4 or 5).
 
    Expect the push check to run and the push to succeed.
 
-7. **WHERE: CLEAN CLONE, only if the push check changed.** If `agent-kit/environments/local-sandbox/pre-push` is among the changed files, compare the installed push check as in "Comparing the installed push check (human only)" in `environments.md`; if it differs, copy it from the merged clean clone (never from the container):
+7. **WHERE: CLEAN CLONE, only if the push check changed.** If `agent-kit/environments/local-sandbox/pre-push` is among the changed files, compare the installed push check as in "Comparing the installed push check (human only)" in `environments/local-sandbox/README.md`; if it differs, copy it from the merged clean clone (never from the container):
 
    ```
    # CLEAN CLONE
@@ -268,7 +267,7 @@ You need the sandbox (situation 2) and a current kit (situation 4 or 5).
 
    Expect no output. Repeat the last two lines' second copy in each other clean clone.
 
-8. **Check whether `.devcontainer/` changed.** In the CLEAN CLONE open `_docs/agent-kit/README.md` and read "Installed files to recopy from a clean clone" in the new version's changes. If it lists `.devcontainer/` or the CI workflow, do situation 6.
+8. **Check whether `.devcontainer/` changed.** In the CLEAN CLONE open `_docs/agent-kit/CHANGELOG.md` and read "Installed files to recopy from a clean clone" under the new version. If it lists `.devcontainer/` or the CI workflow, do situation 6.
 
 ## Situation 5: kit older than 1.10, upgrade the kit, local sandbox
 
@@ -412,7 +411,7 @@ The kit upgrade does not touch `.devcontainer/` or the CI workflow. They are ins
 
    Expect no output.
 
-2. **WHERE: PROJECT TERMINAL's folder.** Put the kit zip (situation 9) in the project's `.scratch/`: drag it into the codespace's file explorer, or copy it on your machine for a local checkout.
+2. **WHERE: PROJECT TERMINAL's folder.** Put the kit zip (`releasing.md`) in the project's `.scratch/`: drag it into the codespace's file explorer, or copy it on your machine for a local checkout.
 
    ```
    # PROJECT TERMINAL
@@ -446,73 +445,12 @@ The kit upgrade does not touch `.devcontainer/` or the CI workflow. They are ins
 
    Then start a fresh agent session so the new rules load.
 
-## Situation 9: building the kit zip (human only)
+## Notes that apply to more than one situation
 
-No agent builds, tags or pushes a release; you do it on your own machine. Build it in a **new empty folder outside every repository**: not inside the kit clone, not inside any project, and never in a sandbox's `.scratch/`. You need `git`, `tar`, `python3` and `zip`.
+In a monorepo, the hooks go at the repository root and only act on folders that contain `agent-kit.conf`, so projects without the kit are unaffected.
 
-1. **WHERE: KIT CLONE.** Check the release commit is merged and pushed, and the version line is committed:
+If the repo already has hooks, `make hooks` checks them first. Standard Git LFS hooks are replaced automatically, because the kit's hooks call Git LFS themselves. Any other hook stops the install, so you can merge it by hand.
 
-   ```
-   # KIT CLONE
-   cd ~/projects/agent-kit
-   git status --short
-   git log origin/main..main
-   head -3 agent-kit/README.md
-   ```
+**Note on the settings-read rule:** the shared block now carries the strict ban on reading the tool's settings, plus an opt-in. The project half needs a `Readable config` line, default `none`, which is stricter than the wording only this repo has seen. A project that does nothing keeps the strict ban. To opt in, list the specific files, with the human's approval after checking that they hold no secrets. Prompt C names that slot as the only list of config files the agent may read.
 
-   Expect the first two to print nothing, and the README header to read `**Version <version> (<date>).**`.
-
-2. **WHERE: KIT CLONE.** Tag the release commit and push the tag:
-
-   ```
-   # KIT CLONE
-   git tag -a v<version> -m "Kit <version>"
-   git push origin v<version>
-   git tag --list v<version>
-   ```
-
-   Expect `* [new tag]         v<version> -> v<version>` from the push, and `v<version>` from the last line. If you only ran `git tag -d` and pushed `main`, no tag exists; this step creates it.
-
-3. **WHERE: KIT CLONE.** Make the new empty folder and put the tagged kit in it:
-
-   ```
-   # KIT CLONE
-   mkdir ~/kit-release-<version>
-   git archive v<version> agent-kit | tar -x -C ~/kit-release-<version>
-   ls ~/kit-release-<version>/agent-kit
-   ```
-
-   Expect `README.md`, `scripts`, `procedures` and the other kit entries, and no `MANIFEST.sha256` yet.
-
-4. **WHERE: KIT CLONE.** Write the manifest. `kit-manifest.py` hashes every kit file and records the version, so a project can later run `make kit-check` to see whether its copy is pristine or changed:
-
-   ```
-   # KIT CLONE
-   python3 -B agent-kit/scripts/kit-manifest.py ~/kit-release-<version>/agent-kit <version>
-   ```
-
-   Expect `kit-manifest: wrote /home/<you>/kit-release-<version>/agent-kit/MANIFEST.sha256 (<n> files, version <version>)` (89 files for 1.10). A refusal reads `kit-manifest: <reason>; nothing written`.
-
-5. **WHERE: RELEASE FOLDER.** Zip the `agent-kit` folder so the zip's top-level folder is `agent-kit` and it holds `MANIFEST.sha256`:
-
-   ```
-   # RELEASE FOLDER
-   cd ~/kit-release-<version>
-   zip -qr agent-kit-<version>.zip agent-kit
-   unzip -l agent-kit-<version>.zip | grep MANIFEST
-   ```
-
-   Expect one line ending `MANIFEST.sha256` under `agent-kit`. This zip is the file you drag into `.scratch/` in situations 4, 5 and 8.
-
-6. **WHERE: RELEASE FOLDER, optional.** Check the zip unpacks to the same files as the folder you zipped:
-
-   ```
-   # RELEASE FOLDER
-   mkdir check
-   unzip -q agent-kit-<version>.zip -d check
-   python3 -B agent-kit/scripts/kit-compare.py check/agent-kit agent-kit
-   ```
-
-   Expect the last line `kit-compare: identical`. For a full check, copy `check/agent-kit` to a scratch project's `_docs/agent-kit/`, set `KIT_VERSION="<version>"` in its `agent-kit.conf`, and run `make kit-check` in that project: expect `kit-check: pristine; claim <version> is correct`.
-
-   Do not put the folder in the kit repository: the manifest is not committed there. A GitHub release page is not part of this process (issues #8 and #9); if you create one, attach this zip, not GitHub's automatic source zips.
+**Note for projects last upgraded before the slimmed template:** the shared rules moved into Non-negotiables, the hook line, Read when triggers and the step docs. The shared block is now bracketed by `<!-- SHARED START ... -->` and `<!-- SHARED END -->`. A project with only the old single `<!-- SHARED: ... -->` marker takes the new block from that marker to the end of its file, and its Project gotchas go after SHARED END. An upgrade never replaces a project's `AGENTS.md` wholesale: the change is a diff you approve. Review the project's own settings and gotchas for rules that now duplicate the moved ones.

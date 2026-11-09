@@ -1,4 +1,4 @@
-"""The human-only push-check comparison documented in environments.md (issue #117).
+"""The human-only push-check comparison documented in environments/local-sandbox/README.md (issue #117).
 
 Text only: nothing here runs a script. The doc must describe a read-only, human-only, git
 and coreutils comparison of the installed push check, and the install paths it names must
@@ -13,7 +13,7 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
 KIT = REPO / "agent-kit"
-DOC = KIT / "environments.md"
+DOC = KIT / "environments" / "local-sandbox" / "README.md"
 MAP_SCRIPT = KIT / "scripts" / "kit-map.py"
 
 spec = importlib.util.spec_from_file_location("kit_map", MAP_SCRIPT)
@@ -30,7 +30,7 @@ class PushCheckComparisonDocTest(unittest.TestCase):
         self.text = DOC.read_text(encoding="utf-8")
         self.flat = flat(DOC)
         # The comparison subsection only.
-        start = self.text.index("### Comparing the installed push check")
+        start = self.text.index("## Comparing the installed push check")
         end = self.text.find("\n## ", start)
         self.section = self.text[start: end if end != -1 else len(self.text)]
 
@@ -39,7 +39,7 @@ class PushCheckComparisonDocTest(unittest.TestCase):
         return sorted(e.install for e in entries if e.kind == "human-machine")
 
     def test_section_exists_and_is_human_only(self):
-        self.assertIn("### Comparing the installed push check", self.text)
+        self.assertIn("## Comparing the installed push check", self.text)
         self.assertIn("human only", self.section.lower())
         self.assertIn("from the clean clone", self.section)
 
