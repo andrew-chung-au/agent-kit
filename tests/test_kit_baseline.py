@@ -288,6 +288,35 @@ class RefusalTest(Base):
         self.assertNotIn("\u202e", result.stdout)
         self.assertIn("0 only in the commit", result.stdout)
 
+    def test_live_file_names_with_control_or_invalid_utf8_bytes_never_reach_stdout(self):
+        # A byte that is not UTF-8 comes back from os.walk as a lone surrogate (category Cs).
+        self.history()
+        for label, raw in (("raw C1 byte", b"csi\x9b2J.md"), ("valid U+009B", "csi\u009b2J.md".encode("utf-8")),
+                           ("newline", b"x\nbaseline: none.md"), ("escape", b"esc\x1b]0;t\x07.md")):
+            with self.subTest(name=label):
+                self.live_from_c2()
+                try:
+                    with open(os.path.join(os.fsencode(self.live), raw), "wb") as handle:
+                        handle.write(b"x\n")
+                except OSError:
+                    self.skipTest("this filesystem cannot hold that file name")
+                done = subprocess.run([sys.executable, "-B", str(SCRIPT), f"{self.rel}/live", f"{self.rel}/src"],
+                                      cwd=str(REPO), stdin=subprocess.DEVNULL, capture_output=True, timeout=120)
+                self.assertEqual(done.returncode, 2, done.stdout + done.stderr)
+                self.assertEqual(done.stdout, b"")
+                self.assertEqual(len(done.stderr.splitlines()), 1)
+                self.assertTrue(done.stderr.startswith(b"kit-baseline: "))
+                self.assertFalse(any(b < 0x20 and b != 0x0A or 0x7F <= b <= 0x9F for b in done.stderr), done.stderr)
+                self.assertNotIn(b"\xc2\x9b", done.stderr)
+
+    def test_a_non_ascii_live_name_still_prints_safely(self):
+        self.history()
+        self.live_from_c2()
+        (self.live / "caf\u00e9.md").write_text("x\n", encoding="utf-8")
+        done = self.run_script()
+        self.assertIn(done.returncode, (0, 1), done.stdout + done.stderr)
+        self.assertIn("only in the live kit caf\u00e9.md", done.stdout)
+
     def test_a_source_that_is_not_a_git_work_tree_is_refused(self):
         self.live_from_c2()
         (self.work / "plain").mkdir()
@@ -410,13 +439,54 @@ class ProcedureWorksTest(Base):
         self.assertNotIn("unchanged local.md", lines)
 
 
+class PreTargetProjectTest(Base):
+    """A project that took the kit before 1.10 has no `kit-baseline` target (QA, issue #169)."""
+
+    def test_the_documented_command_works_where_the_make_target_does_not_exist(self):
+        project = self.work / "project"
+        clone = project / ".scratch" / "kit-src"
+        clone.mkdir(parents=True)
+        (project / "Makefile").write_text("kit-check:\n\t@true\n", encoding="utf-8")
+        for rel, text in self.base_files().items():
+            path = project / "kit" / rel
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(text, encoding="utf-8")
+        self.git("init", "-q", cwd=clone)
+        scripts = clone / "agent-kit" / "scripts"
+        scripts.mkdir(parents=True)
+        for name in ("kit-baseline.py", "kit-manifest.py"):
+            shutil.copy(KIT / "scripts" / name, scripts / name)
+        for rel, text in self.base_files().items():
+            (clone / "agent-kit" / rel).write_text(text, encoding="utf-8")
+        self.git("add", "-A", cwd=clone)
+        self.git("commit", "-q", "-m", "kit", cwd=clone)
+        commit = self.git("rev-parse", "HEAD", cwd=clone)
+
+        made = subprocess.run(["make", "kit-baseline", "KIT=kit", "SOURCE=.scratch/kit-src"], cwd=str(project),
+                              capture_output=True, text=True, stdin=subprocess.DEVNULL)
+        self.assertNotEqual(made.returncode, 0)
+        self.assertIn("No rule to make target", made.stderr)
+
+        text = " ".join(DOC.read_text(encoding="utf-8").split())
+        found = re.search(r"`(python3 -B \.scratch/kit-src/agent-kit/scripts/kit-baseline\.py "
+                          r"<live kit folder> \.scratch/kit-src)`", text)
+        self.assertIsNotNone(found, "the documented command is missing from kit-import.md")
+        argv = found.group(1).replace("<live kit folder>", "kit").split()
+        argv[0] = sys.executable
+        done = subprocess.run(argv, cwd=str(project), capture_output=True, text=True,
+                              stdin=subprocess.DEVNULL, timeout=120)
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        self.assertIn(f"baseline: {commit} (8 of 8 live files)", done.stdout)
+
+
 class DocTest(unittest.TestCase):
     def setUp(self):
         self.text = " ".join(DOC.read_text(encoding="utf-8").split())
 
     def test_step_two_has_the_no_manifest_path(self):
         for phrase in ("A missing one means **No manifest**, below.", "**No manifest.**",
-                       "`make kit-baseline KIT=<live kit folder> SOURCE=.scratch/kit-src` (read-only)",
+                       "then run its script, not `make` (projects before 1.10 lack the `kit-baseline` target): "
+                       "`python3 -B .scratch/kit-src/agent-kit/scripts/kit-baseline.py <live kit folder> .scratch/kit-src` (read-only)",
                        "at least three quarters of the live files, no tie",
                        "never picking one silently",
                        "The approval request names the commit, the match count (for example 79 of 85) "

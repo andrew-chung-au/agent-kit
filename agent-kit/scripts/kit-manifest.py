@@ -36,14 +36,14 @@ from pathlib import Path
 
 MANIFEST = "MANIFEST.sha256"
 PLAIN_VERSION = re.compile(r"[0-9]+(\.[0-9]+)*")
-REFUSED_CATEGORIES = ("Cf", "Zl", "Zp")  # format (bidi, zero-width, BOM), line and paragraph separators
+REFUSED_CATEGORIES = ("Cf", "Cs", "Zl", "Zp")  # format (bidi, zero-width, BOM), lone surrogate (a byte that is not UTF-8), line and paragraph separators
 
 
 class _RefusedName:
     """Finds the first character a kit file name may not hold; `.search` works like a regex's.
 
     Refused: ASCII control and DEL, C1 controls U+0080 to U+009F, and every character whose
-    Unicode category is Cf, Zl or Zp. The one place this set is defined: kit_files, kit-check
+    Unicode category is Cf, Cs (the lone surrogate `os.walk` returns for a byte that is not valid UTF-8), Zl or Zp. The one place this set is defined: kit_files, kit-check
     and kit-compare all use it, so a name cannot change how a list or message is read.
     """
 
@@ -96,6 +96,8 @@ def kit_files(kit: Path) -> dict:
                 continue
             if not stat.S_ISREG(mode):
                 raise KitError(f"not a regular file in the kit folder: {rel}")
+            if any(unicodedata.category(char) == "Cs" for char in rel):
+                raise KitError(f"a kit file name is not valid UTF-8: {rel!r}")
             if CONTROL.search(rel):
                 raise KitError("a kit file name holds a control character or an invisible or "
                                f"direction-changing one: {rel!r}")
