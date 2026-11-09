@@ -144,12 +144,28 @@ scan_content() {
   die 3 "the secret scan refused FILE (exit $code); nothing was posted"
 }
 
-# print_url OUTPUT: gh prints the new URL on success. Anything else is not a
-# success, so the wrapper says so without echoing the output.
+# github_repo: set REPO to the repository named in ./agent-kit.conf (read as text,
+# never sourced; validated by github_api.py). Returns 1 when there is no valid value;
+# no gh command has run by then.
+github_repo() {
+  REPO=$(python3 -B "$here/github_api.py" repo 2> /dev/null) || return 1
+  [ -n "$REPO" ]
+}
+
+# print_url OUTPUT: `gh api` prints the created object as JSON; its html_url is the
+# URL of the new issue or comment. Anything else is not a success, so the wrapper says
+# so without echoing the output.
 print_url() {
-  case "$1" in
-    "" | *$'\n'* | *[[:space:]]*) die 1 "gh printed no issue URL; check GitHub before posting again (no retry was made)" ;;
-    https://*) printf '%s\n' "$1" ;;
-    *) die 1 "gh printed no issue URL; check GitHub before posting again (no retry was made)" ;;
-  esac
+  local url
+  url=$(printf '%s' "$1" | python3 -B -c '
+import json, sys
+try:
+    url = json.loads(sys.stdin.read())["html_url"]
+except Exception:
+    sys.exit(1)
+if not isinstance(url, str) or not url.startswith("https://") or any(c.isspace() for c in url):
+    sys.exit(1)
+sys.stdout.write(url)
+') || die 1 "gh printed no issue URL; check GitHub before posting again (no retry was made)"
+  printf '%s\n' "$url"
 }

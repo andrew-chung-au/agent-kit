@@ -19,6 +19,7 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 import unittest
 from pathlib import Path
 
@@ -27,24 +28,47 @@ from secret_fixtures import MATCH, NON_MATCH
 
 REPO = Path(__file__).resolve().parent.parent
 KIT = REPO / "agent-kit"
+sys.path.insert(0, str(KIT / "scripts"))
+import github_api  # noqa: E402
+
 URL = "https://github.com/example/repo/issues/99"
+TEST_REPO = "example-org/example-repo"  # the GITHUB_REPO of the throwaway projects
+REAL_REPO = github_api.conf_repo(str(REPO / "agent-kit.conf"))  # the GITHUB_REPO make tests run with
 BODY_TOKEN = "UNIQUE-BODY-TOKEN-4711"
 
 FAKE_GH = """\
 #!/usr/bin/env python3
-import json, os, sys
+import json, os, re, sys
 here = os.path.dirname(os.path.abspath(__file__))
 args = sys.argv[1:]
 with open(os.path.join(here, "calls.log"), "a") as log:
     log.write(json.dumps(args) + "\\n")
 config = json.load(open(os.path.join(here, "config.json")))
-kind = {("issue", "view"): "issue_view", ("repo", "view"): "repo_view",
-        ("issue", "create"): "create", ("issue", "comment"): "comment"}.get(tuple(args[:2]), "other")
+path = args[1].split("?")[0] if args[:1] == ["api"] and len(args) > 1 else ""
+query = dict(p.split("=", 1) for p in args[1].split("?", 1)[1].split("&")) if "?" in (args[1] if len(args) > 1 else "") else {}
+method = args[args.index("--method") + 1] if "--method" in args else "GET"
+kind = "other"
+if method == "POST" and re.fullmatch(r"repos/[^/]+/[^/]+/issues/[0-9]+/comments", path):
+    kind = "comment"
+elif method == "POST" and re.fullmatch(r"repos/[^/]+/[^/]+/issues", path):
+    kind = "create"
+elif method == "PATCH" and re.fullmatch(r"repos/[^/]+/[^/]+/issues/[0-9]+", path):
+    kind = "close"
+elif method == "GET" and re.fullmatch(r"repos/[^/]+/[^/]+/issues/[0-9]+/comments", path):
+    kind = "comments"
+elif method == "GET" and re.fullmatch(r"repos/[^/]+/[^/]+/issues/[0-9]+", path):
+    kind = "issue_view"
+elif method == "GET" and re.fullmatch(r"repos/[^/]+/[^/]+", path):
+    kind = "repo_view"
 if kind in ("create", "comment"):
     with open(os.path.join(here, "stdin.bin"), "ab") as out:
         out.write(sys.stdin.buffer.read())
 entry = config.get(kind, {})
-sys.stdout.write(entry.get("stdout", ""))
+if kind == "comments" and "list" in entry:
+    size, page = int(query.get("per_page", "30")), int(query.get("page", "1"))
+    sys.stdout.write(json.dumps(entry["list"][(page - 1) * size:page * size]))
+else:
+    sys.stdout.write(entry.get("stdout", "[]" if kind == "comments" else ""))
 sys.exit(entry.get("exit", 0))
 """
 
@@ -57,23 +81,46 @@ if [ -n "${SPY_SWAP:-}" ]; then printf 'QA: SWAPPED AFTER THE SCAN\\n' > "$SPY_S
 exit "${SPY_EXIT:-0}"
 """
 
-APPROVED_ISSUE = json.dumps({"labels": [{"name": "approved"}], "author": {"login": "someone-else"}})
+APPROVED_ISSUE = json.dumps({"labels": [{"name": "approved"}], "user": {"login": "someone-else"}})
 OWNER = json.dumps({"owner": {"login": "the-owner"}})
 
 CREATE_OK = "Title: A fine title\n\nBody line one.\nBody line two.\n"
 COMMENT_OK = "QA: PASS\n\nChecked every criterion.\n"
 
 
-def allowed_shape(argv: list) -> bool:
-    """The only four gh calls the wrappers may make."""
+def write_kind(argv: list):
+    """create, comment or close for a gh api write call; None for anything else."""
+    if argv[:1] != ["api"] or "--method" not in argv:
+        return None
+    method, path = argv[argv.index("--method") + 1], argv[1]
+    if method == "POST" and re.fullmatch(r"repos/[^/]+/[^/]+/issues/[0-9]+/comments", path):
+        return "comment"
+    if method == "POST" and re.fullmatch(r"repos/[^/]+/[^/]+/issues", path):
+        return "create"
+    if method == "PATCH":
+        return "close"
+    return None
+
+
+def title_of(argv: list) -> str:
+    return argv[5][len("title="):]
+
+
+def create_call(title: str, repo: str = TEST_REPO) -> list:
+    return ["api", f"repos/{repo}/issues", "--method", "POST", "-f", f"title={title}", "-F", "body=@-"]
+
+
+def allowed_shape(argv: list, repo: str = TEST_REPO) -> bool:
+    """The only gh calls the wrappers may make: fixed `gh api` shapes naming the repository."""
+    number = r"[1-9][0-9]{0,8}"
+    comments = f"repos/{re.escape(repo)}/issues/{number}/comments"
     return (
-        (len(argv) == 6 and argv[:3] == ["issue", "create", "--title"] and argv[4:] == ["--body-file", "-"]
-         and not argv[3].startswith("-"))
-        or (len(argv) == 5 and argv[:2] == ["issue", "comment"] and re.fullmatch(r"[1-9][0-9]{0,8}", argv[2])
-            and argv[3:] == ["--body-file", "-"])
-        or (len(argv) == 5 and argv[:2] == ["issue", "view"] and re.fullmatch(r"[1-9][0-9]{0,8}", argv[2])
-            and argv[3:] == ["--json", "labels,author"])
-        or argv == ["repo", "view", "--json", "owner"]
+        (len(argv) == 8 and argv[:4] == ["api", f"repos/{repo}/issues", "--method", "POST"]
+         and argv[4] == "-f" and argv[5].startswith("title=") and argv[6:] == ["-F", "body=@-"])
+        or (len(argv) == 6 and argv[0] == "api" and re.fullmatch(comments, argv[1])
+            and argv[2:] == ["--method", "POST", "-F", "body=@-"])
+        or (len(argv) == 2 and argv[0] == "api" and re.fullmatch(f"repos/{re.escape(repo)}/issues/{number}", argv[1]))
+        or argv == ["api", f"repos/{repo}"]
     )
 
 
@@ -94,7 +141,8 @@ class FakeGhMixin:
 
     def config(self, **overrides):
         config = {"issue_view": {"stdout": APPROVED_ISSUE}, "repo_view": {"stdout": OWNER},
-                  "create": {"stdout": URL + "\n"}, "comment": {"stdout": URL + "#issuecomment-1\n"}}
+                  "create": {"stdout": json.dumps({"html_url": URL})},
+                  "comment": {"stdout": json.dumps({"html_url": URL + "#issuecomment-1"})}}
         config.update(overrides)
         (self.ghdir / "config.json").write_text(json.dumps(config), encoding="utf-8")
         self.reset_logs()
@@ -108,7 +156,7 @@ class FakeGhMixin:
         return [json.loads(line) for line in log.read_text(encoding="utf-8").splitlines()] if log.exists() else []
 
     def writes(self):
-        return [c for c in self.calls() if c[:2] in (["issue", "create"], ["issue", "comment"])]
+        return [c for c in self.calls() if write_kind(c) in ("create", "comment")]
 
     def gh_stdin(self):
         path = self.ghdir / "stdin.bin"
@@ -132,7 +180,8 @@ class ScriptBase(FakeGhMixin, unittest.TestCase):
         self.project.mkdir()
         self.scripts = self.project / "agent-kit" / "scripts"
         shutil.copytree(KIT / "scripts", self.scripts, ignore=shutil.ignore_patterns("__pycache__"))
-        (self.project / "agent-kit.conf").write_text('KIT_DIR="agent-kit"\n', encoding="utf-8")
+        (self.project / "agent-kit.conf").write_text(f'KIT_DIR="agent-kit"\nGITHUB_REPO="{TEST_REPO}"\n',
+                                                         encoding="utf-8")
         (self.project / ".scratch").mkdir()
         self.marker = self.project / ".scratch" / "marker"
 
@@ -171,16 +220,17 @@ class SuccessTest(ScriptBase):
     def test_create_files_one_issue_and_prints_its_url(self):
         done = self.create(self.put(CREATE_OK))
         self.assertEqual((done.returncode, done.stdout, done.stderr), (0, (URL + "\n").encode(), b""))
-        self.assertEqual(self.calls(), [["issue", "create", "--title", "A fine title", "--body-file", "-"]])
+        self.assertEqual(self.calls(), [create_call("A fine title")])
         self.assertEqual(self.gh_stdin(), b"Body line one.\nBody line two.\n")
 
     def test_comment_posts_the_whole_file_and_prints_the_comment_url(self):
         done = self.comment("44", self.put(COMMENT_OK))
         self.assertEqual((done.returncode, done.stdout, done.stderr),
                          (0, (URL + "#issuecomment-1\n").encode(), b""))
-        self.assertEqual(self.calls(), [["issue", "view", "44", "--json", "labels,author"],
-                                        ["repo", "view", "--json", "owner"],
-                                        ["issue", "comment", "44", "--body-file", "-"]])
+        self.assertEqual(self.calls(), [["api", f"repos/{TEST_REPO}/issues/44"],
+                                        ["api", f"repos/{TEST_REPO}"],
+                                        ["api", f"repos/{TEST_REPO}/issues/44/comments", "--method", "POST",
+                                         "-F", "body=@-"]])
         self.assertEqual(self.gh_stdin(), COMMENT_OK.encode())
 
     def test_every_gh_call_in_every_successful_path_has_an_allowed_shape(self):
@@ -199,7 +249,7 @@ class SuccessTest(ScriptBase):
         for argv in self.calls():
             self.assertNotIn("--label", argv)
             self.assertNotIn("--add-label", argv)
-            self.assertNotIn("api", argv)
+            self.assertTrue(allowed_shape(argv), argv)  # only the fixed gh api shapes, no label call
         self.assertEqual(len(self.writes()), 1)
 
     def test_no_trailing_newline_and_blank_lines_are_posted_as_they_are(self):
@@ -221,7 +271,7 @@ class SuccessTest(ScriptBase):
     def test_non_ascii_text_is_posted_unchanged(self):
         text = "Title: café 日本 — ok\n\nbödy ✓\n"
         self.assertEqual(self.create(self.put(text)).returncode, 0)
-        self.assertEqual(self.calls()[0][3], "café 日本 — ok")
+        self.assertEqual(title_of(self.calls()[0]), "café 日本 — ok")
         self.assertEqual(self.gh_stdin(), "bödy ✓\n".encode())
 
 
@@ -350,11 +400,11 @@ class TitleTest(ScriptBase):
             with self.subTest(length=len(title)):
                 (self.ghdir / "calls.log").unlink(missing_ok=True)
                 self.assertEqual(self.create(self.put(f"Title: {title}\n\nbody\n")).returncode, 0)
-                self.assertEqual(self.calls()[0][3], title)
+                self.assertEqual(title_of(self.calls()[0]), title)
 
     def test_title_is_trimmed(self):
         self.assertEqual(self.create(self.put("Title:    padded title   \n\nbody\n")).returncode, 0)
-        self.assertEqual(self.calls()[0][3], "padded title")
+        self.assertEqual(title_of(self.calls()[0]), "padded title")
 
     def test_body_may_start_with_blank_lines_and_is_kept_whole(self):
         self.assertEqual(self.create(self.put("Title: x\n\n\n\nbody\n\n")).returncode, 0)
@@ -367,7 +417,7 @@ class TitleTest(ScriptBase):
                 "; touch .scratch/marker\n'quote' \"dquote\" back\\slash %s %d \\n\n-- \n")
         done = self.create(self.put(f"Title: {title}\n\n{body}"))
         self.assertEqual(done.returncode, 0, self.shown(done))
-        self.assertEqual(self.calls(), [["issue", "create", "--title", title, "--body-file", "-"]])
+        self.assertEqual(self.calls(), [create_call(title)])
         self.assertEqual(self.gh_stdin(), body.encode())
         self.assertFalse(self.marker.exists())
 
@@ -402,7 +452,7 @@ class TargetIssueTest(ScriptBase):
     """AGENTS.md, Issues: comment only on an `approved` issue or one the owner wrote."""
 
     def issue(self, labels, author):
-        return json.dumps({"labels": [{"name": n} for n in labels], "author": {"login": author}})
+        return json.dumps({"labels": [{"name": n} for n in labels], "user": {"login": author}})
 
     def posts(self, **config):
         self.config(**config)
@@ -432,7 +482,8 @@ class TargetIssueTest(ScriptBase):
                                ([], "the-owner2")):
             with self.subTest(labels=labels, author=author):
                 self.assert_not_posted(self.posts(issue_view={"stdout": self.issue(labels, author)}))
-        self.assertEqual([c[:2] for c in self.calls()][:2], [["issue", "view"], ["repo", "view"]])
+        self.assertEqual([c[:2] for c in self.calls()][:2],
+                         [["api", f"repos/{TEST_REPO}/issues/5"], ["api", f"repos/{TEST_REPO}"]])
 
     def test_every_failure_to_find_out_refuses_and_posts_nothing(self):
         good_issue = APPROVED_ISSUE
@@ -444,13 +495,14 @@ class TargetIssueTest(ScriptBase):
             "issue view empty object": {"issue_view": {"stdout": "{}"}},
             "issue view a list": {"issue_view": {"stdout": "[]"}},
             "issue view null": {"issue_view": {"stdout": "null"}},
-            "labels missing": {"issue_view": {"stdout": '{"author": {"login": "the-owner"}}'}},
+            "labels missing": {"issue_view": {"stdout": '{"user": {"login": "the-owner"}}'}},
             "author missing": {"issue_view": {"stdout": '{"labels": [{"name": "approved"}]}'}},
-            "author without login": {"issue_view": {"stdout": '{"labels": [{"name": "approved"}], "author": {}}'}},
-            "author login empty": {"issue_view": {"stdout": '{"labels": [], "author": {"login": ""}}'}},
-            "labels not a list": {"issue_view": {"stdout": '{"labels": "approved", "author": {"login": "x"}}'}},
-            "label name not text": {"issue_view": {"stdout": '{"labels": [{"name": 5}], "author": {"login": "x"}}'}},
-            "label without name": {"issue_view": {"stdout": '{"labels": [{}], "author": {"login": "x"}}'}},
+            "author null": {"issue_view": {"stdout": '{"labels": [{"name": "approved"}], "user": null}'}},
+            "author without login": {"issue_view": {"stdout": '{"labels": [{"name": "approved"}], "user": {}}'}},
+            "author login empty": {"issue_view": {"stdout": '{"labels": [], "user": {"login": ""}}'}},
+            "labels not a list": {"issue_view": {"stdout": '{"labels": "approved", "user": {"login": "x"}}'}},
+            "label name not text": {"issue_view": {"stdout": '{"labels": [{"name": 5}], "user": {"login": "x"}}'}},
+            "label without name": {"issue_view": {"stdout": '{"labels": [{}], "user": {"login": "x"}}'}},
             "repo view fails": {"repo_view": {"exit": 1, "stdout": OWNER}},
             "repo view prints nothing": {"repo_view": {"stdout": ""}},
             "repo view malformed JSON": {"repo_view": {"stdout": "{nope"}},
@@ -624,7 +676,7 @@ class FailingGhTest(ScriptBase):
         self.assertNotIn("\n", reason, "the reason must be one line")
         self.assertNotIn(BODY_TOKEN, self.shown(done))
         self.assertNotIn("Title", reason)
-        self.assertLessEqual(len([c for c in self.calls() if c[1] == kind]), 1, "gh was retried")
+        self.assertLessEqual(len([c for c in self.calls() if write_kind(c) == kind]), 1, "gh was retried")
 
     def create_file(self):
         return self.put(f"Title: Failing {BODY_TOKEN}\n\nBody {BODY_TOKEN}\n")
@@ -654,8 +706,12 @@ class FailingGhTest(ScriptBase):
                 self.assert_failed(self.create(self.create_file()), "create")
 
     def test_create_when_gh_prints_something_that_is_not_a_url(self):
-        for out in (f"created {BODY_TOKEN}\n", "https://a/b https://c/d\n", "https://a/b\nhttps://c/d\n",
-                    "http://insecure/x\n"):
+        not_urls = [f"created {BODY_TOKEN}\n", "https://a/b https://c/d\n", "https://a/b\nhttps://c/d\n",
+                    "http://insecure/x\n", URL + "\n"]  # the URL alone is not the JSON gh api prints
+        not_urls += [json.dumps({"html_url": value}) for value in
+                     ("http://insecure/x", "https://a/b https://c/d", "https://a/b\nhttps://c/d", "", 5, None)]
+        not_urls += [json.dumps({"url": URL}), json.dumps([URL])]
+        for out in not_urls:
             with self.subTest(out=out):
                 self.config(create={"stdout": out})
                 self.assert_failed(self.create(self.create_file()), "create")
@@ -669,7 +725,7 @@ class FailingGhTest(ScriptBase):
                 self.assertEqual(len(self.writes()), 1)
 
     def test_comment_when_gh_prints_nothing_or_not_a_url(self):
-        for out in ("", "\n", f"ok {BODY_TOKEN}\n", "a\nb\n"):
+        for out in ("", "\n", f"ok {BODY_TOKEN}\n", "a\nb\n", json.dumps({"html_url": "ftp://x"}), "{}"):
             with self.subTest(out=out):
                 self.config(comment={"stdout": out})
                 self.assert_failed(self.comment("5", self.comment_file()), "comment")
@@ -697,9 +753,8 @@ class StaticTest(unittest.TestCase):
 
     def test_gh_is_only_called_in_the_four_allowed_shapes(self):
         shapes = {
-            "issue-create.sh": ['gh issue create --title "$title" --body-file -'],
-            "issue-comment.sh": ['gh issue view "$number" --json labels,author', "gh repo view --json owner",
-                                 'gh issue comment "$number" --body-file -'],
+            "issue-create.sh": ['gh api "repos/$REPO/issues" --method POST -f "title=$title" -F body=@-'],
+            "issue-comment.sh": ['gh api "repos/$REPO/issues/$number/comments" --method POST -F body=@-'],
         }
         for name in self.SCRIPTS:
             found = []
@@ -711,7 +766,7 @@ class StaticTest(unittest.TestCase):
             self.assertEqual(sorted(found), sorted(expected), name)
         for name in self.SCRIPTS:
             text = "\n".join(self.code(name))
-            for word in ("--label", "--add-label", "--assignee", "--milestone", "--project", "gh api",
+            for word in ("--label", "--add-label", "--assignee", "--milestone", "--project",
                          "issue edit", "issue close", "issue reopen", "issue delete", "--body "):
                 self.assertNotIn(word, text, f"{name}: {word}")
 
@@ -828,13 +883,15 @@ class MakeTargetTest(FakeGhMixin, unittest.TestCase):
     def test_issue_create_runs_the_script(self):
         done = self.make("issue-create", f"FILE={self.put(CREATE_OK)}")
         self.assertEqual((done.returncode, done.stdout), (0, URL + "\n"), done.stderr)
-        self.assertEqual(self.calls(), [["issue", "create", "--title", "A fine title", "--body-file", "-"]])
+        self.assertEqual(self.calls(), [create_call("A fine title", REAL_REPO)])
         self.assertEqual(self.gh_stdin(), b"Body line one.\nBody line two.\n")
 
     def test_issue_comment_runs_the_script(self):
         done = self.make("issue-comment", "N=44", f"FILE={self.put(COMMENT_OK)}")
         self.assertEqual((done.returncode, done.stdout), (0, URL + "#issuecomment-1\n"), done.stderr)
-        self.assertEqual([c[:2] for c in self.calls()], [["issue", "view"], ["repo", "view"], ["issue", "comment"]])
+        self.assertEqual([c[:2] for c in self.calls()],
+                         [["api", f"repos/{REAL_REPO}/issues/44"], ["api", f"repos/{REAL_REPO}"],
+                          ["api", f"repos/{REAL_REPO}/issues/44/comments"]])
         self.assertEqual(self.gh_stdin(), COMMENT_OK.encode())
 
     def test_bad_files_are_refused_by_make_before_any_shell_runs(self):

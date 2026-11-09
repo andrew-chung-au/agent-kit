@@ -60,7 +60,7 @@ none
 ## Unrelated problems noticed but not fixed
 
 - #91's approved Decision record was never committed as `_docs/decisions/091-installed-file-map.md`.
-- `_human-tasks/2026-11-03T1435Z-human-task-orchestrator-permission-logs-real-session-checks.md` still says to copy the plugin, which today installs the V1 plugin.
+- `_human-tasks/2026-11-03T1435Z-human-task-orchestrator-permission-logs-real-session-checks.md` (never run) is partly stale: its labelling part names #94 and #77, both closed; its OpenCode checks duplicate the newer #155 task and write a complete key-shaped string instead of building it with `printf`. Its install, Claude Code and subagent steps are still valid. (Its plugin copy step now copies the V2 plugin, since PR #157 merged.)
 - #20's open real-session criteria (subagent prompts in the log; #71's cap after a restart) are not in #168.
 - Several PRs this session said "Closes #N", so GitHub closed #155, #156, #159, #160 and #161 without `make issue-close`.
 

@@ -193,23 +193,24 @@ Paste the output or write pass or fail for each step. Commit this file with the 
 
 | Step | Pass or fail | Output or note |
 |---|---|---|
-| 1 | | |
-| 2 | | |
-| 3 | | |
-| 4 | | |
-| 5 | | |
-| 6 | | |
-| 7 | | |
-| 8 | | |
-| 9 | | |
-| 10 | | |
-| 11 | | |
-| 12 | | |
-| 13 | | |
-| 14 | | |
-| 15 | | |
-| 16 | | |
-| 17 | | |
+| 1 | (confirm) | Local check, not visible from GitHub. |
+| 2 | (confirm) | Local diff read, not visible from GitHub. |
+| 3 | (confirm) | Local diff read, not visible from GitHub. |
+| 4 | (confirm) | Local diff read, not visible from GitHub. |
+| 5 | (confirm) | Local diff read, not visible from GitHub. |
+| 6 | (confirm) | Local diff read, not visible from GitHub. |
+| 7 | (confirm) | Local diff read, not visible from GitHub. |
+| 8 | (confirm) | Local diff read, not visible from GitHub. Decision: #2 was merged now, not held for #9. |
+| 9 | pass | All four PRs merged 2026-11-03 (UTC): #2 as PR #100 at 15:30:44, #88 as PR #97 at 15:31:03, #77 as PR #98 at 15:31:34, #21 as PR #99 at 15:32:03. Merge order differed from the task: #2 went first. Issues #88, #77, #21 and #2 are closed. |
+| 10 | pass (inferred) | Commit a3c43d3 sits on `main`, so the clone was on `main`. |
+| 11 | pass (inferred) | The template was present on `main` to copy from, and the commit has a single parent, so history is linear (fast-forward). |
+| 12 | pass (inferred) | `.github/` exists with the new file. |
+| 13 | pass | `.github/pull_request_template.md` exists on `main`. |
+| 14 | pass | Blob SHA of both files on `main` is `eb07fe060f2632c1abb1207845b581519245b98e`, so they are byte-identical. |
+| 15 | pass (inferred) | The file is in the commit. |
+| 16 | pass | Commit `a3c43d3` "Install the pull request template in .github (#21)", 2026-11-04T03:54Z, one file changed. |
+| 17 | pass | Commit `a3c43d3` is on `origin/main`, and `main` has since moved ahead. |
+
 
 ## Risk
 

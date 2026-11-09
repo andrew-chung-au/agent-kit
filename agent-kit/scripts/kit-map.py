@@ -12,8 +12,9 @@ or compares files its own way, so they cannot disagree. Standard library only.
 The first form prints one line per entry (`kind | source | install | allowed`) and exits
 0. The second (`--installed`) compares each installed file with its kit source and prints
 one line per entry: `unchanged`, `drift`, `missing` or, for a human-machine entry,
-`not checked here (human compares from the clean clone) <path>`; it exits 1 on any drift
-or missing, 0 otherwise. Either form prints a one-line `kit-map: ...` reason on stderr and
+`not checked here (human compares from the clean clone) <path>`, or, for an `optional`
+entry whose file is not there, `not installed (optional) <path>`; it exits 1 on any drift
+or missing, 0 otherwise (an optional file that is not installed is not a failure). Either form prints a one-line `kit-map: ...` reason on stderr and
 exits 2 on a refused map. Both roots are required: there is no default kit root, and
 neither vuln-triage/ copy of the kit is authoritative.
 
@@ -32,6 +33,11 @@ Map format (text only; the file is never sourced and nothing in it is run):
 kind is `repo` (installed inside the repository) or `human-machine` (installed by the
 human on their own machine, outside this folder). allowed-to-differ is one of
     none            any difference is drift
+    optional        like `none`, and a file that is not installed is not a failure: the
+                    project chose not to install it (a tool layer it does not use, or the
+                    permission log). It is reported `not installed (optional)`, never
+                    `missing`. A copy that IS installed must match exactly, so a stale one
+                    is `drift`.
     markers         lines between `agent-kit: local-begin` and `agent-kit: local-end`
                     (in a comment) may differ; both copies must hold exactly one pair
     prefix:<text>   lines starting with <text> may differ (for files without comments)
@@ -144,7 +150,7 @@ def _check_repo_install(repo_root: Path, install: str, number: int) -> None:
 
 
 def _check_allowed(allowed: str, number: int) -> None:
-    if allowed in ("none", "markers"):
+    if allowed in ("none", "markers", "optional"):
         return
     if allowed.startswith("prefix:") and allowed[len("prefix:"):]:
         return
@@ -275,7 +281,7 @@ def scan_text(allowed: str, kit_text: str, installed_text: str) -> list[Finding]
 class Report(NamedTuple):
     install: str   # the install path from the map (data for a human-machine entry)
     kind: str      # "repo" or "human-machine"
-    state: str     # repo: "unchanged", "drift" or "missing"; human-machine: "not checked"
+    state: str     # repo: "unchanged", "drift", "missing" or "not installed"; human-machine: "not checked"
     findings: list  # the Findings behind a "drift" state; [] otherwise
 
 
@@ -322,7 +328,8 @@ def scan_installed(kit_root, repo_root) -> list[Report]:
                 raise MapError(f"the install path goes through a symlink: {entry.install!r}")
         failed = f"the installed file cannot be read as UTF-8 text: {entry.install!r}"
         if not fs(install.is_file, failed=failed):
-            reports.append(Report(entry.install, entry.kind, "missing", []))
+            state = "not installed" if entry.allowed == "optional" else "missing"
+            reports.append(Report(entry.install, entry.kind, state, []))
             continue
         installed_text = read_utf8(install, failed)
         findings = scan_text(entry.allowed, kit_text, installed_text)
@@ -337,6 +344,8 @@ def report_lines(reports: list[Report]) -> list[str]:
     for report in reports:
         if report.kind == "human-machine":
             lines.append(f"{HUMAN_MACHINE_LINE} {report.install}")
+        elif report.state == "not installed":
+            lines.append(f"not installed (optional) {report.install}")
         elif report.state == "unchanged" and any(f.status == "local, ignored" for f in report.findings):
             lines.append(f"local, ignored {report.install}")
         else:

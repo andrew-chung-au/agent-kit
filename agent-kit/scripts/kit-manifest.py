@@ -81,19 +81,19 @@ def kit_files(kit: Path) -> dict:
         dirs.sort()
         here = Path(folder)
         for name in list(dirs):
-            if name == "__pycache__":
-                dirs.remove(name)
-                continue
+            # A symlink is refused whatever its name, before any name is skipped.
             if (here / name).is_symlink():
                 raise KitError(f"symlink in the kit folder: {(here / name).relative_to(kit).as_posix()}")
+            if name == "__pycache__":
+                dirs.remove(name)
         for name in sorted(files):
             path = here / name
             rel = path.relative_to(kit).as_posix()
-            if name.endswith(".pyc") or rel == MANIFEST:
-                continue
             mode = os.lstat(path).st_mode
             if stat.S_ISLNK(mode):
                 raise KitError(f"symlink in the kit folder: {rel}")
+            if name.endswith(".pyc") or rel == MANIFEST:
+                continue
             if not stat.S_ISREG(mode):
                 raise KitError(f"not a regular file in the kit folder: {rel}")
             if CONTROL.search(rel):

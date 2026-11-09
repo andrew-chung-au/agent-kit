@@ -57,10 +57,15 @@ If different: a ruling is missing. Post it; the issue stays open until all six h
 
 Paste the output or write pass or fail for each step, then tell the orchestrator in the session that the rulings are posted. It has the PM file one issue per accepted proposal and closes #68 only after QA PASS. Commit this file with the result so a later run can compare. Results contain no secrets either.
 
+Result recorded on 2026-11-07 from the #68 comments. Both steps were done on 2026-11-03 by relay: the human gave the answers and rulings in an orchestrator session, and the orchestrator posted them. No `Human:` comment was posted. #68 closed on 2026-11-03 after QA PASS. The report has since moved to `_docs/records/2026-11-03T1016Z-measure-docs-structure-research.md` (#109).
+
 | Step | Pass or fail | Output or note |
 |---|---|---|
-| 1 | | |
-| 2 | | |
+| 1 | pass (relayed) | Answers relayed in https://github.com/andrew-chung-au/agent-kit/issues/68#issuecomment-6611792993. 1: the tracked `vuln-triage/` copy is the latest but lacks the project README. 2: the human asked the researcher to find the patterns rather than naming cases; first pass in `_docs/records/2026-11-03-vuln-triage-duplication-patterns.md`. 3: unknown; the human supplied `_docs/human-inputs/2026-11-03-rag-file-structure-guide.md` instead. 4: both kit copies stay for now, to be settled under the upgrade and feedback issues. |
+| 2 | pass (relayed) | Rulings in https://github.com/andrew-chung-au/agent-kit/issues/68#issuecomment-6606969083: P1 and P2 accepted with changes, P3 to P6 accepted as written. The PM filed #106 to #112; all are closed. |
+
+Results contain no secrets.
+
 
 ## Risk
 

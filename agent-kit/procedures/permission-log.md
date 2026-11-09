@@ -17,8 +17,8 @@ The record format for permission requests an agent tool asks the human to approv
 
 **Never logged:** commands, titles, tool output, file contents, diffs. The Claude Code hook writes an `unknown` record (name only) for an unreadable event; the OpenCode plugin never does.
 
-**Tested against:** OpenCode 2.2.5 and its V2 plugin API (`@opencode/plugin`); not for OpenCode 1.x. V2 gives plugins no log sink, so a logging failure drops the record silently. If OpenCode's event stream ends, the plugin subscribes again after 1 second, doubling up to 5 minutes while streams bring nothing (#166). Open: do subagent prompts appear (extra `sessionID` values)?
+**Tested against:** OpenCode 2.2.5 and its V2 plugin API (`@opencode/plugin`); not for OpenCode 1.x. V2 gives plugins no log sink, so a logging failure drops the record silently. If the stream ends, it resubscribes after 1 second, doubling up to 5 minutes (#166). A subagent prompt appears in both; only OpenCode gives a new `sessionID`.
 
 **Hand check at each OpenCode upgrade** (the kit has no Node check): the three steps and pass rule in `opencode/START.md` (step 6).
 
-**Result:** pending: `_human-tasks/2026-11-06T0305Z-human-task-155-engineer-opencode-2-permission-log-hand-check.md`.
+**Result:** passed 2026-11-08 (OpenCode 2.2.5, Claude Code 2.1.319); `_human-tasks/2026-11-07T1921Z-…`.

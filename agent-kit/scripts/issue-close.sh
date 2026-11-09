@@ -35,10 +35,16 @@
 # exists or that the human approved a diff. All roles share the owner's account, so
 # the checks stop mistakes and shortcuts, not a role set on bypassing the process.
 #
-# The only gh calls it makes are these shapes, fixed here, never built from issue text:
-#     gh issue view <N> --json state,labels,author,comments
-#     gh repo view --json owner
-#     gh issue close <N> --reason completed        (or --reason "not planned")
+# The repository is the GITHUB_REPO line of agent-kit.conf (github_api.py validates it);
+# the REST API is used because `gh issue` cannot find the repository from the git remote
+# everywhere (Kiro Web). The only gh calls it makes are these shapes, fixed here, never
+# built from issue text (the first three are made by github_api.py, every page of the
+# comments is read):
+#     gh api repos/<repo>/issues/<N>
+#     gh api "repos/<repo>/issues/<N>/comments?per_page=100&page=<P>"
+#     gh api repos/<repo>
+#     gh api repos/<repo>/issues/<N> --method PATCH -f state=closed -f state_reason=completed
+#                                            (or -f state_reason=not_planned)
 # (the last is the only write). It fails closed: if gh is missing, fails, prints nothing
 # or malformed JSON, or a field is missing, it refuses and closes nothing.
 #
@@ -67,8 +73,9 @@ case "$reason" in
 esac
 
 command -v gh > /dev/null 2>&1 || die 4 "cannot check issue $number: gh was not found; nothing was closed"
-issue_json=$(gh issue view "$number" --json state,labels,author,comments 2> /dev/null) || die 4 "cannot read issue $number with gh; nothing was closed"
-repo_json=$(gh repo view --json owner 2> /dev/null) || die 4 "cannot read the repository owner with gh; nothing was closed"
+github_repo || die 4 "cannot check issue $number: no valid GITHUB_REPO=\"<owner>/<name>\" line in agent-kit.conf; nothing was closed"
+issue_json=$(python3 -B "$here/github_api.py" issue "$REPO" "$number" 2> /dev/null) || die 4 "cannot read issue $number with gh; nothing was closed"
+repo_json=$(python3 -B "$here/github_api.py" owner "$REPO" 2> /dev/null) || die 4 "cannot read the repository owner with gh; nothing was closed"
 
 # The checker reads the issue JSON on standard input, not as an argument, so a long
 # comment history cannot hit the argument-length limit and make the issue unclosable.
@@ -202,9 +209,9 @@ case "$code" in
 esac
 
 if [ "$reason" = "not-planned" ]; then
-  gh issue close "$number" --reason "not planned" > /dev/null 2>&1
+  gh api "repos/$REPO/issues/$number" --method PATCH -f state=closed -f state_reason=not_planned > /dev/null 2>&1
 else
-  gh issue close "$number" --reason completed > /dev/null 2>&1
+  gh api "repos/$REPO/issues/$number" --method PATCH -f state=closed -f state_reason=completed > /dev/null 2>&1
 fi
 code=$?
 [ "$code" -eq 0 ] || die 1 "gh issue close failed (exit $code); nothing was retried, so check GitHub before closing again"

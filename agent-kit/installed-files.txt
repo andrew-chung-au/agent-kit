@@ -4,7 +4,8 @@
 #
 # <path inside the kit> | <install path> | <kind> | <allowed-to-differ>
 #   kind:     repo (inside the repository) or human-machine (on the human's machine)
-#   allowed:  none, markers (agent-kit: local-begin / agent-kit: local-end) or prefix:<text>
+#   allowed:  none, markers (agent-kit: local-begin / agent-kit: local-end), prefix:<text>
+#             or optional (like none, and a file that is not installed is not a failure)
 #
 # A human-machine install path is data only: no tool opens or stats it. The push check is
 # installed twice: once in the human's ~/.agent-hooks, once in each clean clone's .git/hooks.
@@ -13,3 +14,19 @@ environments/local-sandbox/setup.sh | .devcontainer/setup.sh | repo | prefix:git
 templates/ci-verify.yml.template | .github/workflows/verify.yml | repo | none
 environments/local-sandbox/pre-push | ~/.agent-hooks/pre-push | human-machine | none
 environments/local-sandbox/pre-push | .git/hooks/pre-push | human-machine | none
+#
+# The tool layers (opencode/START.md and claude-code/START.md): the files a project copies as
+# they are. A project may use one tool, both or neither, and the permission log is optional,
+# so each line is `optional`: not installed is reported as such, but an installed copy that
+# differs (an old plugin, a stale role definition) is `drift`. Files that are merged rather
+# than copied (opencode.json, .claude/settings.json, CLAUDE.md) are not listed: they differ
+# by project, so `make kit-check` cannot compare them byte for byte; review them at an import.
+opencode/agents/pm.md | .opencode/agents/pm.md | repo | optional
+opencode/agents/qa-engineer.md | .opencode/agents/qa-engineer.md | repo | optional
+opencode/agents/software-engineer.md | .opencode/agents/software-engineer.md | repo | optional
+opencode/skills/sweep/SKILL.md | .opencode/skills/sweep/SKILL.md | repo | optional
+opencode/plugins/permission-log.js | .opencode/plugins/permission-log.js | repo | optional
+claude-code/agents/pm.md | .claude/agents/pm.md | repo | optional
+claude-code/agents/qa-engineer.md | .claude/agents/qa-engineer.md | repo | optional
+claude-code/agents/software-engineer.md | .claude/agents/software-engineer.md | repo | optional
+claude-code/skills/sweep/SKILL.md | .claude/skills/sweep/SKILL.md | repo | optional

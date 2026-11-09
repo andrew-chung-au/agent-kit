@@ -16,6 +16,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from fake_gh_rest import FAKE_GH, rest_config
 from kit_repo import KitTestCase
 
 REPO = Path(__file__).resolve().parent.parent
@@ -23,26 +24,12 @@ SCRATCH = REPO / ".scratch"
 TEMPLATES = REPO / "agent-kit" / "templates"
 MAKEFILES = {"repo Makefile": REPO / "Makefile", "template Makefile.mk": TEMPLATES / "Makefile.mk"}
 
+DUMP_REPO = "example-org/example-repo"  # the GITHUB_REPO written into each throwaway run folder
+KIT_SCRIPTS = REPO / "agent-kit" / "scripts"
 USAGE = "Usage: make issue-dump N=<issue number>"
 FIELDS = "number,title,body,state,labels,author,comments"
 ISSUE = {"number": 27, "title": "T", "body": "B", "state": "OPEN", "labels": [{"name": "approved"}],
          "author": {"login": "me"}, "comments": [{"author": {"login": "me"}, "body": "c"}]}
-
-FAKE_GH = """\
-#!/usr/bin/env python3
-import os, sys
-here = os.path.dirname(os.path.abspath(__file__))
-with open(os.path.join(here, "calls.log"), "a") as log:
-    log.write(" ".join(sys.argv[1:]) + "\\n")
-mode = open(os.path.join(here, "mode")).read().strip()
-if mode == "fail":
-    sys.stderr.write("gh: boom\\n")
-    sys.exit(1)
-if mode == "empty":
-    sys.exit(0)
-with open(os.path.join(here, "reply.json"), "rb") as f:
-    sys.stdout.buffer.write(f.read())
-"""
 
 REFUSED = [
     "", "0", "007", "-1", "--help", "1e3", "1.5", "1 2", "1234567890", ".scratch/x", "../1",
@@ -66,12 +53,17 @@ class Case(unittest.TestCase):
         self.set_gh("ok")
 
     def set_gh(self, mode, reply=None):
-        (self.bin / "mode").write_text(mode)
-        (self.bin / "reply.json").write_text(reply if reply is not None else json.dumps(ISSUE))
+        if mode == "fail":
+            config = {"issue_view": {"exit": 1}}
+        elif mode == "empty":
+            config = {"issue_view": {"stdout": ""}}
+        else:
+            config = rest_config(reply if reply is not None else json.dumps(ISSUE))
+        (self.bin / "config.json").write_text(json.dumps(config), encoding="utf-8")
 
     def calls(self):
         log = self.bin / "calls.log"
-        return log.read_text().splitlines() if log.exists() else []
+        return [" ".join(json.loads(x)) for x in log.read_text().splitlines()] if log.exists() else []
 
     def env(self, path=None):
         env = {k: v for k, v in os.environ.items() if k not in ("MAKEFLAGS", "MFLAGS", "MAKELEVEL")}
@@ -92,11 +84,16 @@ class Case(unittest.TestCase):
                 for item in self.run_dir.iterdir():
                     shutil.rmtree(item) if item.is_dir() else item.unlink()
                 (self.bin / "calls.log").unlink(missing_ok=True)
+                # The recipe runs github_api.py from the kit folder and reads GITHUB_REPO from the conf.
+                kit = self.run_dir / ("agent-kit" if label == "repo Makefile" else "_docs/agent-kit")
+                (kit / "scripts").mkdir(parents=True)
+                shutil.copy(KIT_SCRIPTS / "github_api.py", kit / "scripts" / "github_api.py")
+                (self.run_dir / "agent-kit.conf").write_text(f'GITHUB_REPO="{DUMP_REPO}"\n')
                 yield makefile
 
 
 class SuccessTest(Case):
-    def test_writes_json_prints_path_and_calls_gh_once(self):
+    def test_writes_json_prints_path_and_reads_the_issue_and_its_comments(self):
         for makefile in self.each_makefile():
             done = self.make(makefile, "N=27")
             self.assertEqual(done.returncode, 0, done.stderr)
@@ -105,7 +102,8 @@ class SuccessTest(Case):
             data = json.loads((self.run_dir / ".scratch" / "issue-27.json").read_text())
             self.assertEqual(data, ISSUE)
             self.assertEqual(sorted(data), sorted(FIELDS.split(",")))
-            self.assertEqual(self.calls(), [f"issue view 27 --json {FIELDS}"])
+            self.assertEqual(self.calls(), [f"api repos/{DUMP_REPO}/issues/27",
+                                            f"api repos/{DUMP_REPO}/issues/27/comments?per_page=100&page=1"])
 
     def test_nine_digits_accepted(self):
         for makefile in self.each_makefile():
@@ -129,7 +127,8 @@ class SuccessTest(Case):
             done = self.make(makefile, "N= 1")
             self.assertEqual(done.returncode, 0, done.stderr)
             self.assertEqual(self.dumps(), ["issue-1.json"])
-            self.assertEqual(self.calls(), [f"issue view 1 --json {FIELDS}"])
+            self.assertEqual(self.calls(), [f"api repos/{DUMP_REPO}/issues/1",
+                                            f"api repos/{DUMP_REPO}/issues/1/comments?per_page=100&page=1"])
 
 
 class RefusedTest(Case):
