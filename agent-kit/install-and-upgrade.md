@@ -116,10 +116,10 @@ Create an empty repository on GitHub first, with one commit (for example a READM
    cd ~/projects/<your-repo>
    git add _docs .devcontainer .github
    git commit -m "Add the agent kit and dev container"
-   AGENT_PUSH_CHECK_PLAN=1 git push origin HEAD
+   AGENT_PUSH_CHECK_PLAN=1 git push --dry-run origin HEAD
    ```
 
-   Expect the push check to print what it would check, run nothing, and the push to succeed. Once that looks right, push for real with `git push origin HEAD` (no variable); expect the push check to run `make -C <project> install verify` in a throwaway container. A project with no `make install` yet can fail the real check; do step 7 (setup) first and push then.
+   Expect the push check to print `push check plan for <sha> ...` with a `make -C . [install] verify` line, and git to print `To github.com:...` with a `[new branch]` or ref line, and send nothing. `--dry-run` is what stops the push: `AGENT_PUSH_CHECK_PLAN=1` alone prints the plan and then lets the push through with nothing checked. Once the plan looks right, push for real with `git push origin HEAD` (no variable, no `--dry-run`); expect the push check to run `make -C <project> install verify` in a throwaway container. A project with no `make install` yet can fail the real check; do step 7 (setup) first and push then.
 
 5. **WHERE: SANDBOX WINDOW.** In VS Code on your machine, open only the folder `~/projects/<your-repo>-sandbox` (File, Open Folder) and run "Dev Containers: Reopen in Container". Expect the first build to finish with `setup.sh` running `make hooks` and no refusal. Never open the clean clone this way.
 
@@ -224,7 +224,7 @@ You need the sandbox (situation 2) and a current kit (situation 4 or 5).
 
    ```
    # AGENT IN SANDBOX
-   Approved. Stage those paths and send me the approval request with git diff --cached --stat.
+   Approved. Stage those paths, the new MANIFEST.sha256 copied unchanged into _docs/agent-kit, and the KIT_VERSION line in agent-kit.conf set as the Version paragraph of kit-import.md says, then send me the approval request with git diff --cached --stat.
    ```
 
 4. **WHERE: AGENT IN SANDBOX.** Read the staged diff stat, then reply:
@@ -234,7 +234,7 @@ You need the sandbox (situation 2) and a current kit (situation 4 or 5).
    Approved. Commit it with HUMAN_APPROVED=1, then run make hooks and then make kit-check and show me the output.
    ```
 
-   Expect a commit, `make hooks` finishing without error, and `kit-check: pristine; claim <version> is correct` (or `derivative of <version>` if you kept local files).
+   Expect a commit, `make hooks` finishing without error, and the verdict `kit-check: pristine; claim <version> is correct` (or `derivative of <version>; claim ... is correct` if you kept local files). It comes after one `unchanged`/`modified`/`added`/`missing` line per kit file and is followed by one line per installed file: `missing .devcontainer/...` or `drift ...` there means the dev container or CI file is older or absent (situation 6), not that the import failed. If the verdict reads `kit-check: no KIT_VERSION claim`, the `KIT_VERSION` line is missing: tell the agent to add it as the Version paragraph says, and run the check again.
 
 5. **WHERE: AGENT IN SANDBOX** (a fresh session). Paste **Prompt C**. Read the diffs, then reply "Approved. Commit it with `HUMAN_APPROVED=1`." Include `.githooks/` if `make hooks` changed it.
 
@@ -257,7 +257,7 @@ You need the sandbox (situation 2) and a current kit (situation 4 or 5).
 
    Expect the push check to run and the push to succeed.
 
-7. **WHERE: CLEAN CLONE, only if the push check changed.** If `agent-kit/environments/local-sandbox/pre-push` is among the changed files, compare the installed push check as in "Comparing the installed push check (human only)" in `environments.md`; if it differs, copy it from the merged clean clone (never from the container):
+7. **WHERE: CLEAN CLONE, only if the push check changed.** If `_docs/agent-kit/environments/local-sandbox/pre-push` is among the changed files, compare the installed push check as in "Comparing the installed push check (human only)" in `environments.md`; if it differs, copy it from the merged clean clone (never from the container):
 
    ```
    # CLEAN CLONE
@@ -285,23 +285,23 @@ There is no `make kit-check`, `make kit-compare` or `make kit-baseline` yet, so 
 
 2. **WHERE: AGENT IN SANDBOX** (a fresh session). Paste **Prompt B**. Read the baseline commit, the match count and every differing file. Reply "Approved, use that baseline." or name another commit. Expect the agent to list every file with its outcome, then stop.
 
-3. **WHERE: AGENT IN SANDBOX.** Reply as situation 4, steps 3 and 4 (approve the staged paths; then approve the commit with `HUMAN_APPROVED=1` and `make hooks`). Skip the `make kit-check` part: replace it with:
+3. **WHERE: AGENT IN SANDBOX.** Reply with the staging reply from situation 4, step 3, then read the staged diff stat and approve the commit. The commit reply differs from situation 4 only in the last command: the Makefile has no `kit-check` target yet, so the agent runs the script from the imported kit.
 
    ```
    # AGENT IN SANDBOX
    Approved. Commit it with HUMAN_APPROVED=1, then run make hooks and then python3 -B _docs/agent-kit/scripts/kit-check.py and show me the output.
    ```
 
-   Expect `kit-check: pristine; claim <version> is correct` or `derivative of <base>`. (`make kit-check` works only after Prompt C adds it.)
+   Expect a commit, `make hooks` finishing without error, then `unchanged <path>` for each kit file (`modified` for a file you kept, `added` for one only you have), then `kit-check: pristine; claim <version> is correct` (or `derivative of <base>; claim <base>+<repo>.<n> is correct` if you kept local files), then one line per installed file. A pre-1.10 project has no `KIT_VERSION` line until the agent adds it in the staging step; if the verdict reads `kit-check: no KIT_VERSION claim`, the line was not added: tell the agent to add it as the Version paragraph of `kit-import.md` says, commit that, and run the check again. `missing .devcontainer/...` or `drift ...` lines mean the dev container or CI file is old or absent (situation 6), not that the import failed.
 
-4. **WHERE: AGENT IN SANDBOX** (a fresh session). Paste **Prompt C**. It adds the `kit-check`, `kit-compare`, `kit-baseline` and `kit-feedback` targets to the Makefile, the `KIT_VERSION` and `GITHUB_REPO` lines to `agent-kit.conf`, and updates the `AGENTS.md` shared block. Approve and reply "Approved. Commit it with `HUMAN_APPROVED=1`." Then:
+4. **WHERE: AGENT IN SANDBOX** (a fresh session). Paste **Prompt C**. It proposes the `kit-check`, `kit-compare`, `kit-baseline` and `kit-feedback` targets for the Makefile, any other `agent-kit.conf` lines the new setup asks for, and the `AGENTS.md` shared block. Approve and reply "Approved. Commit it with `HUMAN_APPROVED=1`." Then:
 
    ```
    # AGENT IN SANDBOX
    Run make kit-check and show me the output.
    ```
 
-   Expect `kit-check: pristine; claim <version> is correct`, or `derivative of <base>; claim ... is correct`.
+   Expect the same verdict as in step 3, now from `make`, so the Makefile has the target.
 
 5. **WHERE: CLEAN CLONE.** Fetch, review and push, exactly as situation 4, steps 6 to 8.
 
@@ -421,7 +421,7 @@ The kit upgrade does not touch `.devcontainer/` or the CI workflow. They are ins
 
    Expect `.scratch/agent-kit-<version>.zip`.
 
-3. **WHERE: AGENT IN PROJECT** (a fresh session). Paste **Prompt A** (kit 1.10 or later) or **Prompt B** (older). Read the list of every file and its outcome; answer decisions; reply "Approved. Stage those paths and send me the approval request with `git diff --cached --stat`."
+3. **WHERE: AGENT IN PROJECT** (a fresh session). Paste **Prompt A** (kit 1.10 or later) or **Prompt B** (older). Read the list of every file and its outcome; answer decisions; reply with the staging reply from situation 4, step 3.
 
 4. **WHERE: AGENT IN PROJECT.** Reply "Approved. Commit it with `HUMAN_APPROVED=1`."
 
@@ -491,7 +491,7 @@ No agent builds, tags or pushes a release; you do it on your own machine. Build 
    python3 -B agent-kit/scripts/kit-manifest.py ~/kit-release-<version>/agent-kit <version>
    ```
 
-   Expect `kit-manifest: wrote /home/<you>/kit-release-<version>/agent-kit/MANIFEST.sha256 (<n> files, version <version>)` (89 files for 1.10). A refusal reads `kit-manifest: <reason>; nothing written`.
+   Expect `kit-manifest: wrote /home/<you>/kit-release-<version>/agent-kit/MANIFEST.sha256 (<n> files, version <version>)` (`<n>` is however many files the kit holds; it changes with the release). A refusal reads `kit-manifest: <reason>; nothing written`.
 
 5. **WHERE: RELEASE FOLDER.** Zip the `agent-kit` folder so the zip's top-level folder is `agent-kit` and it holds `MANIFEST.sha256`:
 

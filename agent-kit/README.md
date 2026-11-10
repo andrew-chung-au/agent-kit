@@ -74,7 +74,7 @@ A kit zip is built by the human, as in situation 9 of `install-and-upgrade.md`; 
 1. Copy `environments/local-sandbox/devcontainer.json` and `setup.sh` to the project's `.devcontainer/`, and `templates/ci-verify.yml.template` to `.github/workflows/verify.yml`. Put your git name and noreply email in `setup.sh`.
 2. Open only the project's `<repo>-sandbox` folder in the container. `setup.sh` runs `make hooks` on the first build. Commit the `.devcontainer/devcontainer-lock.json` that the first rebuild creates.
 3. Copy `environments/local-sandbox/pre-push` to `~/.agent-hooks/pre-push` and into each clean clone's `.git/hooks/pre-push`, and make it executable. This is the push check; it needs git, Docker and coreutils on your machine.
-4. If the project's `make install` needs Node or uv, build the image from `environments/local-sandbox/push-check.Dockerfile` and set `AGENT_PUSH_CHECK_IMAGE` to it; otherwise the push check uses `python:3.12`. Dry-run it with `AGENT_PUSH_CHECK_PLAN=1 git push`.
+4. If the project's `make install` needs Node or uv, build the image from `environments/local-sandbox/push-check.Dockerfile` and set `AGENT_PUSH_CHECK_IMAGE` to it; otherwise the push check uses `python:3.12`. See what it would check with `AGENT_PUSH_CHECK_PLAN=1 git push --dry-run origin HEAD`; without `--dry-run` the push goes through unchecked.
 5. If the project's checks need a database, use the files in `environments/local-sandbox/compose/`: copy its three files into `.devcontainer/`, next to the standard `setup.sh`.
 
 `environments.md` has the reasons, the token limits and the full rules. The Node, uv and Postgres pins in these files are unverified until you rebuild.
