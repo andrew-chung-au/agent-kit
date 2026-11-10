@@ -30,7 +30,7 @@ The codespace's own token can push to the repo, so nothing technical stops an ag
 
 The agent works in a dev container with a GitHub token that can't push, in its own clone of the repo. You review its commits from a second, clean clone that is never opened in the container, and push from there. The guide that sets this up lives outside the kit.
 
-Set-up steps and reference (the bootstrap script, the recipe files and pins, the sandbox token, the push-check image, the Compose variant, the WSL 2 mount fix and the human-only push-check comparison) are in `environments/local-sandbox/README.md`. To install or upgrade, follow `install-and-upgrade.md`.
+Set-up steps and reference (the recipe files and pins, the sandbox token, the push-check image, the Compose variant, the WSL 2 mount fix and the human-only push-check comparison) are in `environments/local-sandbox/README.md`. To install or upgrade, follow `install-and-upgrade.md`.
 
 **Copy these files only from a clean clone, never from a sandbox.** An agent can change anything in its sandbox, including the kit.
 

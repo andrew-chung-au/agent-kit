@@ -265,11 +265,12 @@ class DocsTest(unittest.TestCase):
             with self.subTest(phrase=phrase):
                 self.assertIn(phrase, text)
 
-    def test_the_import_procedure_names_the_new_report_line(self):
-        # The doc has a word budget (test_kit_import_doc), so it names the line, not the file list.
+    def test_the_import_procedure_points_at_the_one_home_of_the_report_lines(self):
+        # The report lines are explained once, in the README's "Installed files" (#182); the
+        # procedure only points there and states the one exit-code fact an importer needs.
         text = self.flat("procedures", "kit-import.md")
-        self.assertIn("`not installed (optional) <path>`", text)
-        self.assertIn("`missing <path>` (no file; exit 1)", text)
+        self.assertIn('`README.md`, "Installed files"', text)
+        self.assertIn("`missing <path>` exits 1", text)
 
     def test_kit_check_describes_the_new_line(self):
         text = self.flat("scripts", "kit-check.py")

@@ -82,7 +82,7 @@ class PushCheckComparisonDocTest(unittest.TestCase):
         # kit source path: symlink first (reported, not followed), then a regular-file check
         # (a missing path is reported), then the diff from stdin.
         return (f'p={entry.install}; if test -h "$p"; then echo "symlink: $p, resolve it by hand"; '
-                f'elif test -f "$p"; then git show <ref>:agent-kit/{entry.source} '
+                f'elif test -f "$p"; then git show <ref>:_docs/agent-kit/{entry.source} '
                 f'| git diff --no-index -- - "$p"; else echo "missing: $p"; fi')
 
     def test_the_refused_case_is_documented(self):

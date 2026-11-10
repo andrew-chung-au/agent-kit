@@ -54,7 +54,7 @@ Build it in a **new empty folder outside every repository**: not inside the kit 
    python3 -B agent-kit/scripts/kit-manifest.py ~/kit-release-<version>/agent-kit <version>
    ```
 
-   Expect `kit-manifest: wrote /home/<you>/kit-release-<version>/agent-kit/MANIFEST.sha256 (<n> files, version <version>)` (89 files for 1.10). A refusal reads `kit-manifest: <reason>; nothing written`.
+   Expect `kit-manifest: wrote /home/<you>/kit-release-<version>/agent-kit/MANIFEST.sha256 (<n> files, version <version>)` (`<n>` is however many files the kit holds; it changes with the release). A refusal reads `kit-manifest: <reason>; nothing written`.
 
 5. **WHERE: RELEASE FOLDER.** Zip the `agent-kit` folder so the zip's top-level folder is `agent-kit` and it holds `MANIFEST.sha256`:
 
@@ -65,7 +65,7 @@ Build it in a **new empty folder outside every repository**: not inside the kit 
    unzip -l agent-kit-<version>.zip | grep MANIFEST
    ```
 
-   Expect one line ending `MANIFEST.sha256` under `agent-kit`. This zip is the file you drag into `.scratch/` in situations 4, 5 and 8.
+   Expect one line ending `MANIFEST.sha256` under `agent-kit`. This zip is the file you drag into `.scratch/` in situations 4, 5 and 8 of `install-and-upgrade.md`.
 
 6. **WHERE: RELEASE FOLDER, optional.** Check the zip unpacks to the same files as the folder you zipped:
 

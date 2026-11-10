@@ -88,8 +88,8 @@ class KitImportDocTest(unittest.TestCase):
         self.assertIn("`installed-files.txt`", text)
         self.assertIn("one shared scan", text)
         self.assertIn("read-only", text)
-        for word in ("`unchanged`", "`local, ignored`", "`drift`"):
-            self.assertIn(word, text)
+        # The meaning of each report line has one home, the README's "Installed files" (#182).
+        self.assertIn('`README.md`, "Installed files"', text)
         self.assertIn("`human-machine`", text)
         self.assertIn("the human compares it from the clean clone, git only", text)
         self.assertIn("no sandbox tool opens that path", text)

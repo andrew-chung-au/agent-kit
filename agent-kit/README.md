@@ -96,7 +96,7 @@ To pre-approve routine commands in your tool, see Tool permissions in `blueprint
 
 ## Updating the kit
 
-The kit's files are protected in every project, so changes need your approval. Improve the kit in the project you're working on, then copy the folder to other projects you're still actively working on; finished homework can keep the version it was built with. Bump the version at the top of this file when you change it.
+The kit's files are protected in every project, so changes need your approval. Improve the kit in the project you're working on, then bring the change into other projects you're still actively working on by the steps in `install-and-upgrade.md`; finished homework can keep the version it was built with. Bump the version at the top of this file when you change it.
 
 **Versions in a project.** A pristine kit claims a plain version, such as `1.9`. Once a project changes a kit file, its kit is a derivative and claims `<base>+<repo>.<n>`, such as `1.9+vuln-triage.2`: `<n>` rises with each local change and restarts at 1 on a new base. The claim is `KIT_VERSION` in `agent-kit.conf`, and `make kit-check` compares the kit folder with the `MANIFEST.sha256` a released kit ships. Leave the version line at the top of this file alone in a derivative; it is one of the hashed files. `make kit-compare KIT_A=<kit folder> KIT_B=<other kit folder>` lists how kit A differs from kit B, read-only; both folders are named, there is no default. The manifest shows drift, not tampering. The kit's own repo ships no manifest between releases.
 
