@@ -29,7 +29,7 @@ By file. Add project manifests here.
 
 | Path | Canonical for | Status |
 |---|---|---|
-| `_docs/decisions/091-installed-file-map.md` | Decision to keep one installed-file map in the kit folder, read by one shared parser (#91). Reconstructed 2026-11-09 from the approved record's comments and the shipped code; the original text was never committed | Approved (reconstruction confirmed by the human 2026-11-09) |
+| `_docs/decisions/091-installed-file-map.md` | Decision for an installed-file map in the kit folder, read by one shared parser, with joint import and a feedback bundle, and the two `vuln-triage/` copies kept until the comparison (#91) | Approved 2026-11-03 |
 | `_docs/decisions/119-issue-close.md` | Decision to add `make issue-close` (#119) | Approved |
 | `_docs/decisions/156-planning-gate.md` | Decision to add `procedures/planning.md` and a spec definition of ready (#156) | Approved |
 | `_docs/decisions/159-planning-guidance.md` | Decision to add a testable example, a plan-review checklist and a one-intent rule to the planning guidance (#159) | Approved |
