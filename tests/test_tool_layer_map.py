@@ -272,6 +272,14 @@ class DocsTest(unittest.TestCase):
         self.assertIn('`README.md`, "Installed files"', text)
         self.assertIn("`missing <path>` exits 1", text)
 
+    def test_the_blueprints_row_points_at_the_one_home_of_the_report_lines(self):
+        # The kit-check row names what the check does and links to the one explanation (#182).
+        text = (KIT / "blueprints.md").read_text(encoding="utf-8")
+        row = next(line for line in text.splitlines() if line.startswith("| `kit-check` target |"))
+        self.assertIn('`README.md`, "Installed files"', row)
+        for line_name in ("`unchanged`", "`local, ignored`", "`drift`", "`missing`"):
+            self.assertNotIn(line_name, row)
+
     def test_kit_check_describes_the_new_line(self):
         text = self.flat("scripts", "kit-check.py")
         self.assertIn("not installed (optional) <install>", text)

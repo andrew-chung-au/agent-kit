@@ -107,6 +107,19 @@ The kit's files are protected in every project, so changes need your approval. I
 - The reverse import can write a feedback bundle of a project's changed installed and kit files: `make kit-feedback PROJECT=<project root> KIT=<reference kit>` (read-only, writes only under `.scratch/`).
 - No agent copies an installed file. You do, from a clean clone. To compare the installed push check, follow "Comparing the installed push check (human only)" in `environments/local-sandbox/README.md`.
 
+**Intended copies.** Some files are copies of a named kit source. `tests/test_intended_copies.py`, run by `make test`, fails when one drifts; the table gives each copy's rule, and in a project `make kit-check` reports drift for every copy on `installed-files.txt`.
+
+| Copy | Source | Rule |
+|---|---|---|
+| Shared block of `AGENTS.md`, from `## Non-negotiables` to the `SHARED END` marker | `templates/AGENTS.md.template` | Equal, apart from the template's `- <...>` placeholder lines, which a project deletes or fills |
+| `.claude/agents/*` and `.opencode/agents/*` | `claude-code/agents/*` and `opencode/agents/*` | In a project, byte for byte. In this repo each copy tells the role to read `AGENTS.md` first and names the kit folder `agent-kit/` or `_docs/agent-kit/`; the test removes those two differences and fails on any other |
+| `.github/pull_request_template.md` | `templates/github/pull_request_template.md` | Byte for byte |
+| `CLAUDE.md` | `claude-code/CLAUDE.md.template` | Byte for byte in this repo. A project merges it rather than copying it, so it is off `installed-files.txt` and is reviewed at an import |
+| `claude-code/skills/sweep/SKILL.md` | `opencode/skills/sweep/SKILL.md` | Equal, apart from Claude Code's `disable-model-invocation: true` front-matter line, which the OpenCode copy leaves out |
+| `_docs/index.md` | `templates/docs-index.md` | Instantiated once, then filled in with this project's tables, so only its section headings are compared; `tests/test_human_task.py` keeps the human-task entry type in both |
+
+`_human-tasks/*` reuse the boilerplate in `templates/human-task.md`, but they are dated records, not copies, so no check polices them.
+
 **Releases (human only).** The steps for cutting a release, and for installed files in a release, are in `releasing.md`.
 
 The git hooks carry their own version number. `make hooks` upgrades an older installed version and leaves an equal or newer one alone, so projects with different kit versions can share one repository.
