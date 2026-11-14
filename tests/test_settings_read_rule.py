@@ -177,7 +177,7 @@ class SettingsReadRule(unittest.TestCase):
             for n, line in enumerate(text.splitlines(), 1):
                 if OLD not in line:
                     continue
-                if path == KIT / "README.md" and DATED.match(line):
+                if path in (KIT / "README.md", KIT / "CHANGELOG.md") and DATED.match(line):
                     continue  # a dated changelog entry may quote it
                 self.fail(f"{path.relative_to(REPO)}:{n} contains the old sentence")
 

@@ -4,13 +4,13 @@ How a repo that carries a kit reviews a newer kit against its own, file by file,
 
 ## Forward import (this repo meets a newer kit)
 
-1. Unpack the new kit zip (`.scratch/agent-kit-<version>.zip`, built by the human; a GitHub branch download is not one) into a new, empty folder under `.scratch/`, never over the live kit folder. Exact prompts: `install-and-upgrade.md`.
+1. Unpack the new kit zip (`.scratch/agent-kit-<version>.zip`; what counts as a kit zip, and the exact prompts, are in `install-and-upgrade.md`) into a new, empty folder under `.scratch/`, never over the live kit folder.
 2. Run `make kit-check` on the live kit: pristine or derivative. An unreadable manifest is a stop; the human decides the baseline. A missing one means **No manifest**, below.
 3. Read the new kit's `MANIFEST.sha256`. A new kit without one is refused and the question goes to the human (a release ships the manifest, #9).
 4. Classify every file from three states: the live kit's manifest, the live file, the new kit's manifest. `make kit-compare KIT_A=<live kit folder> KIT_B=.scratch/<folder>` lists which differ (read-only).
 5. Apply the table. List every file with its outcome before anything is staged; the human reads that list first.
 6. Set `KIT_VERSION`, run `make kit-check` against the new base, and show the diffs.
-7. **Installed files.** `make kit-check` reads `installed-files.txt` through the one shared scan (read-only) and reports each file installed outside the kit folder: for its `repo` lines, `unchanged`, `local, ignored`, `drift`, `missing <path>` (no file; exit 1) or `not installed (optional) <path>` (an unused tool layer; fine). Each `human-machine` entry (the push check) is only named; the human compares it from the clean clone, git only, and no sandbox tool opens that path. The scan reads the live kit folder, so it covers the new kit only once its files and manifest are placed. No agent copies an installed file; the human does. A rejected map entry stops the step with the parser's message.
+7. **Installed files.** `make kit-check` reads `installed-files.txt` through the one shared scan (read-only) and reports each file installed outside the kit folder; what each line means is in `README.md`, "Installed files", and `missing <path>` exits 1. Each `human-machine` entry (the push check) is only named; the human compares it from the clean clone, git only, and no sandbox tool opens that path. The scan reads the live kit folder, so it covers the new kit only once its files and manifest are placed. No agent copies an installed file; the human does. A rejected map entry stops the step with the parser's message.
 
 | Live file | New kit | Outcome |
 |---|---|---|
@@ -26,7 +26,7 @@ How a repo that carries a kit reviews a newer kit against its own, file by file,
 
 **Refused:** a locally modified file is never overwritten or removed without that file's decision recorded in the report.
 
-**Version.** If any local file is kept, the claim is `<newbase>+<repo>.<n>`: `n` is 1 on a new base and one higher for each further local change on the same base. If none is kept, the claim is the plain new base. Set it by editing `KIT_VERSION` in `agent-kit.conf` as text only. Leave the README header line alone in a derivative; it is hashed.
+**Version.** If any local file is kept, the claim is `<newbase>+<repo>.<n>`, numbered as in the scheme in `README.md`, "Updating the kit". If none is kept, the claim is the plain new base. Set it by editing `KIT_VERSION` in `agent-kit.conf` as text only. Leave the README header line alone in a derivative; it is hashed.
 
 **Manifest.** Copy the new kit's `MANIFEST.sha256` into the live kit folder unchanged, as the new base's manifest, before step 6. A derivative keeps that upstream manifest and does not regenerate it, so `make kit-check` keeps showing drift from the pristine base and the `+` claim stays true. Regenerating would hide that drift.
 

@@ -740,7 +740,7 @@ class DocsTest(unittest.TestCase):
 
     def test_readme_states_the_scheme(self):
         text = self.read("README.md")
-        section = text[text.index("## Updating the kit"):text.index("### Upgrading a project")]
+        section = text[text.index("## Updating the kit"):text.index("## Tool-native enforcement")]
         for needle in ("plain version", "<base>+<repo>.<n>", "1.9+vuln-triage.2", "restarts at 1 on a new base",
                        "`KIT_VERSION` in `agent-kit.conf`", "`make kit-check`", "`MANIFEST.sha256`",
                        "Leave the version line at the top of this file alone in a derivative",
