@@ -9,7 +9,7 @@ The kit is one folder, `_docs/agent-kit/`, copied unchanged into each project. I
 - **A setup procedure:** an agent reviews the project folder, maps what's already there, and proposes how to build the kit around it.
 - **Reference copies of installed files:** the dev container recipe, the push check, the push-check image and the CI workflow template. They sit inside the kit folder but are installed outside it, by you, from a clean clone. `installed-files.txt` maps each one to its install path.
 
-A project can take the kit alone, or the kit plus the dev container (the local sandbox profile). See "Adding the kit to a project folder".
+A project can take the kit alone, or the kit plus the dev container (the local sandbox profile). To install or upgrade, pick your situation in `install-and-upgrade.md` and follow its numbered steps; "Adding the kit to a project folder" below is the short form.
 
 ## How the controls work
 
@@ -42,6 +42,7 @@ _docs/agent-kit/
   scripts/           verify.sh, check-staged.sh, check-tier.sh, assert-clean.sh, install-hooks.sh, lib.sh, issue-*.sh, issue-hash.py and github_api.py (issue text and the `gh api` reads), scan-issue-body.sh, kit-check.py, kit-compare.py, kit-baseline.py, kit-feedback.py, kit-manifest.py, kit-map.py (kit and installed-file checks), check-claims.py, dup-report.py, sweep-due.py, permission-report.py, permission-logs-prune.py and helpers
   githooks/          pre-commit, pre-push and a Git LFS pass-through, installed at the repo root
   installed-files.txt  map of kit files installed outside the kit folder, and where
+  install-and-upgrade.md  step-by-step install and upgrade, one section per situation, for humans
   environments.md    where agents run: Codespaces, local sandbox, local checkout
   environments/      local-sandbox/: push check, push-check image, dev container recipe, Compose variant (reference copies)
   claude-code/       optional Claude Code layer: START.md, role definitions, sweep skill, hooks, settings
@@ -54,9 +55,11 @@ _docs/agent-kit/
 
 ## Adding the kit to a project folder
 
+This is the short form. `install-and-upgrade.md` has numbered steps for each situation (new project, existing repo with or without a kit or dev container, older than 1.10, Codespace or local checkout), says where each command and prompt is typed, and gives the expected output.
+
 You need `git`, `make` and `bash`: WSL, macOS, Linux or Codespaces.
 
-There is no tagged release or release zip yet (issue #9 tracks it). Get the kit by cloning the kit's repository, which holds the kit in its `agent-kit/` folder and this README as `agent-kit/README.md`. Treat the clone as a clean clone: copy from it, and never open it in a container or run `make` in it.
+A kit zip is built by the human, as in situation 9 of `install-and-upgrade.md`; GitHub's "Download ZIP" is not one. To install, get the kit by cloning the kit's repository, which holds the kit in its `agent-kit/` folder and this README as `agent-kit/README.md`. Treat the clone as a clean clone: copy from it, and never open it in a container or run `make` in it.
 
 **Path 1: kit only.**
 
@@ -66,12 +69,12 @@ There is no tagged release or release zip yet (issue #9 tracks it). Get the kit 
 4. Review what it proposes, approve or correct it, then approve the setup commit.
 5. Run `make hooks` once wherever agents commit: the codespace or your local checkout. In the local sandbox profile, never run it (or any `make` target) in the clean clone; see `environments.md`.
 
-**Path 2: kit plus dev container (the local sandbox profile).** Do steps 1 to 4 of path 1, then, from the clean clone:
+**Path 2: kit plus dev container (the local sandbox profile).** This path adds a dev container, so the repo need not have one. Situations 1 to 3 of `install-and-upgrade.md` do it with `scripts/bootstrap-project.sh`, which creates the clean clone `<repo>` and the sandbox `<repo>-sandbox` for you (push first and move an existing folder aside; the script never overwrites it). By hand: do steps 1 to 4 of path 1, then, from the clean clone:
 
 1. Copy `environments/local-sandbox/devcontainer.json` and `setup.sh` to the project's `.devcontainer/`, and `templates/ci-verify.yml.template` to `.github/workflows/verify.yml`. Put your git name and noreply email in `setup.sh`.
 2. Open only the project's `<repo>-sandbox` folder in the container. `setup.sh` runs `make hooks` on the first build. Commit the `.devcontainer/devcontainer-lock.json` that the first rebuild creates.
 3. Copy `environments/local-sandbox/pre-push` to `~/.agent-hooks/pre-push` and into each clean clone's `.git/hooks/pre-push`, and make it executable. This is the push check; it needs git, Docker and coreutils on your machine.
-4. If the project's `make install` needs Node or uv, build the image from `environments/local-sandbox/push-check.Dockerfile` and set `AGENT_PUSH_CHECK_IMAGE` to it; otherwise the push check uses `python:3.12`. Dry-run it with `AGENT_PUSH_CHECK_PLAN=1 git push`.
+4. If the project's `make install` needs Node or uv, build the image from `environments/local-sandbox/push-check.Dockerfile` and set `AGENT_PUSH_CHECK_IMAGE` to it; otherwise the push check uses `python:3.12`. See what it would check with `AGENT_PUSH_CHECK_PLAN=1 git push --dry-run origin HEAD`; without `--dry-run` the push goes through unchecked.
 5. If the project's checks need a database, use the files in `environments/local-sandbox/compose/`: copy its three files into `.devcontainer/`, next to the standard `setup.sh`.
 
 `environments.md` has the reasons, the token limits and the full rules. The Node, uv and Postgres pins in these files are unverified until you rebuild.
@@ -120,7 +123,7 @@ The kit's files are protected in every project, so changes need your approval. I
 3. Put the tagged kit in a new, empty folder, from the tag and nothing else: `git archive v<version> agent-kit | tar -x -C <empty folder>`.
 4. Generate the manifest into that copy: `python3 -B agent-kit/scripts/kit-manifest.py <empty folder>/agent-kit <version>`. The manifest is not committed to this repo.
 5. Check it: copy that kit folder into a project's `_docs/agent-kit/`, set `KIT_VERSION="<version>"` and run `make kit-check`; it must report a pristine `<version>`.
-6. A project gets the release as the `agent-kit` folder from step 3 with its `MANIFEST.sha256`, imported by `procedures/kit-import.md`. A zip, its unpack layout and a GitHub release are not defined yet (issues #9 and #8).
+6. Zip that folder (`zip -qr agent-kit-<version>.zip agent-kit`, run in the new folder) so the zip's top-level folder is `agent-kit` and it holds `MANIFEST.sha256`. A project gets the release as that zip, dropped into its `.scratch/` and imported by `procedures/kit-import.md`. Situation 9 of `install-and-upgrade.md` has each command and its expected output. Build it in a new folder on the human's machine outside every repository, never in a sandbox's `.scratch/`. A GitHub release page is not defined yet (issues #9 and #8); its automatic source zips have no manifest.
 
 Refused: a manifest generated from a working tree, a tree with uncommitted or unpushed kit changes, or a commit no one has reviewed on a remote. It would claim a version that no tag holds, so every `kit-check` against it would mislead. Generate only from the `git archive` of the pushed tag.
 
@@ -128,12 +131,12 @@ The git hooks carry their own version number. `make hooks` upgrades an older ins
 
 ### Upgrading a project that already uses the kit
 
-Agents take their rules from the project's `AGENTS.md`, not from the kit folder, so replacing the kit files isn't enough on its own. These steps fit Codespaces and a local checkout. In the local sandbox profile, follow "Upgrading the kit in the local sandbox" in `environments.md` instead.
+Agents take their rules from the project's `AGENTS.md`, not from the kit folder, so replacing the kit files isn't enough on its own. These steps fit Codespaces and a local checkout (situation 8 of `install-and-upgrade.md`, with the exact prompts). In the local sandbox profile, follow situation 4, 5 or 6 there instead, or "Upgrading the kit in the local sandbox" in `environments.md`.
 
 1. Pause at a clean point: finish the current step, commit, and exit the agent session. `git status --short` should show nothing.
-2. Unpack the new kit into a new, empty folder under `.scratch/`, never over the live kit folder, and follow `procedures/kit-import.md` to review it file by file.
+2. Put the kit zip in `.scratch/`, ask the agent to unpack it into a new, empty folder under `.scratch/`, never over the live kit folder, and follow `procedures/kit-import.md` to review it file by file (Prompt A, or Prompt B for a kit older than 1.10, in `install-and-upgrade.md`).
 3. Run `make hooks`. It upgrades older hooks and leaves current ones alone.
-4. Start an agent and say: "The agent kit in `_docs/agent-kit/` has been upgraded to <version>. Review this project using `_docs/agent-kit/setup.md` in review mode. Update the shared block in `AGENTS.md` (between SHARED START and SHARED END) to match the template, leaving the project half unchanged (see the note below if it has no marker pair yet), and apply any blueprint changes. The only config files you may read are those listed in the `Readable config` slot of `AGENTS.md`; ask me for anything else. Show me the diffs and the exact `git add` paths, including `_docs/agent-kit/`, and wait for my approval."
+4. Start a fresh agent and say (Prompt C in `install-and-upgrade.md`): "The agent kit in `_docs/agent-kit/` has been upgraded to <version>. Review this project using `_docs/agent-kit/setup.md` in review mode. Update the shared block in `AGENTS.md` (between SHARED START and SHARED END) to match the template, leaving the project half unchanged (see the note below if it has no marker pair yet), and apply any blueprint changes. The only config files you may read are those listed in the `Readable config` slot of `AGENTS.md`; ask me for anything else. Show me the diffs and the exact `git add` paths, including `_docs/agent-kit/`, and wait for my approval."
 5. Review and approve, then commit the kit folder, `AGENTS.md` and any other changed files with `HUMAN_APPROVED=1`. Check that `_docs/agent-kit/` is among the staged paths. Include `.githooks/` at the repo root if `make hooks` changed it.
 6. Start a fresh agent session, so the new rules load.
 

@@ -30,7 +30,7 @@ The codespace's own token can push to the repo, so nothing technical stops an ag
 
 The agent works in a dev container with a GitHub token that can't push, in its own clone of the repo. You review its commits from a second, clean clone that is never opened in the container, and push from there. The guide that sets this up lives outside the kit.
 
-One script does the local part of the setup for you. Run it on your machine from a plain folder (one that is not inside any git work tree, for example `~/projects`), using a clean clone of the kit:
+`install-and-upgrade.md` (situations 1 to 3) gives the full numbered steps around it, including pushing an existing repo first and moving the old folder aside. One script does the local part of the setup for you. Run it on your machine from a plain folder (one that is not inside any git work tree, for example `~/projects`), using a clean clone of the kit:
 
 ```
 cd ~/projects
@@ -66,12 +66,12 @@ The push check runs `make install verify` in a throwaway container. Its image co
 `environments/local-sandbox/push-check.Dockerfile` is a reference image with Node and uv at the same pins as the dev container recipe (all unverified until you build it). Build it on your machine from the clean clone's copy, never from a sandbox, with no build context, then point the push check at it:
 
 ```
-docker build -t agent-push-check:node24-uv0.13.6 - < agent-kit/environments/local-sandbox/push-check.Dockerfile
+docker build -t agent-push-check:node24-uv0.13.6 - < _docs/agent-kit/environments/local-sandbox/push-check.Dockerfile
 export AGENT_PUSH_CHECK_IMAGE=agent-push-check:node24-uv0.13.6
-AGENT_PUSH_CHECK_PLAN=1 git push
+AGENT_PUSH_CHECK_PLAN=1 git push --dry-run origin HEAD
 ```
 
-With `AGENT_PUSH_CHECK_PLAN=1` the push check prints what it would check, runs nothing and lets the push go on, so run the dry run first and push for real without it. The variable is per shell, so one image serves every project you push from that shell; a monorepo with different stacks needs one image that holds all of them. A project that needs more (Terraform, `pip-audit`, `libpq-dev`) adds it to its own copy of the Dockerfile. The image holds no credentials and no project files. `pre-push` is unchanged: the image is your choice, on your side, and nothing in a pushed commit can pick it. Services such as a database are not available in the push check: the throwaway container has none.
+`AGENT_PUSH_CHECK_PLAN=1` makes the push check print what it would check and run nothing, but it still lets the push go on, unchecked. It is a dry run only together with `git push --dry-run`, which sends nothing. Push for real without either. The variable is per shell, so one image serves every project you push from that shell; a monorepo with different stacks needs one image that holds all of them. A project that needs more (Terraform, `pip-audit`, `libpq-dev`) adds it to its own copy of the Dockerfile. The image holds no credentials and no project files. `pre-push` is unchanged: the image is your choice, on your side, and nothing in a pushed commit can pick it. Services such as a database are not available in the push check: the throwaway container has none.
 
 ### Rules for the local sandbox
 
@@ -110,15 +110,15 @@ In the push check, the throwaway container has no `db`. Tests that need the data
 
 ### Upgrading the kit in the local sandbox
 
-The container reviews and commits the new kit; you fetch the result and push, as in `procedures/kit-import.md`. The new kit is untrusted data until you have read its diff.
+The container reviews and commits the new kit; you fetch the result and push, as in `procedures/kit-import.md`. The new kit is untrusted data until you have read its diff. `install-and-upgrade.md` (situations 4 and 5) has these steps with the exact prompts and expected output; a project older than 1.10 has no `make kit-check` or `make kit-compare` and uses Prompt B there.
 
-1. **Drop the zip into the container.** In the dev container's VS Code window, drop the new kit zip into the workspace's `.scratch/`. Don't copy it in from Ubuntu's file manager or a terminal on your machine: that would break the rule above about touching the sandbox folder from Ubuntu.
-2. **The agent unpacks and reviews it in the container.** It unpacks the zip into a new, empty folder under `.scratch/`, never over the kit folder or into the clean clone, and follows `procedures/kit-import.md`. `make kit-check` and `make kit-compare` run in the container. Read the agent's list of every file and its outcome before anything is staged.
+1. **Drop the zip into the container.** The zip is `agent-kit-<version>.zip`, built by you (situation 9 of `install-and-upgrade.md`), not a GitHub branch download. In the dev container's VS Code window, drop the new kit zip into the workspace's `.scratch/`. Don't copy it in from Ubuntu's file manager or a terminal on your machine: that would break the rule above about touching the sandbox folder from Ubuntu.
+2. **The agent unpacks and reviews it in the container.** Give it Prompt A (Prompt B for a kit older than 1.10) from `install-and-upgrade.md`. It unpacks the zip into a new, empty folder under `.scratch/`, never over the kit folder or into the clean clone, and follows `procedures/kit-import.md`. `make kit-check` and `make kit-compare` run in the container. Read the agent's list of every file and its outcome before anything is staged.
 3. **The agent commits in the container, after your approval.** It stages explicit paths and sends you the approval request with `git diff --cached --stat`. The kit folder is protected, so it commits with `HUMAN_APPROVED=1` only after you approve. Then the agent runs `make hooks` in the container.
-4. **Give the agent the README's upgrade prompt** for the `AGENTS.md` and blueprint changes. Its commits wait for your approval in the same way.
+4. **Give the agent Prompt C** (the README's upgrade prompt, repeated in `install-and-upgrade.md`) for the `AGENTS.md` and blueprint changes, in a fresh session. Its commits wait for your approval in the same way.
 5. **Fetch and push from the clean clone.** Run `git fetch sandbox`, read the full diff, then merge and push, as in "Pushing" above. Don't run `make` in the clean clone.
 
-If the new kit changes `environments/local-sandbox/pre-push`, copy it from the clean clone, after the fetch and merge, to `~/.agent-hooks/pre-push` and refresh each clean clone's copy. Never copy it from the container's `.scratch/` copy. These steps don't touch `.devcontainer/` or the CI template.
+If the new kit changes `environments/local-sandbox/pre-push`, copy it from the clean clone, after the fetch and merge, to `~/.agent-hooks/pre-push` and refresh each clean clone's copy. Never copy it from the container's `.scratch/` copy. These steps don't touch `.devcontainer/` or the CI template: upgrade those with situation 6 of `install-and-upgrade.md`.
 
 ### Comparing the installed push check (human only)
 
@@ -127,8 +127,8 @@ The push check is installed on your machine, outside the sandbox: once at `~/.ag
 Do it with git and coreutils only, never `make`, and never by running or sourcing a repo file (the kit folder is untrusted until you have read its diff). The recipe runs in one clone at a time: repeat it in each clean clone, because `.git/hooks/pre-push` belongs to that clone while `~/.agent-hooks/pre-push` is shared. From the clean clone, with `<ref>` the reviewed commit:
 
 ```
-p=~/.agent-hooks/pre-push; if test -h "$p"; then echo "symlink: $p, resolve it by hand"; elif test -f "$p"; then git show <ref>:agent-kit/environments/local-sandbox/pre-push | git diff --no-index -- - "$p"; else echo "missing: $p"; fi
-p=.git/hooks/pre-push; if test -h "$p"; then echo "symlink: $p, resolve it by hand"; elif test -f "$p"; then git show <ref>:agent-kit/environments/local-sandbox/pre-push | git diff --no-index -- - "$p"; else echo "missing: $p"; fi
+p=~/.agent-hooks/pre-push; if test -h "$p"; then echo "symlink: $p, resolve it by hand"; elif test -f "$p"; then git show <ref>:_docs/agent-kit/environments/local-sandbox/pre-push | git diff --no-index -- - "$p"; else echo "missing: $p"; fi
+p=.git/hooks/pre-push; if test -h "$p"; then echo "symlink: $p, resolve it by hand"; elif test -f "$p"; then git show <ref>:_docs/agent-kit/environments/local-sandbox/pre-push | git diff --no-index -- - "$p"; else echo "missing: $p"; fi
 ```
 
 Each line checks one install path and stops at the first answer. A symlink is tested first and reported, never followed (`cmp` follows symlinks, so it is not an alternative). A missing path, or one that is not a regular file, prints `missing:` and nothing is compared. A match prints nothing and exits 0. A mismatch prints the diff and exits 1. The kit text goes to `git diff --no-index` on standard input, so no temp file is written and nothing is written to an install path. Reinstall by copying from the clean clone, as above; never from the container's `.scratch/` copy. The install paths here come from the map's rows, so they are not hard-coded in a second place.
