@@ -1,0 +1,54 @@
+{
+  "issue": 212,
+  "findings": [
+    {
+      "id": "F-212-1",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/212#issuecomment-6888986912",
+      "commit": "5496291",
+      "category": "hardening",
+      "summary": "An answer cut inside its headers is read as a 200 with an empty body, so step 1 passes on it."
+    },
+    {
+      "id": "F-212-2",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/212#issuecomment-6888986912",
+      "commit": "5496291",
+      "category": "hardening",
+      "summary": "A chunked answer cut after its final zero-size line, or inside its trailers, is treated as whole and passes step 1."
+    },
+    {
+      "id": "F-212-3",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/212#issuecomment-6888986912",
+      "commit": "5496291",
+      "category": "hardening",
+      "summary": "A Content-Length written as two equal numbers is read like a non-number (no length), so a short body passes."
+    },
+    {
+      "id": "F-212-4",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/212#issuecomment-6888986912",
+      "commit": "5496291",
+      "category": "hardening",
+      "summary": "URLs that are ASCII but carry look-alikes of a real host (a digit for a letter, two letters for one, a percent-encoded host) are accepted by the URL rules."
+    },
+    {
+      "id": "F-212-5",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/212#issuecomment-6888986912",
+      "commit": "5496291",
+      "category": "wording",
+      "summary": "A connection reset in the middle of a body fails the step with the generic no-usable-answer text, not the cut-short text; a judgement call on whether it is in scope."
+    },
+    {
+      "id": "F-212-6",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/212#issuecomment-6888986912",
+      "commit": "5496291",
+      "category": "test-gap",
+      "summary": "No test covers a cut step 4 poll while the 5-second queue window is the limiting time, or a cut in the headers or the trailers."
+    },
+    {
+      "id": "F-212-7",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/212#issuecomment-6888986912",
+      "commit": "5496291",
+      "category": "docs",
+      "summary": "In the smoke tests the section header for the URL rules now sits above the two new sections of this issue, so the older URL-rule tests are under the wrong header."
+    }
+  ]
+}

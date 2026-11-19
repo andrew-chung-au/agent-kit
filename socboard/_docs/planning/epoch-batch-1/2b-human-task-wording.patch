@@ -1,0 +1,9 @@
+diff --git a/_docs/agent-kit/templates/human-task.md b/_docs/agent-kit/templates/human-task.md
+--- a/_docs/agent-kit/templates/human-task.md
++++ b/_docs/agent-kit/templates/human-task.md
+@@ -25,3 +25,5 @@
+ ## Steps
+ 
++A step never asks the human to edit a tracked file by hand; if it needs a changed copy, give a command that writes the copy under `.scratch/` and name that copy as the file to test. When a task's steps have run, put `Status: done <date>, do not run again` at the top of this file.
++
+ ### Step 1: <what this step does, in one sentence>

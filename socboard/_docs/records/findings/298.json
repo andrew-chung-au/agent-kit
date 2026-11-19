@@ -1,0 +1,152 @@
+{
+  "issue": 298,
+  "findings": [
+    {
+      "id": "F-298-1",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/298#issuecomment-6937293566",
+      "commit": "d5dd058",
+      "category": "test-gap",
+      "summary": "The guard's check-pr HTTP path has no test, and close() ignores the PATCH response status, so a failed close of the pull request is still logged as closed."
+    },
+    {
+      "id": "F-298-2",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/298#issuecomment-6937293566",
+      "commit": "d5dd058",
+      "category": "hardening",
+      "summary": "The test-file rule is broad: any file under tests/ counts, a one-line change to an existing test satisfies it, and the copied TEST_FILES pattern also matches a non-test module such as socboard/latest_report.py."
+    },
+    {
+      "id": "F-298-3",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/298#issuecomment-6940450859",
+      "commit": "bf9ba09",
+      "category": "hardening",
+      "summary": "Files beside the deny list pass the guard, among them GNUmakefile, pytest.ini, tox.ini, setup.cfg, conftest.py, CLAUDE.md, .opencode/, agent-kit.conf, .gitattributes, .gitmodules and scripts/, although the reason for denying pyproject.toml applies to several of them."
+    },
+    {
+      "id": "F-298-4",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/298#issuecomment-6937293566",
+      "commit": "d5dd058",
+      "category": "docs",
+      "summary": "The publish job's permissions block and the form used to take the guard from main appear in no delivered file, so #299 has to write them from the mandate's prose."
+    },
+    {
+      "id": "F-298-5",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/298#issuecomment-6937293566",
+      "commit": "d5dd058",
+      "category": "docs",
+      "summary": "Step 6 of the human task relies on a community discussion rather than GitHub's own documentation."
+    },
+    {
+      "id": "F-298-6",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/298#issuecomment-6937776626",
+      "commit": "4fa5f51",
+      "category": "wording",
+      "summary": "Glob, Grep and WebFetch are Claude Code tool names that the pinned action's docs do not list; a wrong name fails closed, and #299's run log should show Glob and Grep working."
+    },
+    {
+      "id": "F-298-7",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/298#issuecomment-6937776626",
+      "commit": "4fa5f51",
+      "category": "hardening",
+      "summary": "The Write tool can write outside the workspace, where nothing it writes shows in the patch; the criterion requires Write, so #299 decides how to bound it."
+    },
+    {
+      "id": "F-298-8",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/298#issuecomment-6937776626",
+      "commit": "4fa5f51",
+      "category": "docs",
+      "summary": "Three statements in MANDATE.md about the action's docs are inexact: WebFetch does appear in docs/configuration.md, one quote is link text, and the strict-list sentence is in docs/security.md rather than docs/usage.md."
+    },
+    {
+      "id": "F-298-9",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/298#issuecomment-6937776626",
+      "commit": "4fa5f51",
+      "category": "hardening",
+      "summary": "The Bash pattern for make test-one matches trailing text after the path, including a path that climbs out of tests/."
+    },
+    {
+      "id": "F-298-10",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/298#issuecomment-6937776626",
+      "commit": "4fa5f51",
+      "category": "hardening",
+      "summary": "The guard skips any line that starts with a backslash where git requires the exact no-newline marker, check_patch still accepts a missing run id from library callers, and main keeps a dead run-id test."
+    },
+    {
+      "id": "F-298-11",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/298#issuecomment-6937776626",
+      "commit": "4fa5f51",
+      "category": "hardening",
+      "summary": "Nothing scans fix.patch or notes.md for text copied from the runner's environment before they go into a public draft pull request."
+    },
+    {
+      "id": "F-298-12",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/298#issuecomment-6940274872",
+      "commit": "bf9ba09",
+      "category": "wording",
+      "summary": "MANDATE.md credits parseClaudeArgsToExtraArgs with producing settingSources, when that function yields the setting-sources extra argument and the lines after it build settingSources."
+    },
+    {
+      "id": "F-298-13",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/298#issuecomment-6940274872",
+      "commit": "bf9ba09",
+      "category": "docs",
+      "summary": "The statement that .mcp.json is not loaded under the user setting source rests on the Claude Code CLI, which the pinned action's code does not show; #299's run log is named to confirm it."
+    },
+    {
+      "id": "F-298-14",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/298#issuecomment-6940274872",
+      "commit": "bf9ba09",
+      "category": "hardening",
+      "summary": "The user setting source stays on, and the action's settings input writes the home settings file; whether a write to that file by the agent during a run takes effect is for #299."
+    },
+    {
+      "id": "F-298-15",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/298#issuecomment-6940450859",
+      "commit": "bf9ba09",
+      "category": "test-gap",
+      "summary": "The deny-list test checks the guard's names against the mandate in one direction only, although a guard.py comment says a test keeps the two equal."
+    },
+    {
+      "id": "F-298-16",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/298#issuecomment-6940450859",
+      "commit": "bf9ba09",
+      "category": "hardening",
+      "summary": "check_pull_request does not check the pull request's base or head ref."
+    },
+    {
+      "id": "F-298-17",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/298#issuecomment-6940450859",
+      "commit": "bf9ba09",
+      "category": "wording",
+      "summary": "The guard refuses any edit to an existing executable file even without a mode change, which is stricter than the criterion and fails closed."
+    },
+    {
+      "id": "F-298-18",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/298#issuecomment-6941017637",
+      "commit": "2063b9a",
+      "category": "wording",
+      "summary": "MANDATE.md quotes a docs/security.md sentence as describing the scrub variable, while in the source it sits under the allowed_non_write_users bullet; the conclusion still holds from action.yml."
+    },
+    {
+      "id": "F-298-19",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/298#issuecomment-6941017637",
+      "commit": "2063b9a",
+      "category": "hardening",
+      "summary": "The residual-risk statement does not name Actions cache writes, which this branch's CI shows in write mode; #299 should decide whether the agent job may write the cache."
+    },
+    {
+      "id": "F-298-20",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/298#issuecomment-6941017637",
+      "commit": "2063b9a",
+      "category": "hardening",
+      "summary": "An ignore rule the agent writes can keep a new file out of git add -N, which only shrinks the patch; the guard then refuses a patch with no test change."
+    },
+    {
+      "id": "F-298-21",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/298#issuecomment-6940693968",
+      "commit": "2063b9a",
+      "category": "docs",
+      "summary": "The decision record says the agent has no network tools besides the model, which is true of tools but not of code the agent writes and runs through tests or git; left unchanged by the maintainer's ruling."
+    }
+  ]
+}

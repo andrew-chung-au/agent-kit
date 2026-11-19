@@ -1,0 +1,8 @@
+diff --git a/AGENTS.md b/AGENTS.md
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -20,3 +20,3 @@
+ - **Test (one file):** `make test-one FILE=tests/test_socboard.py`
+-- **Verify:** `make verify`: tests (Python and frontend), whitespace and weakened-test checks. How to use it: `_docs/agent-kit/procedures/verify.md`.
++- **Verify:** `make verify`: tests (Python and frontend), the OpenAPI contract check, whitespace and weakened-test checks. How to use it: `_docs/agent-kit/procedures/verify.md`.
+ - **Assert clean:** `make assert-clean`: confirms nothing in this folder changed (used after QA).

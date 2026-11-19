@@ -1,0 +1,54 @@
+{
+  "issue": 207,
+  "findings": [
+    {
+      "id": "F-207-1",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/207#issuecomment-6890692735",
+      "commit": "3cb26e6",
+      "category": "docs",
+      "summary": "terraform/README.md and the header comment of terraform/ci-access/outputs.tf still say the workflows read the role ARNs from repository variables, which the human's ruling of 2026-11-15 replaced with secrets."
+    },
+    {
+      "id": "F-207-2",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/207#issuecomment-6890692735",
+      "commit": "3cb26e6",
+      "category": "hardening",
+      "summary": "The next-day snapshot check filters on the project tag, so it cannot show a snapshot of the untagged root volume; an unfiltered list compared against the root volume id would."
+    },
+    {
+      "id": "F-207-3",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/207#issuecomment-6890692735",
+      "commit": "3cb26e6",
+      "category": "hardening",
+      "summary": "The plan role's secret-read probe gets the same error code from the explicit deny and from a missing allow, so it shows the read is refused but not which statement refused it."
+    },
+    {
+      "id": "F-207-4",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/207#issuecomment-6890692735",
+      "commit": "3cb26e6",
+      "category": "wording",
+      "summary": "The checklist names README sections by file and heading rather than linking them, so a renamed heading would leave a stale pointer."
+    },
+    {
+      "id": "F-207-5",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/207#issuecomment-6890091956",
+      "commit": "df6f4bb",
+      "category": "wording",
+      "summary": "Three result rows settle the provider argument-name VERIFY items for their parts without naming them, while the state part's row does."
+    },
+    {
+      "id": "F-207-6",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/207#issuecomment-6889583485",
+      "commit": "df6f4bb",
+      "category": "process",
+      "summary": "There is no make target for the kit's secret scanner, so roles run the script directly."
+    },
+    {
+      "id": "F-207-7",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/207#issuecomment-6890338535",
+      "commit": "3cb26e6",
+      "category": "process",
+      "summary": "The findings file is written once per issue before the summary, but a two-stage issue like this one stays open for the human's run, and the procedure does not say where findings from the stage (b) re-check go."
+    }
+  ]
+}

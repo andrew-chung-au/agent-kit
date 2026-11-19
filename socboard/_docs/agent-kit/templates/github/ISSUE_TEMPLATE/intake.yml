@@ -1,0 +1,30 @@
+name: Report a problem or request
+description: Tell us what is wrong or missing, what you expected, and any evidence.
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This issue is public: anyone can read it.
+        Do not paste tokens, passwords, keys or the contents of env files.
+        Redact logs and output before you paste them.
+  - type: textarea
+    id: problem
+    attributes:
+      label: "What is wrong or missing"
+      description: "Describe the problem in a few sentences."
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: "What you expected"
+      description: "What should have happened, or what should exist."
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: "Evidence: commands, output, links"
+      description: "Anything that shows the problem. Redact secrets first."
+    validations:
+      required: false

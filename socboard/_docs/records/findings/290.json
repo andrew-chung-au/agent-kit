@@ -1,0 +1,40 @@
+{
+  "issue": 290,
+  "findings": [
+    {
+      "id": "F-290-1",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/290#issuecomment-6935363535",
+      "commit": "cdd765a",
+      "category": "docs",
+      "summary": "Graded Low: the refused-ingest log event alert.refused is not in the contract's event table, which says a name is added to the contract first in its own pull request."
+    },
+    {
+      "id": "F-290-2",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/290#issuecomment-6935363535",
+      "commit": "cdd765a",
+      "category": "hardening",
+      "summary": "Graded Low: the middleware also propagates the caller's tracestate, which the SDK keeps on the exported span, so an unauthenticated request can store caller-chosen text in Tempo."
+    },
+    {
+      "id": "F-290-3",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/290#issuecomment-6935363535",
+      "commit": "cdd765a",
+      "category": "test-gap",
+      "summary": "Graded Low: the real-app tests cannot show the span name comes from the matched route, because the fallback name is the same; only a unit test with a made-up route covers it."
+    },
+    {
+      "id": "F-290-4",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/290#issuecomment-6935363535",
+      "commit": "cdd765a",
+      "category": "test-gap",
+      "summary": "Graded Low: the exemplar on the refused count is not asserted, and duplicate traceparent headers and a deployment with a root path are untested."
+    },
+    {
+      "id": "F-290-5",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/290#issuecomment-6935363535",
+      "commit": "cdd765a",
+      "category": "docs",
+      "summary": "Graded Low: the middleware's docstring says it reads no other header, but it also reads tracestate."
+    }
+  ]
+}

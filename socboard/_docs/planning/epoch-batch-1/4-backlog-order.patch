@@ -1,0 +1,7 @@
+diff --git a/_docs/agent-kit/process.md b/_docs/agent-kit/process.md
+--- a/_docs/agent-kit/process.md
++++ b/_docs/agent-kit/process.md
+@@ -103,2 +103,2 @@
+-1. Pick the next open issue in the agreed order. If there are none, build the backlog (see Backlog).
++1. Pick the next open issue in the agreed order. If there are none, build the backlog (see Backlog). Every issue is placed in that order when it is filed, with a trigger (the issue it must land before, or the event that brings it up); an issue outside the order is never groomed.
+ 2. The PM grooms it, even if it is not yet labelled, when it is owner-authored (`AGENTS.md`, Issues). Groom only the next issue in the agreed order, not a second unlabelled issue while the first waits for the label. The PM's comment records the body hash. Then the human reads the groomed text and adds `approved`; the Engineer starts only after that. If the human changes the text, the orchestrator has the PM record the new hash in a new `PM:` comment before the label is added. Never skip this step. By default (no tier label and no raising proposal is Standard) the PM grooms in full, and the grooming comment carries the `Proposed tier:` line. Only when the human has said the issue is meant to be Light does the PM do the short launch instead (hash record and proposal, no rewrite of the body; see Tiers). The orchestrator reads the effective tier but never decides one.

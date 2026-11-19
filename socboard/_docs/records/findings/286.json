@@ -1,0 +1,26 @@
+{
+  "issue": 286,
+  "findings": [
+    {
+      "id": "F-286-1",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/286#issuecomment-6908580670",
+      "commit": "1b619a1",
+      "category": "wording",
+      "summary": "Graded Low: the one-command story does not name the make target, which roadmap 4 gives as make observability-up for #293; kept generic by the human's choice on the PM's question."
+    },
+    {
+      "id": "F-286-2",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/286#issuecomment-6908580670",
+      "commit": "1b619a1",
+      "category": "wording",
+      "summary": "Graded Low: the one-command story lists the collector, Tempo, Loki, Prometheus and Grafana but not Alertmanager, which roadmap 4 includes and the on-call story relies on."
+    },
+    {
+      "id": "F-286-3",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/286#issuecomment-6908580670",
+      "commit": "1b619a1",
+      "category": "wording",
+      "summary": "Graded Low: the journey story states 5 s only as a bucket bound; the requirement itself is section 5's N = 5s."
+    }
+  ]
+}

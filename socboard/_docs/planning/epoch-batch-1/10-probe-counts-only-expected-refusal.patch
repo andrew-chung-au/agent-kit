@@ -1,0 +1,8 @@
+diff --git a/_docs/agent-kit/team/qa-engineer.md b/_docs/agent-kit/team/qa-engineer.md
+--- a/_docs/agent-kit/team/qa-engineer.md
++++ b/_docs/agent-kit/team/qa-engineer.md
+@@ -27,2 +27,4 @@
+ - Docs the change made out of date
++
++A probe or bypass attempt counts as refused only when the error class and message are the expected refusal; a probe's own error counts as not run.
+ 

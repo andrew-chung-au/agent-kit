@@ -1,0 +1,26 @@
+{
+  "issue": 294,
+  "findings": [
+    {
+      "id": "F-294-1",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/294#issuecomment-6933365438",
+      "commit": "3a3fe76",
+      "category": "process",
+      "summary": "The earlier session's commit d75877e changed socboard/smoke.py, outside the issue's Files list, to add retry_after to Answer; it is additive and left for the maintainer to accept or replace."
+    },
+    {
+      "id": "F-294-2",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/294#issuecomment-6933365438",
+      "commit": "3a3fe76",
+      "category": "process",
+      "summary": "This session wrote the OTLP side before posting its claim comment, so the claim was recorded after the work began; the claim comment says so."
+    },
+    {
+      "id": "F-294-3",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/294#issuecomment-6933365438",
+      "commit": "3a3fe76",
+      "category": "test-gap",
+      "summary": "The probe's tests ran in the sandbox on Python 3.11 against a throwaway install of the SDK, not on the project's Python 3.12 environment, so CI is the only run on the real one."
+    }
+  ]
+}

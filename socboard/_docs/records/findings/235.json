@@ -1,0 +1,54 @@
+{
+  "issue": 235,
+  "findings": [
+    {
+      "id": "F-235-1",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/235#issuecomment-6892492617",
+      "commit": "b63af98",
+      "category": "hardening",
+      "summary": "If the pull-back comparison fails after the push, the pushed tag stays in the registry and the job fails; a re-run compares the existing tag with the tested image and never pushes a second one, but the failed version stays published."
+    },
+    {
+      "id": "F-235-2",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/235#issuecomment-6892492617",
+      "commit": "b63af98",
+      "category": "docs",
+      "summary": "The issue's note expected a pushed digest to differ from a local image id; on the first run they were equal, because the runner's Docker reports the manifest digest as the id (containerd image store), so the id checks hold, but they would compare different things on a runner with the classic store (the comparison would still fail closed, never pass a wrong image)."
+    },
+    {
+      "id": "F-235-3",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/235#issuecomment-6892493677",
+      "commit": "b63af98",
+      "category": "hardening",
+      "summary": "A commit dated far in the future gets a tag that sorts above every later tag; deploys go by digest, so it only matters for anyone who reads the newest tag."
+    },
+    {
+      "id": "F-235-4",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/235#issuecomment-6892493677",
+      "commit": "b63af98",
+      "category": "hardening",
+      "summary": "The publishing job's concurrency group queues runs by when their gates finish, not by commit order, and keeps one pending run, so two or three quick merges can publish out of order or leave a commit without an image."
+    },
+    {
+      "id": "F-235-5",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/235#issuecomment-6892495853",
+      "commit": "0a9325b",
+      "category": "hardening",
+      "summary": "The pattern that decides a tag is absent also matches 'command not found' and 'permission denied' on the Docker socket, so those errors lead to a push attempt instead of a stop; the push still fails loudly without write permission and never overwrites a tag."
+    },
+    {
+      "id": "F-235-6",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/235#issuecomment-6892495853",
+      "commit": "0a9325b",
+      "category": "test-gap",
+      "summary": "The static test of the publish workflow checks only the workflow-level bash default, not that a failing script piped into the output file really fails its step."
+    },
+    {
+      "id": "F-235-7",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/235#issuecomment-6892495853",
+      "commit": "0a9325b",
+      "category": "docs",
+      "summary": "With pipefail a bad-input exit of the gate script shows as a red gate job rather than ready=false, and neither the decision record nor the script's docstring says so."
+    }
+  ]
+}

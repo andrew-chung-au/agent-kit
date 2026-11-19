@@ -1,0 +1,33 @@
+{
+  "issue": 312,
+  "findings": [
+    {
+      "id": "F-312-1",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/312#issuecomment-6937146098",
+      "commit": "c7b3b94",
+      "category": "test-gap",
+      "summary": "Graded Low: surrounding whitespace is stripped before the limit is checked, as #289 did, so a value with a trailing space is accepted trimmed; no test pins it."
+    },
+    {
+      "id": "F-312-2",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/312#issuecomment-6937146098",
+      "commit": "c7b3b94",
+      "category": "hardening",
+      "summary": "Graded Low: with duplicate keys a refused later value is dropped silently and the earlier valid one kept, and a comma inside a value truncates it; neither is tested."
+    },
+    {
+      "id": "F-312-3",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/312#issuecomment-6937146098",
+      "commit": "c7b3b94",
+      "category": "docs",
+      "summary": "Graded Low: the contract's new section 1 bullet reads as if the limit covers every signal, but the probe and the emitter build their resource from OTEL_RESOURCE_ATTRIBUTES without it."
+    },
+    {
+      "id": "F-312-4",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/312#issuecomment-6937146098",
+      "commit": "c7b3b94",
+      "category": "wording",
+      "summary": "Graded Low: the start-up warning is the same for a refused value as for a missing one."
+    }
+  ]
+}

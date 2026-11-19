@@ -1,0 +1,8 @@
+diff --git a/_docs/agent-kit/team/pm.md b/_docs/agent-kit/team/pm.md
+--- a/_docs/agent-kit/team/pm.md
++++ b/_docs/agent-kit/team/pm.md
+@@ -10,3 +10,4 @@
+ - Make the acceptance criteria checkable: someone should be able to look at the UI, an API response or a test result and say yes or no
++- Do not use "exactly", "only" or "all" for a list another role fills in (flagged differences, error codes). Write "at least these, more allowed", and name the classes of choice to sweep (names, formats, statuses, messages)
+ - Think about the edge cases the person who filed it did not consider
+ - When the task limits what something may do (its tools, network access, files or permissions), say how each limit is enforced, and add a criterion with a case that must be refused. A limit nobody can enforce is a question for the human, not a criterion

@@ -1,0 +1,47 @@
+{
+  "issue": 234,
+  "findings": [
+    {
+      "id": "F-234-1",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/234#issuecomment-6891469029",
+      "commit": "3a3e9c2",
+      "category": "test-gap",
+      "summary": "The wait for the ingest key's allowance in the browser test's ingest helper has not run in CI, because the journey did not hit a rate limit in any run."
+    },
+    {
+      "id": "F-234-2",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/234#issuecomment-6891469029",
+      "commit": "3a3e9c2",
+      "category": "test-gap",
+      "summary": "The loopback address rule is written twice, in Python for the stack tests and in TypeScript for the browser test, and no test keeps the two in step."
+    },
+    {
+      "id": "F-234-3",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/234#issuecomment-6891469982",
+      "commit": "3a5fddc",
+      "category": "hardening",
+      "summary": "The trace redactor's JSON-escaped form does not cover an escaped slash or raw non-ASCII text; unlikely for generated secrets, and the post-check would flag a miss."
+    },
+    {
+      "id": "F-234-4",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/234#issuecomment-6891469982",
+      "commit": "3a5fddc",
+      "category": "docs",
+      "summary": "The README says the stack tests leave about ten failed logins on the client address before the browser test; that figure is an estimate, not read from a run."
+    },
+    {
+      "id": "F-234-5",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/234#issuecomment-6891852328",
+      "commit": "51f5d1d",
+      "category": "test-gap",
+      "summary": "The queue-order check would also pass for a sort by title, or by severity then asset or alert type, because the test's titles, assets and types sort in the expected order; a comment in the test wrongly says title order differs."
+    },
+    {
+      "id": "F-234-6",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/234#issuecomment-6891469982",
+      "commit": "3a5fddc",
+      "category": "process",
+      "summary": "Two QA rounds failed on one check that could not fail; proposal for the Engineer role file: for a test that must be able to fail (an ordering, a refusal, a limit), list the wrong implementations and show the test fails for each before handover."
+    }
+  ]
+}

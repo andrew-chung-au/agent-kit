@@ -1,0 +1,33 @@
+{
+  "issue": 340,
+  "findings": [
+    {
+      "id": "F-340-1",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/340#issuecomment-6933791866",
+      "commit": "19e96ad",
+      "category": "process",
+      "summary": "Landing the workflow also needs socboard observability added to publish.yml's workflow_run list and to TRIGGER_LIST in tests/test_publish_workflow.py, two more protected or CI-lane edits that the issue's body does not list. The proposed file is copied, not moved, because its static test reads the proposed copy."
+    },
+    {
+      "id": "F-340-2",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/340#issuecomment-6933791866",
+      "commit": "19e96ad",
+      "category": "docs",
+      "summary": "The Tempo, Loki, Prometheus and collector settings in observability/ci/skeleton/ were written from the projects' own current examples and docs, not from a run, so each carries a VERIFY note until the first socboard observability run settles it."
+    },
+    {
+      "id": "F-340-3",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/340#issuecomment-6933791866",
+      "commit": "19e96ad",
+      "category": "test-gap",
+      "summary": "The skeleton's check against real Tempo, Loki and Prometheus cannot run until the workflow file is on the branch, and the sandbox tests ran on Python 3.11 with the SDK installed outside the lock, so CI's run is the only evidence on the real stack."
+    },
+    {
+      "id": "F-340-4",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/340#issuecomment-6933791866",
+      "commit": "19e96ad",
+      "category": "process",
+      "summary": "A test file beyond the issue's Files list, tests/test_observability_emitter.py, was added so the emitter has a Docker-free test, and the proposed workflow's path filter also names the workflow's own file."
+    }
+  ]
+}

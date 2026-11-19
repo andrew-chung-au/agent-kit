@@ -1,0 +1,33 @@
+{
+  "issue": 271,
+  "findings": [
+    {
+      "id": "F-271-1",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/271#issuecomment-6900160827",
+      "commit": "2a3c06e",
+      "category": "test-gap",
+      "summary": "The proposed render check in the Compose job compares six values for each render, not the whole rendered file with main's, so a changed default of another variable would pass it."
+    },
+    {
+      "id": "F-271-2",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/271#issuecomment-6900160827",
+      "commit": "2a3c06e",
+      "category": "hardening",
+      "summary": "A STACK_PROJECT with a trailing space or capitals is not refused by the test; Compose itself refuses such a project name."
+    },
+    {
+      "id": "F-271-3",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/271#issuecomment-6900160827",
+      "commit": "2a3c06e",
+      "category": "test-gap",
+      "summary": "No test pins the defaults of STACK_APP_PORT, STACK_PROXY_PORT, STACK_IMAGE and STACK_PGDATA_DIR; changing one (for example the app port to 8001) passes every rule."
+    },
+    {
+      "id": "F-271-4",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/271#issuecomment-6900160827",
+      "commit": "2a3c06e",
+      "category": "hardening",
+      "summary": "Nothing stops a fixed name: on the stack network, which would make two stacks share one network despite different project names."
+    }
+  ]
+}

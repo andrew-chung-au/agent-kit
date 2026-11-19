@@ -1,0 +1,68 @@
+{
+  "issue": 221,
+  "findings": [
+    {
+      "id": "F-221-1",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/221#issuecomment-6888319676",
+      "commit": "c2383be",
+      "category": "hardening",
+      "summary": "The secrets script reads only plain NAME=value lines, so a line written as an export or with quotes counts as missing and a duplicate is appended."
+    },
+    {
+      "id": "F-221-2",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/221#issuecomment-6888319676",
+      "commit": "c2383be",
+      "category": "test-gap",
+      "summary": "The static Compose test checks that the required-variable form appears somewhere for each name, not at every use, and nothing tests the proxy's address range or the app's health check."
+    },
+    {
+      "id": "F-221-3",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/221#issuecomment-6888319676",
+      "commit": "c2383be",
+      "category": "docs",
+      "summary": "Setting the data-directory variable to a bare name instead of an absolute path makes Compose fail on an undefined volume; the README says absolute path but does not say what happens otherwise."
+    },
+    {
+      "id": "F-221-4",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/221#issuecomment-6888319676",
+      "commit": "c2383be",
+      "category": "hardening",
+      "summary": "The generated secrets file is not on the pre-commit hook's forbidden list in the kit configuration, so a forced add would not be refused by name."
+    },
+    {
+      "id": "F-221-5",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/221#issuecomment-6888320638",
+      "commit": "56cbacb",
+      "category": "docs",
+      "summary": "The README bullet on the image variable names three services; the role set-up service uses it too."
+    },
+    {
+      "id": "F-221-6",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/221#issuecomment-6888320638",
+      "commit": "56cbacb",
+      "category": "test-gap",
+      "summary": "The role set-up test's fake connection ignores query parameters and the password argument, so a raw password passed as a parameter, or swapped owner and application passwords, would not be caught."
+    },
+    {
+      "id": "F-221-7",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/221#issuecomment-6888320638",
+      "commit": "56cbacb",
+      "category": "hardening",
+      "summary": "Any connection error in the role set-up, including a dropped connection after login, prints the explanation about a deleted secrets file, which may be the wrong cause."
+    },
+    {
+      "id": "F-221-8",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/221#issuecomment-6888320638",
+      "commit": "56cbacb",
+      "category": "hardening",
+      "summary": "The bind-mounted role set-up script is readable by the image's non-root user only if the checkout is world-readable; a clone made under a strict umask gives mode 0600 and the one-shot cannot read it."
+    },
+    {
+      "id": "F-221-9",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/221#issuecomment-6887716208",
+      "commit": "b576f98",
+      "category": "process",
+      "summary": "The journeys of the closed integration-tests issue build their own in-process client and do not read a base URL, so the planned run of them against the Compose stack needs a fixture change that no issue states."
+    }
+  ]
+}

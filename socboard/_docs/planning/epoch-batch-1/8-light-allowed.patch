@@ -1,0 +1,12 @@
+diff --git a/agent-kit.conf b/agent-kit.conf
+--- a/agent-kit.conf
++++ b/agent-kit.conf
+@@ -40,7 +40,7 @@
+ # check's fixed escalation list (scripts, hooks, tool settings, Makefile, this file,
+ # CI, test files, FORBIDDEN) is ignored. Example, Markdown docs only:
+ # LIGHT_ALLOWED=( 'README.md' 'docs/*.md' )
+-LIGHT_ALLOWED=()
++LIGHT_ALLOWED=( '_docs/planning/roadmap-*.md' '_docs/planning/epoch-batch-*/*.md' '_docs/runbooks/*.md' )
+ # Most changed lines a Light change may have (default 20).
+ # LIGHT_MAX_LINES=20
+ 

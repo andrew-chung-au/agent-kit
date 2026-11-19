@@ -1,0 +1,23 @@
+{
+  "run_id": "44123146917",
+  "run_url": "https://github.com/andrew-chung-au/socboard/actions/runs/44123146917",
+  "commit": "d665893d67a73978e15feb07b22e001f4764dbd9",
+  "files": [
+    {
+      "name": "README.md",
+      "shows": "The drill record: the run, the agent's pull request #381, what each job checked and the result"
+    },
+    {
+      "name": "alert.png",
+      "shows": "The firing-alert screenshot the drill job took (drill-evidence artifact, evidence/alert.png)"
+    },
+    {
+      "name": "dashboard.png",
+      "shows": "The dashboard screenshot the drill job took while the alert fired (drill-evidence artifact, evidence/dashboard.png)"
+    },
+    {
+      "name": "incident.json",
+      "shows": "The incident the hand-off wrote when QueueLatencyOverSLO fired, checked fields only (drill-evidence artifact)"
+    }
+  ]
+}

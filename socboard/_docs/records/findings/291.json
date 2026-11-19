@@ -1,0 +1,10 @@
+{
+  "issue": 291,
+  "findings": [
+    {"id": "F-291-1", "source": "https://github.com/andrew-chung-au/socboard/issues/291#issuecomment-6937010816", "commit": "ae6381d", "category": "test-gap", "summary": "The simultaneous-reads test fails when the lookup and removal are split, but still passes with the lock removed, and no test races the last-read time."},
+    {"id": "F-291-2", "source": "https://github.com/andrew-chung-au/socboard/issues/291#issuecomment-6937010816", "commit": "ae6381d", "category": "hardening", "summary": "An error inside the queue-read telemetry, such as an attribute outside the contract or an exporter error, would turn a queue read into a 500, because the telemetry calls are not isolated."},
+    {"id": "F-291-3", "source": "https://github.com/andrew-chung-au/socboard/issues/291#issuecomment-6937010816", "commit": "ae6381d", "category": "wording", "summary": "The ingest time is taken after the commit, so the measured delay is a few milliseconds shorter than the true ingest-to-visible time."},
+    {"id": "F-291-4", "source": "https://github.com/andrew-chung-au/socboard/issues/291#issuecomment-6937010816", "commit": "ae6381d", "category": "wording", "summary": "The watched state is global to the process, so any user's queue read counts as watching, which matches the issue text and the one-worker assumption."},
+    {"id": "F-291-5", "source": "https://github.com/andrew-chung-au/socboard/issues/291#issuecomment-6936812833", "commit": "ae6381d", "category": "process", "summary": "The Engineer's first edit of the telemetry module used a one-off rewrite script instead of the edit tool."}
+  ]
+}

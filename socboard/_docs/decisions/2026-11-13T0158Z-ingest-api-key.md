@@ -1,0 +1,9 @@
+# Decision: One shared ingest API key in `X-API-Key`, compared as SHA-256 digests, failing closed
+
+One file per choice that may be revisited. **Status: approved.** The human approved issue #14, whose `## Decision record` section this file copies, with the `approved` label on the issue (body hash `30807dfbe9d7817e87a7475cf5bb4ad340fdfa61f5799e5cefa3bc86592d3203`, matching `make issue-hash N=14`), and in the session on 2026-11-12 re-read and confirmed the body. Heavy tier: the one entry point that is not a user, with untrusted input.
+
+- **Decision:** Source systems authenticate with one shared API key in the request header `X-API-Key` (the contract's name), read from `SOCBOARD_INGEST_API_KEY` and checked in constant time on SHA-256 digests; the endpoint fails closed when the variable is unset, empty or shorter than 16 characters. User bearer tokens are separate and cannot ingest, and the key cannot be used as a user credential.
+- **Reason:** The spec says source systems are not users and must not need an account, and the public ingest endpoint must not be open to anyone. A single key is enough for synthetic data. Digest comparison avoids the error `hmac.compare_digest` raises for non-ASCII text and does not depend on length.
+- **Alternatives:** Reuse user tokens (mixes human and machine access, and gives analysts the ability to forge alerts); per-source keys (better revocation, needs a table and admin work out of scope); no authentication (the spec forbids it).
+- **Trade-offs:** One shared key cannot be revoked per source. A leaked key lets anyone ingest until it is rotated. Accepted for Core. A missing key does not stop the app from starting (unlike the signing secret in #13): ingest is simply closed and a warning is logged once.
+- **Evidence:** `_docs/specs.md` sections 2 and 4; `openapi.yaml` (`ingestAlert`, `IngestRequest`, the order of checks for a request that is not well-formed); `_docs/decisions/2026-11-11T1511Z-openapi-contract.md`.

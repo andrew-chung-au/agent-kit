@@ -1,0 +1,11 @@
+diff --git a/_docs/agent-kit/procedures/orchestrator-comments.md b/_docs/agent-kit/procedures/orchestrator-comments.md
+--- a/_docs/agent-kit/procedures/orchestrator-comments.md
++++ b/_docs/agent-kit/procedures/orchestrator-comments.md
+@@ -10,2 +10,3 @@
+ **Fact:** issue, branch, hash, expected paths, protected files needing approval, and the environment the next role will run in with its missing tools (for example no bun, so the tests step of `make verify` cannot run).
++Also one line, alone and in this form: `Launch environment: <...>; tool: <...>; model: <model or unknown>; tests runnable here: <yes | no: reason>; feedback loop: <local | CI | human-run>`.
+ Never name an env file in a claim.
+@@ -26,2 +27,3 @@
+ **Fact:** every value in those lines.
++When the issue had CI feedback rounds or hand-overs, also one line, alone: `Feedback rounds: CI <n>; human-run <n>; hand-overs <n>` (`make issue-close` does not match it).
+ Never close without QA PASS. Post after the last PASS (Light: after `tier-check: PASS`), then `make issue-close N=<n>`. Close as not planned only after the human approved that closure: `Orchestrator: Close as not planned` with `Human approved closure: <YYYY-MM-DD>` and `Backlog review: <path or comment URL>`, then add `REASON=not-planned`.

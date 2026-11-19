@@ -1,0 +1,81 @@
+{
+  "status": "success",
+  "data": [
+    {
+      "seriesLabels": {
+        "__name__": "socboard_probe_time_to_queue_seconds_bucket",
+        "deployment_environment_name": "local",
+        "job": "socboard-probe",
+        "le": "0.5",
+        "service_name": "socboard-probe",
+        "service_version": "unknown"
+      },
+      "exemplars": [
+        {
+          "labels": {
+            "span_id": "74050e3db2611989",
+            "trace_id": "291472cf0f8ebcdaf8d15e26d8bfd878"
+          },
+          "value": "0.0029079280000132712",
+          "timestamp": 1794895300.532
+        },
+        {
+          "labels": {
+            "span_id": "e8d9d39524b322c5",
+            "trace_id": "8e6e01211c0788d0c01603067e84896c"
+          },
+          "value": "0.0028195360000040637",
+          "timestamp": 1794895305.419
+        },
+        {
+          "labels": {
+            "span_id": "fcbca75b58c30564",
+            "trace_id": "2f283782289d38e54d0e9723f9ecee2a"
+          },
+          "value": "0.0025712400000088564",
+          "timestamp": 1794895310.42
+        },
+        {
+          "labels": {
+            "span_id": "7fe1bd32581c3a88",
+            "trace_id": "ba3e9f88180812d3e5129ffb2f71b3ab"
+          },
+          "value": "0.002680503999982875",
+          "timestamp": 1794895315.423
+        },
+        {
+          "labels": {
+            "span_id": "1dbdb3554e15973c",
+            "trace_id": "1726074d014cb03c392eeda85238b4a2"
+          },
+          "value": "0.0025564970000004905",
+          "timestamp": 1794895320.421
+        },
+        {
+          "labels": {
+            "span_id": "f4cb4ebc497db8d3",
+            "trace_id": "8ada4444fd25ca31d72cc3f524cfb228"
+          },
+          "value": "0.0026587130000166326",
+          "timestamp": 1794895325.421
+        },
+        {
+          "labels": {
+            "span_id": "8d083ec424fac8f2",
+            "trace_id": "9608a3cb5e90fd9e09cfc4061a58a323"
+          },
+          "value": "0.002792825000000221",
+          "timestamp": 1794895330.421
+        },
+        {
+          "labels": {
+            "span_id": "ffc83a7415d2155c",
+            "trace_id": "1e7cd4861fc99e1974c8ab6be79ab45d"
+          },
+          "value": "0.002531760000010763",
+          "timestamp": 1794895335.422
+        }
+      ]
+    }
+  ]
+}

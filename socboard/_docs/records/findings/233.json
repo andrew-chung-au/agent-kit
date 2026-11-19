@@ -1,0 +1,75 @@
+{
+  "issue": 233,
+  "findings": [
+    {
+      "id": "F-233-1",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/233#issuecomment-6895404590",
+      "commit": "d41b14e",
+      "category": "test-gap",
+      "summary": "The test's copy of the secret patterns leaves out two of the kit scanner's patterns, so a template containing either still passes terraform test, although the real scan catches them."
+    },
+    {
+      "id": "F-233-2",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/233#issuecomment-6895404590",
+      "commit": "d41b14e",
+      "category": "test-gap",
+      "summary": "No test checks that the Elastic IP association resource exists; removing it leaves terraform test passing."
+    },
+    {
+      "id": "F-233-3",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/233#issuecomment-6895404590",
+      "commit": "d41b14e",
+      "category": "test-gap",
+      "summary": "No test can guard against an output that exposes the user data or another secret-bearing value; review is the only check."
+    },
+    {
+      "id": "F-233-4",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/233#issuecomment-6895404590",
+      "commit": "d41b14e",
+      "category": "hardening",
+      "summary": "Because the data mount is nofail, Docker can start containers on reboot before the data volume is mounted; an ordering drop-in on the Docker service would remove the race."
+    },
+    {
+      "id": "F-233-5",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/233#issuecomment-6895404590",
+      "commit": "d41b14e",
+      "category": "hardening",
+      "summary": "Caddy's TLS and ACME account keys sit inside the directory that is bind-mounted into the Postgres container, whose entrypoint runs as root."
+    },
+    {
+      "id": "F-233-6",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/233#issuecomment-6895404590",
+      "commit": "d41b14e",
+      "category": "hardening",
+      "summary": "The Caddy repository key check reads only the first fingerprint, while apt then trusts every key in the downloaded keyring."
+    },
+    {
+      "id": "F-233-7",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/233#issuecomment-6895404590",
+      "commit": "d41b14e",
+      "category": "hardening",
+      "summary": "Two install steps in the bootstrap end with a guard that also hides a failure to install the apt source or the cron file."
+    },
+    {
+      "id": "F-233-8",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/233#issuecomment-6895404590",
+      "commit": "d41b14e",
+      "category": "docs",
+      "summary": "The README paragraph on replacement states an AWS behaviour of the volume attachment without the inline VERIFY marker that main.tf carries."
+    },
+    {
+      "id": "F-233-9",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/233#issuecomment-6895404590",
+      "commit": "d41b14e",
+      "category": "process",
+      "summary": "The verify gate's weakened-test check does not look at Terraform test files, so a removed assertion in a .tftest.hcl file would not be flagged."
+    },
+    {
+      "id": "F-233-10",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/233#issuecomment-6893816743",
+      "commit": "d41b14e",
+      "category": "process",
+      "summary": "The Engineer applied some main.tf edits with a one-off script instead of the edit tool, against the command-shape rule; the result was reviewed and is the same."
+    }
+  ]
+}

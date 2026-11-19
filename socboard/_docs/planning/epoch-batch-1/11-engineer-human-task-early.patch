@@ -1,0 +1,8 @@
+diff --git a/_docs/agent-kit/team/software-engineer.md b/_docs/agent-kit/team/software-engineer.md
+--- a/_docs/agent-kit/team/software-engineer.md
++++ b/_docs/agent-kit/team/software-engineer.md
+@@ -13,3 +13,3 @@
+ - Do not close the issue, and do not push
+-- If the human must run or check something by hand, draft a task file from `_docs/agent-kit/templates/human-task.md` and return it to the orchestrator instead of listing the steps in a comment
++- If the human must run or check something by hand, draft a task file from `_docs/agent-kit/templates/human-task.md` and return it to the orchestrator instead of listing the steps in a comment. When a check cannot run here, draft it as soon as you know, listing each unconfirmed guess, not at hand-over
+ - Do not edit protected files (listed in `agent-kit.conf`). If your change affects how the project is installed, run, tested or configured, put the exact proposed change under "Proposed AGENTS.md changes" in your issue comment

@@ -1,0 +1,14 @@
+{
+  "issue": 295,
+  "findings": [
+    {"id": "F-295-1", "source": "https://github.com/andrew-chung-au/socboard/issues/295#issuecomment-6938075104", "commit": "237a037", "category": "hardening", "summary": "The canary scans passed on empty, truncated or partial store answers, so the gate could report no canary without having seen the run's data (fixed in a8baaad)."},
+    {"id": "F-295-2", "source": "https://github.com/andrew-chung-au/socboard/issues/295#issuecomment-6938075104", "commit": "237a037", "category": "hardening", "summary": "Prometheus exemplars were searched for the two time-to-queue histograms only, while the contract forbids a canary in any exemplar (fixed in a8baaad)."},
+    {"id": "F-295-3", "source": "https://github.com/andrew-chung-au/socboard/issues/295#issuecomment-6938075104", "commit": "237a037", "category": "test-gap", "summary": "Three of the four canary searches and the link's trace-id comparison had no test that could fail (fixed in a8baaad)."},
+    {"id": "F-295-4", "source": "https://github.com/andrew-chung-au/socboard/issues/295#issuecomment-6938075104", "commit": "237a037", "category": "hardening", "summary": "The account-number canary is sent only in a refused request, and the real ingest key and token of accepted requests are not searched for."},
+    {"id": "F-295-5", "source": "https://github.com/andrew-chung-au/socboard/issues/295#issuecomment-6938391217", "commit": "a8baaad", "category": "hardening", "summary": "The Tempo canary scan fails closed at 50 listed traces, so a busier stack would fail with cannot tell."},
+    {"id": "F-295-6", "source": "https://github.com/andrew-chung-au/socboard/issues/295#issuecomment-6938391217", "commit": "a8baaad", "category": "hardening", "summary": "The stop trap in check.sh prints the last 40 log lines of every service unredacted; the contract canaries are synthetic, so no real secret is at risk."},
+    {"id": "F-295-7", "source": "https://github.com/andrew-chung-au/socboard/issues/295#issuecomment-6938391217", "commit": "a8baaad", "category": "test-gap", "summary": "No test covers check.sh's exit-code logic, which was checked by reading and simulation only."},
+    {"id": "F-295-8", "source": "https://github.com/andrew-chung-au/socboard/issues/295#issuecomment-6938073433", "commit": "237a037", "category": "docs", "summary": "The README's probe paragraph does not mention the probe's new --trace-id option."},
+    {"id": "F-295-9", "source": "https://github.com/andrew-chung-au/socboard/issues/295#issuecomment-6938222196", "commit": "a8baaad", "category": "process", "summary": "The fix round edited the test file's fake store once with an inline replace script instead of the edit tool."}
+  ]
+}

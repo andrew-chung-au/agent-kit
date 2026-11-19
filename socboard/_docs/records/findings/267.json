@@ -1,0 +1,13 @@
+{
+  "issue": 267,
+  "findings": [
+    {"id": "F-267-1", "source": "https://github.com/andrew-chung-au/socboard/issues/267#issuecomment-6934192421", "commit": "e341c81", "category": "docs", "summary": "The first-prod-deploy task file pointed to the wrong step numbers for the digest, the secret file and the before-and-after check."},
+    {"id": "F-267-2", "source": "https://github.com/andrew-chung-au/socboard/issues/267#issuecomment-6934192421", "commit": "e341c81", "category": "docs", "summary": "The task file sent by instance tag instead of by instance id, unlike scripts/ci_deploy.py and the README."},
+    {"id": "F-267-3", "source": "https://github.com/andrew-chung-au/socboard/issues/267#issuecomment-6934192421", "commit": "e341c81", "category": "test-gap", "summary": "The prod-never-touches-dev test matrix has no scenario for a failure at the database step."},
+    {"id": "F-267-4", "source": "https://github.com/andrew-chung-au/socboard/issues/267#issuecomment-6934192421", "commit": "e341c81", "category": "hardening", "summary": "The script does not check that a fetched compose.yaml reads STACK_PROJECT, so a send of a digest older than #271 to prod is not guarded."},
+    {"id": "F-267-5", "source": "https://github.com/andrew-chung-au/socboard/issues/267#issuecomment-6934194490", "commit": "e341c81", "category": "hardening", "summary": "SECRET_REGION is never read, because the Python secret read names its region itself."},
+    {"id": "F-267-6", "source": "https://github.com/andrew-chung-au/socboard/issues/267#issuecomment-6934194490", "commit": "e341c81", "category": "hardening", "summary": "Any job that holds the deploy role can send environment=prod; the decision record names this trade-off, and the deploy-prod reviewer gate is the control."},
+    {"id": "F-267-7", "source": "https://github.com/andrew-chung-au/socboard/issues/267", "commit": "91d985f", "category": "process", "summary": "The first prod send exited 3 because iam-and-budgets had not been re-applied after #268, and neither task file checked the instance role's policy before the send."},
+    {"id": "F-267-8", "source": "https://github.com/andrew-chung-au/socboard/issues/267", "commit": "91d985f", "category": "docs", "summary": "The task file's placeholders, its run-folder sentence and its mktemp step led to a literal file named after a placeholder in the repository folder and an empty secret send."}
+  ]
+}

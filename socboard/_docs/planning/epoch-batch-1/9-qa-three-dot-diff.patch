@@ -1,0 +1,8 @@
+diff --git a/_docs/agent-kit/team/qa-engineer.md b/_docs/agent-kit/team/qa-engineer.md
+--- a/_docs/agent-kit/team/qa-engineer.md
++++ b/_docs/agent-kit/team/qa-engineer.md
+@@ -21,3 +21,3 @@
+ 
+-The orchestrator asks for this in every Standard QA launch. For Heavy issues, a second, fresh launch does only this. Read the diff (`git diff origin/main --stat`, then the full diff) and answer each item, with the file and line for any problem:
++The orchestrator asks for this in every Standard QA launch. For Heavy issues, a second, fresh launch does only this. Read the diff (`git diff origin/main...HEAD --stat`, then the full diff the same way; three dots leave out what main has changed since) and answer each item, with the file and line for any problem:
+ - Bugs: logic errors, unhandled bad input, failing underlying commands

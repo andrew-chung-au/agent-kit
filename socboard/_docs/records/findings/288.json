@@ -1,0 +1,19 @@
+{
+  "issue": 288,
+  "findings": [
+    {
+      "id": "F-288-1",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/288#issuecomment-6932897858",
+      "commit": "a63c813",
+      "category": "docs",
+      "summary": "The task file's list of expected lock packages predates exporter 1.45.2, which also pulls in opentelemetry-exporter-http-transport and opentelemetry-exporter-otlp-common at 0.66b2, a beta version."
+    },
+    {
+      "id": "F-288-2",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/288#issuecomment-6932897858",
+      "commit": "a63c813",
+      "category": "process",
+      "summary": "The task file's result table was blank after the maintainer's run and was filled afterwards from pasted output, so steps 1 and 4 and 11 read Not reported."
+    }
+  ]
+}

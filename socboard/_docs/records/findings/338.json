@@ -1,0 +1,19 @@
+{
+  "issue": 338,
+  "findings": [
+    {
+      "id": "F-338-1",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/338#issuecomment-6932204285",
+      "commit": "9cf7ed3",
+      "category": "process",
+      "summary": "Graded Low: the Engineer made the contract edit with an inline shell script instead of the edit tool, which the command-shape rule forbids; the committed result is correct."
+    },
+    {
+      "id": "F-338-2",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/338#issuecomment-6932204285",
+      "commit": "9cf7ed3",
+      "category": "wording",
+      "summary": "Graded Low: the contract's section 2 sentence about what the histogram measures now sits beside two histograms and does not say which one it means."
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "issue": 287,
+  "findings": [
+    {
+      "id": "F-287-1",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/287#issuecomment-6907076697",
+      "commit": "7038356",
+      "category": "wording",
+      "summary": "Graded Low: the server-size trade-off says five more containers, as the issue's criterion does, while the record lists six observability services."
+    }
+  ]
+}

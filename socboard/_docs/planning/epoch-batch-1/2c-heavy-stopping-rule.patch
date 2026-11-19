@@ -1,0 +1,8 @@
+diff --git a/_docs/agent-kit/team/qa-engineer.md b/_docs/agent-kit/team/qa-engineer.md
+--- a/_docs/agent-kit/team/qa-engineer.md
++++ b/_docs/agent-kit/team/qa-engineer.md
+@@ -28,3 +28,3 @@
+ 
+-In the Heavy second launch any problem is a FAIL. In a Standard launch a problem fails the verdict only if it breaks a criterion; otherwise list it under Outside the criteria. You change nothing in either launch.
++In the Heavy second launch, only a finding of Medium or higher (a defect a builder or user would hit) that needs a change in this issue is a FAIL. Mark each finding with its severity and `Change in this issue: yes` or `no`. Low findings and notes for later issues are follow-ups and do not fail the verdict. In a Standard launch a problem fails the verdict only if it breaks a criterion; otherwise list it under Outside the criteria. You change nothing in either launch.
+ 

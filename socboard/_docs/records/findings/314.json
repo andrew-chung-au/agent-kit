@@ -1,0 +1,26 @@
+{
+  "issue": 314,
+  "findings": [
+    {
+      "id": "F-314-1",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/314#issuecomment-6906244781",
+      "commit": "3840c46",
+      "category": "docs",
+      "summary": "Issue 237's approved body still states the volume root as the dev data folder in two places; by the human's default ruling the change is recorded in issue 314 only."
+    },
+    {
+      "id": "F-314-2",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/314#issuecomment-6906244781",
+      "commit": "3840c46",
+      "category": "docs",
+      "summary": "An earlier dated session summary still names the volume root as the dev data folder; session summaries are records and are not edited."
+    },
+    {
+      "id": "F-314-3",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/314#issuecomment-6905847877",
+      "commit": "e49ffb2",
+      "category": "process",
+      "summary": "The deploy script kept a fixed value that a later bootstrap change made stale, and nothing tied the two together until this issue's test read both files."
+    }
+  ]
+}

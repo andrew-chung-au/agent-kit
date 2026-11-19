@@ -1,0 +1,8 @@
+diff --git a/agent-kit.conf b/agent-kit.conf
+--- a/agent-kit.conf
++++ b/agent-kit.conf
+@@ -24,3 +24,3 @@
+ TEST_CMD="make test"
+-LINT_CMD=""
++LINT_CMD="make contract-check"
+ TYPECHECK_CMD=""

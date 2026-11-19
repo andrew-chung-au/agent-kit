@@ -1,0 +1,48 @@
+# Optional Compose variant of the reference dev container: an `app` service (the
+# container the agent works in) and a Postgres `db` service it can reach by name
+# but cannot control. Copy devcontainer.json, compose.yaml and Dockerfile into
+# .devcontainer/ from a clean clone, with the standard setup.sh. See environments.md.
+#
+# Replace the placeholders in this file and in devcontainer.json, and keep them
+# identical in both: socboard-sandbox (the project's sandbox folder name), socboard_dev,
+# socboard_dev, b252edaf805007702cb7ba76. The password is a dev-only value for a database that is
+# never published to the host. Never put a real secret here.
+#
+# Limits, each pinned by a test over this file's text and by your review of the diff
+# before you rebuild: the app mounts only the workspace; db has no `ports`, no host
+# path and no Docker socket anywhere; nothing is privileged or on the host network.
+# Do not add any of those, and do not add a service that does.
+#
+# To reverse it: revert these three files and rebuild. Removing the data volume
+# (`pgdata`) is a step for you on the host (docker volume rm); an agent never does it.
+# Untested until its first rebuild; the postgres tag below is unverified.
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: sleep infinity
+    volumes:
+      - ..:/workspaces/socboard-sandbox
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:16.15
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: socboard_dev
+      POSTGRES_USER: socboard_dev
+      POSTGRES_PASSWORD: b252edaf805007702cb7ba76
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U socboard_dev -d socboard_dev"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:

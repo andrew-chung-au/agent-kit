@@ -1,0 +1,35 @@
+{
+  "run_id": "44027949931",
+  "run_url": "https://github.com/andrew-chung-au/socboard/actions/runs/44027949931",
+  "commit": "0543ad826bf6ee9a3cfc0e39e214ee3c9ab3d1a8",
+  "files": [
+    {
+      "name": "dashboard.png",
+      "shows": "Grafana's dashboard 'SOCBoard: alert to queue' over the run's probe window"
+    },
+    {
+      "name": "exemplars.json",
+      "shows": "Prometheus's exemplars for the probe's histogram, redacted the same way"
+    },
+    {
+      "name": "logs.json",
+      "shows": "Loki's answer for that trace id (the trace id is structured metadata), redacted the same way"
+    },
+    {
+      "name": "logs.png",
+      "shows": "The log lines of that trace in Loki, found by its trace id"
+    },
+    {
+      "name": "trace.json",
+      "shows": "Tempo's answer for that trace id, with canary strings and the Grafana password replaced"
+    },
+    {
+      "name": "trace.png",
+      "shows": "One probe trace in Tempo, opened from its trace id"
+    },
+    {
+      "name": "window.json",
+      "shows": "The trace id and the absolute from and to (milliseconds since the epoch) the screenshots used"
+    }
+  ]
+}

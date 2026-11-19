@@ -1,0 +1,19 @@
+{
+  "issue": 208,
+  "findings": [
+    {
+      "id": "F-208-1",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/208#issuecomment-6893111747",
+      "commit": "90477de",
+      "category": "docs",
+      "summary": "The Deploy decision record and the deploy backlog proposal still describe the apply role's IAM deny as covering other IAM writes, narrower than the code, which denies every IAM action but the one PassRole."
+    },
+    {
+      "id": "F-208-2",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/208#issuecomment-6893111747",
+      "commit": "90477de",
+      "category": "wording",
+      "summary": "The new Parameter Store comment in ci-access/main.tf calls the plan role's three SSM actions document reads, though one of them reads tags."
+    }
+  ]
+}

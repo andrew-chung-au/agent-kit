@@ -1,0 +1,47 @@
+{
+  "issue": 268,
+  "findings": [
+    {
+      "id": "F-268-1",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/268#issuecomment-6903726922",
+      "commit": "fb019e3",
+      "category": "test-gap",
+      "summary": "A terraform test reads only the resources and outputs it names, so no offline check can show that a data source reads a secret; the never-hold rule rests on a reviewer reading the diff."
+    },
+    {
+      "id": "F-268-2",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/268#issuecomment-6903728293",
+      "commit": "fb019e3",
+      "category": "docs",
+      "summary": "The instance-role decision record of 2026-11-14 still says the role reads exactly one secret ARN, and the new record extends it without marking it."
+    },
+    {
+      "id": "F-268-3",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/268#issuecomment-6903726922",
+      "commit": "fb019e3",
+      "category": "wording",
+      "summary": "The groomed body says the empty-secret read-back prints null, while the CLI's text output prints None; the task file uses None."
+    },
+    {
+      "id": "F-268-4",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/268#issuecomment-6903728293",
+      "commit": "fb019e3",
+      "category": "process",
+      "summary": "Step 6 of the task file asks the maintainer to create a workflow file in a block that holds no single command, which the step format does not cover."
+    },
+    {
+      "id": "F-268-5",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/268#issuecomment-6903728293",
+      "commit": "fb019e3",
+      "category": "hardening",
+      "summary": "AWS compares the Environment name in the trust case-sensitively while GitHub treats Environment names case-insensitively, so a differently cased name would be refused rather than accepted; this fails closed and is unverified."
+    },
+    {
+      "id": "F-268-6",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/268#issuecomment-6903729708",
+      "commit": "2e09ceb",
+      "category": "process",
+      "summary": "The QA reports' Reflection blocks were not posted as comments, because a comment starting with QA: could be read by the close script as a verdict; they are copied into the session summary instead."
+    }
+  ]
+}

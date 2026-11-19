@@ -1,0 +1,96 @@
+{
+  "issue": 237,
+  "findings": [
+    {
+      "id": "F-237-1",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/237#issuecomment-6900048087",
+      "commit": "fd9cc36",
+      "category": "hardening",
+      "summary": "A second deploy run that lost the lock removed the running deploy's variable file because the exit trap was set before the lock; fixed in 292121f."
+    },
+    {
+      "id": "F-237-2",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/237#issuecomment-6900048087",
+      "commit": "fd9cc36",
+      "category": "hardening",
+      "summary": "The already-deployed check did not require the app container to be running, so a stopped app could be reported as deployed; fixed in 292121f."
+    },
+    {
+      "id": "F-237-3",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/237#issuecomment-6900048087",
+      "commit": "fd9cc36",
+      "category": "hardening",
+      "summary": "Redaction of the log lines printed after a failure leaves a tail when two secret values overlap without one containing the other, and misses a value split across two lines."
+    },
+    {
+      "id": "F-237-4",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/237#issuecomment-6900048087",
+      "commit": "fd9cc36",
+      "category": "hardening",
+      "summary": "Sending the same digest again cannot repair an unhealthy release, because the swap changes nothing when the configuration is unchanged, so the run ends in exit 9."
+    },
+    {
+      "id": "F-237-5",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/237#issuecomment-6900590216",
+      "commit": "292121f",
+      "category": "hardening",
+      "summary": "The database image pinned in the Compose file was never brought to the server, so the first deploy could not start the database; fixed in b398821 and ec00ee8."
+    },
+    {
+      "id": "F-237-6",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/237#issuecomment-6900590216",
+      "commit": "292121f",
+      "category": "hardening",
+      "summary": "An image variable exported in the root shell's environment would override the digest the script writes, and the test-only path and timing hooks are also read from that environment."
+    },
+    {
+      "id": "F-237-7",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/237#issuecomment-6900590216",
+      "commit": "292121f",
+      "category": "wording",
+      "summary": "A failed creation of the run folder prints the lock-held text, and a run ended by a signal prints no line from the failure table."
+    },
+    {
+      "id": "F-237-8",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/237#issuecomment-6900590216",
+      "commit": "292121f",
+      "category": "hardening",
+      "summary": "Release folders are never pruned, and a failed swap of the current-release link is not checked, so the success line could print after it."
+    },
+    {
+      "id": "F-237-9",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/237#issuecomment-6900590216",
+      "commit": "292121f",
+      "category": "test-gap",
+      "summary": "Whether Systems Manager runs the script with bash, and whether an older bash would put the secret through a temporary file, are settled only on the server."
+    },
+    {
+      "id": "F-237-10",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/237#issuecomment-6901188582",
+      "commit": "b398821",
+      "category": "hardening",
+      "summary": "The database image pull ran before the variable file existed and with the required Compose variables unset, which real Compose refuses; fixed in ec00ee8 with an empty env file and placeholders for that call only."
+    },
+    {
+      "id": "F-237-11",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/237#issuecomment-6901641476",
+      "commit": "ec00ee8",
+      "category": "test-gap",
+      "summary": "The script is tested only against stub programs, so real Docker Compose behaviour, including the placeholder pull, is proven only by the human's first deploy."
+    },
+    {
+      "id": "F-237-12",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/237#issuecomment-6901641476",
+      "commit": "ec00ee8",
+      "category": "test-gap",
+      "summary": "The static scan for the variables the Compose file requires uses patterns that would miss a variable reached through a YAML anchor or an extends entry."
+    },
+    {
+      "id": "F-237-13",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/237#issuecomment-6897689475",
+      "commit": "4e6c7d1",
+      "category": "process",
+      "summary": "Two sessions groomed the issue minutes apart and the second overwrote the first body, because the second orchestrator did not re-read the issue's comments before launching its PM."
+    }
+  ]
+}

@@ -1,0 +1,4 @@
+# Patch files and the README's inline diffs keep unified-diff context lines: an
+# unchanged blank line is a single space. Removing it would break the patches, so
+# the whitespace check is off for this folder only.
+* -whitespace

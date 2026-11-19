@@ -1,0 +1,40 @@
+{
+  "issue": 229,
+  "findings": [
+    {
+      "id": "F-229-1",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/229#issuecomment-6889283410",
+      "commit": "e4c3e5c",
+      "category": "test-gap",
+      "summary": "The test that keeps the journeys off the database reads only top-level non-async functions and plain name references, so an async test, another database name, or an attribute access after a bare import would not be caught."
+    },
+    {
+      "id": "F-229-2",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/229#issuecomment-6889283410",
+      "commit": "e4c3e5c",
+      "category": "docs",
+      "summary": "The README's rerun arithmetic for the login counters assumes the proxy path and the app's own port reach the app from the same gateway address, which is marked as unverified."
+    },
+    {
+      "id": "F-229-3",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/229#issuecomment-6889281459",
+      "commit": "9d32ce1",
+      "category": "hardening",
+      "summary": "A second full live run within five minutes makes the app-port login test and then the ingest test fail on a 429, because each run leaves ten failures on the client address's counter against a limit of twenty; only a restart of the app clears them."
+    },
+    {
+      "id": "F-229-4",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/229#issuecomment-6889282515",
+      "commit": "e4c3e5c",
+      "category": "process",
+      "summary": "A proposed test file parked under the human-task folder with a test-file name cannot be removed later, because the weakened-test check reads its removal as a deleted test file and blocks the push; the copy in the folder stays until the human approves a way to delete it, and proposed test files should be given a name that does not match the test patterns."
+    },
+    {
+      "id": "F-229-5",
+      "source": "https://github.com/andrew-chung-au/socboard/actions/runs/43683332541",
+      "commit": "e4b6e5a",
+      "category": "hardening",
+      "summary": "The stack's start prints a pull-access-denied error for the local image name three times, once for each one-shot service, before the build supplies the image; it does not fail the run but reads like a failure."
+    }
+  ]
+}

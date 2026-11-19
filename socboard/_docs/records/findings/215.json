@@ -1,0 +1,33 @@
+{
+  "issue": 215,
+  "findings": [
+    {
+      "id": "F-215-1",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/215#issuecomment-6893816530",
+      "commit": "e086a9c",
+      "category": "test-gap",
+      "summary": "The new test checks the sequence table through a dialect branch in a helper, not the SQLite-only marker its neighbours use, so the check is missing from the marker count."
+    },
+    {
+      "id": "F-215-2",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/215#issuecomment-6893816530",
+      "commit": "e086a9c",
+      "category": "test-gap",
+      "summary": "The control test through the session's own connection checks the pool checkout count only, not the begin count."
+    },
+    {
+      "id": "F-215-3",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/215#issuecomment-6888379305",
+      "commit": "e086a9c",
+      "category": "hardening",
+      "summary": "An ORM select built from an update or delete statement with returning is refused by neither guard layer, only by the SQLite trigger; the PM noted it while grooming and it is not filed."
+    },
+    {
+      "id": "F-215-4",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/215#issuecomment-6890077338",
+      "commit": "e086a9c",
+      "category": "docs",
+      "summary": "The Session hook alone misses an explicit id passed under a mapper attribute name other than id, so it is not a full second layer; the new docstring sentence stays true because the Engine listener refuses it."
+    }
+  ]
+}

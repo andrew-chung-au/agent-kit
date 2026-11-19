@@ -1,0 +1,71 @@
+{
+  "batches": [
+    {
+      "resource": {
+        "attributes": [
+          {
+            "key": "deployment.environment.name",
+            "value": {
+              "stringValue": "local"
+            }
+          },
+          {
+            "key": "service.version",
+            "value": {
+              "stringValue": "unknown"
+            }
+          },
+          {
+            "key": "service.name",
+            "value": {
+              "stringValue": "socboard"
+            }
+          }
+        ]
+      },
+      "scopeSpans": [
+        {
+          "scope": {
+            "name": "socboard"
+          },
+          "spans": [
+            {
+              "traceId": "HnzUhh/Jnhl0yKtr55q0XQ==",
+              "spanId": "wNbG7MhI6xc=",
+              "parentSpanId": "MLi8bQ47gS4=",
+              "name": "ingest.alert",
+              "kind": "SPAN_KIND_INTERNAL",
+              "startTimeUnixNano": "1794895335416830756",
+              "endTimeUnixNano": "1794895335419009983",
+              "attributes": [
+                {
+                  "key": "socboard.alert.severity",
+                  "value": {
+                    "stringValue": "Low"
+                  }
+                },
+                {
+                  "key": "socboard.case.id",
+                  "value": {
+                    "stringValue": "8"
+                  }
+                }
+              ],
+              "status": {}
+            },
+            {
+              "traceId": "HnzUhh/Jnhl0yKtr55q0XQ==",
+              "spanId": "MLi8bQ47gS4=",
+              "parentSpanId": "kgC8Do7Jf8Y=",
+              "name": "POST /api/alerts",
+              "kind": "SPAN_KIND_SERVER",
+              "startTimeUnixNano": "1794895335416354226",
+              "endTimeUnixNano": "1794895335419494646",
+              "status": {}
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

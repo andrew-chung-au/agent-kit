@@ -1,0 +1,54 @@
+{
+  "issue": 281,
+  "findings": [
+    {
+      "id": "F-281-1",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/281#issuecomment-6903074839",
+      "commit": "b811ce1",
+      "category": "hardening",
+      "summary": "A start-up file named in the starting shell's environment and the shell's trace option still reached the run, and tracing printed every secret; fixed by restarting under an empty environment in 41bbe67 and 6d38b84."
+    },
+    {
+      "id": "F-281-2",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/281#issuecomment-6903074839",
+      "commit": "b811ce1",
+      "category": "hardening",
+      "summary": "An exported variable with the same name as the script's own secret array makes the run fail closed with exit 3, changing nothing."
+    },
+    {
+      "id": "F-281-3",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/281#issuecomment-6903467409",
+      "commit": "41bbe67",
+      "category": "hardening",
+      "summary": "Systems Manager runs the script with sh, which is dash on Ubuntu, so the bash-only script would have stopped at its first bash-only line; fixed by a POSIX start-up block that hands over to bash in 6d38b84."
+    },
+    {
+      "id": "F-281-4",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/281#issuecomment-6904443525",
+      "commit": "6d38b84",
+      "category": "hardening",
+      "summary": "A stray directory with the temporary link's name in the release root makes the link update land inside it, and the success line prints while the current-release name is a folder, not a link."
+    },
+    {
+      "id": "F-281-5",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/281#issuecomment-6904443525",
+      "commit": "6d38b84",
+      "category": "hardening",
+      "summary": "When bash starts the script, exported functions named like commands the start-up block uses can skip the hand-over and keep a dirty variable; Systems Manager starts it with sh, which imports no functions, and the limit is recorded in the script header."
+    },
+    {
+      "id": "F-281-6",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/281#issuecomment-6904443525",
+      "commit": "6d38b84",
+      "category": "test-gap",
+      "summary": "The CI log does not name the shell the sh test ran under, so dash is inferred from the test count, and the unset line has only a static test because the hand-over already empties the environment."
+    },
+    {
+      "id": "F-281-7",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/281#issuecomment-6904443525",
+      "commit": "6d38b84",
+      "category": "test-gap",
+      "summary": "The restart under an empty environment also removes the home folder variable, and whether Docker and the secret client cope with that is shown only by the human's first deploy."
+    }
+  ]
+}
