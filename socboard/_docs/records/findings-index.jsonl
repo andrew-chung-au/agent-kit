@@ -1,0 +1,12 @@
+{"id": "F-190-1", "groups": ["checker-looser-than-intent"], "ruling": "open", "filed_as": null, "note": ""}
+{"id": "F-190-2", "groups": ["checker-looser-than-intent"], "ruling": "open", "filed_as": null, "note": ""}
+{"id": "F-190-3", "groups": ["checker-looser-than-intent"], "ruling": "open", "filed_as": null, "note": ""}
+{"id": "F-190-4", "groups": ["image-contents"], "ruling": "open", "filed_as": null, "note": ""}
+{"id": "F-190-5", "groups": ["wording-and-constraints"], "ruling": "open", "filed_as": null, "note": ""}
+{"id": "F-190-6", "groups": ["not-shown-in-ci"], "ruling": "open", "filed_as": null, "note": ""}
+{"id": "F-191-1", "groups": ["checker-looser-than-intent", "smoke-check-hardening"], "ruling": "filed", "filed_as": 212, "note": ""}
+{"id": "F-191-2", "groups": ["checker-looser-than-intent", "smoke-check-hardening"], "ruling": "filed", "filed_as": 212, "note": ""}
+{"id": "F-191-3", "groups": ["smoke-check-hardening"], "ruling": "open", "filed_as": null, "note": ""}
+{"id": "F-191-4", "groups": ["not-shown-in-ci"], "ruling": "open", "filed_as": null, "note": ""}
+{"id": "F-191-5", "groups": ["wording-and-constraints"], "ruling": "open", "filed_as": null, "note": ""}
+{"id": "F-191-6", "groups": ["smoke-check-hardening"], "ruling": "declined", "filed_as": null, "note": "excluded by the reworded time-limit criterion; the human's ruling"}

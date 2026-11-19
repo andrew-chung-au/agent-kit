@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# agent-kit-hooks-version: 2
+# Git LFS pass-through, installed by `make hooks` as post-checkout, post-commit
+# and post-merge. Once git runs hooks from .githooks, it ignores .git/hooks, so
+# these keep Git LFS working. Does nothing if git-lfs isn't installed.
+command -v git-lfs >/dev/null 2>&1 || exit 0
+exec git lfs "$(basename "$0")" "$@"

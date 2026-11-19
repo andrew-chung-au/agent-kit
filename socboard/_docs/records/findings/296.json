@@ -1,0 +1,47 @@
+{
+  "issue": 296,
+  "findings": [
+    {
+      "id": "F-296-1",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/296#issuecomment-6933095053",
+      "commit": "b2ea29e",
+      "category": "test-gap",
+      "summary": "Graded Low: case (e) has a p95 of 4.95 s, not exactly 5 s, so promtool does not test the strictly-above boundary; the static test refuses a >= 5 rule instead."
+    },
+    {
+      "id": "F-296-2",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/296#issuecomment-6933095053",
+      "commit": "b2ea29e",
+      "category": "docs",
+      "summary": "Graded Low: the README lists the stack_only deselect count but not the new docker_only one, and its reviewer section does not yet link the alert's evidence run."
+    },
+    {
+      "id": "F-296-3",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/296#issuecomment-6933095053",
+      "commit": "b2ea29e",
+      "category": "hardening",
+      "summary": "Graded Low: if Docker stopped answering in CI the promtool tests would be deselected and CI would stay green, with only the printed count showing it."
+    },
+    {
+      "id": "F-296-4",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/296#issuecomment-6933095053",
+      "commit": "b2ea29e",
+      "category": "process",
+      "summary": "Graded Low: the alert test imports PyYAML, which is only a transitive dev dependency through openapi-spec-validator."
+    },
+    {
+      "id": "F-296-5",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/296#issuecomment-6933375011",
+      "commit": "1bb8734",
+      "category": "wording",
+      "summary": "Graded Low: the case (f) comment says the lone sample has left the window at 600 s, when it is the last zero-valued sample that leaves it."
+    },
+    {
+      "id": "F-296-6",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/296#issuecomment-6933375011",
+      "commit": "1bb8734",
+      "category": "test-gap",
+      "summary": "Graded Low: no mutation changes the label name inside the environment or version template, although the equality check would refuse it."
+    }
+  ]
+}

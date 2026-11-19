@@ -1,0 +1,12 @@
+diff --git a/_docs/agent-kit/process.md b/_docs/agent-kit/process.md
+--- a/_docs/agent-kit/process.md
++++ b/_docs/agent-kit/process.md
+@@ -51,2 +51,8 @@
+ 
++Launch messages keep each role's required output:
++- **QA:** the comment starts with `QA: PASS` or `QA: FAIL`, also in re-checks and Code review.
++- **Engineer:** the verify result and one line per criterion.
++- **PM:** the `Body sha256:` and `Proposed tier:` lines.
++- **Reflection,** once after QA PASS: the three questions in `_docs/agent-kit/procedures/session-summary.md` (Reflection).
++
+ ## Orchestrator

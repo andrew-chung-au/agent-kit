@@ -1,0 +1,68 @@
+{
+  "issue": 289,
+  "findings": [
+    {
+      "id": "F-289-1",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/289#issuecomment-6934277653",
+      "commit": "6e7a2fa",
+      "category": "hardening",
+      "summary": "Graded Low: the caller's tracestate header is exported with the span; it is not alert text but it is free text from the request."
+    },
+    {
+      "id": "F-289-2",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/289#issuecomment-6934277653",
+      "commit": "6e7a2fa",
+      "category": "wording",
+      "summary": "Graded Low: the event field of the existing socboard loggers is their message template, while the contract names only two events."
+    },
+    {
+      "id": "F-289-3",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/289#issuecomment-6934277653",
+      "commit": "6e7a2fa",
+      "category": "wording",
+      "summary": "Graded Low: OTLP log records carry code.* attributes and WARN or FATAL severity text that the contract's field list does not name."
+    },
+    {
+      "id": "F-289-4",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/289#issuecomment-6934277653",
+      "commit": "6e7a2fa",
+      "category": "wording",
+      "summary": "Graded Low: the test file imports the experimental logs API and uses a hand-written metric exporter, beside criteria that say only telemetry.py imports it and tests use the SDK's in-memory exporters."
+    },
+    {
+      "id": "F-289-5",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/289#issuecomment-6934277653",
+      "commit": "6e7a2fa",
+      "category": "docs",
+      "summary": "Graded Low: the README still says the app writes plain logs and does not mention the two OTEL variables."
+    },
+    {
+      "id": "F-289-6",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/289#issuecomment-6934277653",
+      "commit": "6e7a2fa",
+      "category": "hardening",
+      "summary": "Graded Low: start_span accepts the two attributes on the server span, which the contract gives none, and checks the case id only for being a string."
+    },
+    {
+      "id": "F-289-7",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/289#issuecomment-6934277653",
+      "commit": "6e7a2fa",
+      "category": "hardening",
+      "summary": "Graded Low: the exemplar filter is the SDK default, which an operator variable can switch off, and no test shows an exemplar is produced."
+    },
+    {
+      "id": "F-289-8",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/289#issuecomment-6934277653",
+      "commit": "6e7a2fa",
+      "category": "hardening",
+      "summary": "Graded Low: warnings logged before setup runs stay plain text, and if database disposal raises at shutdown the telemetry flush is skipped."
+    },
+    {
+      "id": "F-289-9",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/289#issuecomment-6934542331",
+      "commit": "35ded73",
+      "category": "test-gap",
+      "summary": "Graded Low: the unroutable-endpoint timing test can pass without measuring anything if the address is refused at once, and the new background-export test relies on the SDK reading its delay from the environment at build time."
+    }
+  ]
+}

@@ -1,0 +1,44 @@
+## Why
+
+`openapi.yaml` and the code differ in places that the contract tests name or work around, so the contract is not the full truth for the frontend (#21), which will read it. Sources: proposal 11 of the sweep record `_docs/records/2026-11-13T0424Z-measure-pm-sweep.md` (lines 133 and 134); the "Mismatches" sections of the session summaries for #15, #16, #18 and #19 in `_session-summaries/`.
+
+- (a) `getCase`, `claimCase` and `getAudit` each have a 422 that FastAPI adds (a path parameter) and the contract lacks. The tests name it as the one accepted difference: `tests/test_queue_contract.py:7-10` and `:56-61` (`getCase`), `tests/test_claim_api.py:231-233` (`claimCase`), `tests/test_audit_contract.py:11-12` and `:71-76` (`getAudit`, added by #19).
+- (b) The 5,000-character limit on `NoteRequest.text` is in the code (`NOTE_MAX_LENGTH`, `socboard/schemas.py:152`; the check in `_note_text`, `:155-161`; used by `NoteRequest`, `:164-165`) and has no `maxLength` in the contract (`openapi.yaml:957-965`). `tests/test_notes_contract.py:3-6` and `:49-53` require the generated `NoteRequest` to carry no length keyword. The #18 session summary says a later contract issue should add it. The limit is #18's grooming decision (criterion 2 of #18).
+- (c) The "401 first" order for a body that is not JSON: already stated in the contract. `openapi.yaml:93-110` ("Order of checks for a request that is not well-formed") says a request with no token gets 401 only "provided the body parses as JSON" (`:98-99`) and that a body that is not parseable JSON gives 422 even with no token (`:106`); `tests/test_backend_order.py:78` pins it. The only thing missing is the reason (FastAPI reads the body before it runs the token dependency).
+
+Precedent for contract follow-ups: #74 and #86.
+
+## Goal
+
+`openapi.yaml` states the 422 on `getCase`, `claimCase` and `getAudit` and the 5,000-character note limit, and the contract tests no longer accept a difference for any of them.
+
+## Acceptance criteria
+- [ ] `getCase`, `claimCase` and `getAudit` in `openapi.yaml` each list a `"422"` response whose body is `ApiError` (code `validation_error`). Its description says the route declares it because FastAPI adds a 422 to any route with a path parameter, and that a string id cannot fail validation, so the server does not return it today. The `Order:` sentences of the three operations are unchanged (`tests/test_audit_contract.py:103-107` pins "Order: 401, 403, 404." for `getAudit`).
+- [ ] The accepted-difference exemptions for that 422 are gone, and the contract and generated status sets are asserted equal: `getCase` `{"200","401","404","422"}` (`tests/test_queue_contract.py`; the "One known difference" paragraph is removed); `claimCase` `{"200","401","404","409","422"}` (`tests/test_claim_api.py`; the comment about FastAPI documenting a 422 is removed); `getAudit` `{"200","401","403","404","422"}` (`tests/test_audit_contract.py`; the 422 bullet is removed from the docstring, "Two known differences" becomes one, the `oneOf`/`anyOf` bullet stays, and the test name no longer says "plus_the_path_parameters_422").
+- [ ] `NoteRequest.text` in `openapi.yaml` has `maxLength: 5000`. Its description says the limit counts characters (code points, as JSON Schema counts them), that it is a schema rule (over the limit is 422 `validation_error`, checked before the 404 and the 409), and that emptiness after trimming stays a domain rule. The Refusals table row for schema validation (`openapi.yaml:62`) names a note over 5,000 characters.
+- [ ] The code declares the limit with `max_length` on the `NoteRequest.text` field (as `Text200` does for ingest, `socboard/schemas.py:144`), replacing the length check in `_note_text`; `_storable` still runs on the text. The now-stale docstring and comment (`socboard/schemas.py:152`, `:156-158`) are updated. The generated `NoteRequest` then carries `maxLength: 5000` and the comparison with the contract is clean. If the comparison shows any other difference, the Engineer reports it in the `Engineer:` comment and does not weaken the comparison.
+- [ ] `tests/test_notes_contract.py` no longer says or asserts that the generated `NoteRequest` has no length keyword (docstring and the test at `:49-53`, renamed); it asserts that the generated `maxLength` is 5000 and equals the contract's.
+- [ ] Refused cases that must not change: a note of 5,001 characters (and one of 5,001 emoji) is still 422 `validation_error` with the `{code, message}` body and nothing stored; 5,000 characters (and 5,000 `é`) is still accepted; an over-limit note on a Closed case is still 422, not 409. These are the existing tests at `tests/test_notes_api.py:159-171` and `:259`, which stay as they are.
+- [ ] Item (c): the contract's order notes keep both statements (`openapi.yaml:98-99` and `:106`). The one change is the reason added at `:106`: FastAPI reads the body before it runs the token dependency, so for a body that is not JSON 422 comes before 401, and "401 first" holds for valid JSON. No order in the code changes.
+- [ ] No existing response status, body or order changes in the code. No test assertion is removed except the status-set lines rewritten above and the no-length-keyword assertion; `make verify` lists those as removed or rewritten assertion lines, and the `Engineer:` comment gives the reason for each (each is replaced by a stronger assertion).
+- [ ] `make contract-check` and `make verify` pass.
+
+## Out of scope
+- New behaviour or new routes.
+- Removing the unreachable 422 from the code instead of documenting it: rejected here (see Design); it would need a decision record and changes to three routes. No follow-up issue is filed because nobody has asked for it.
+- The `oneOf`/`anyOf` accepted difference in `tests/test_audit_contract.py`: it is not a gap in what the contract says, and it stays.
+- The retryable response for a database lock timeout on writes: #112, which also edits `openapi.yaml` (see Constraints for the order).
+- Contract differences that #17 and #20 may have added: checked at grooming (2026-11-13) and none found (the transition and closed-list contract tests already compare equal status sets). If the Engineer finds one when this is claimed, they report it for a follow-up issue instead of widening this one.
+
+## Design
+
+Choices made here: (1) document the 422 rather than remove it, because FastAPI adds it for any route with a path parameter and the routes already declare the contract's `ApiError` for it; (2) state the note limit as `maxLength` and declare it with `max_length` on the field, because the generated schema comes from the field and the comparison fails on any keyword that is in one document and not the other (`tests/test_ingest_contract.py` does the same for the ingest limits). The earlier validator was chosen only to keep the contract free of a length keyword.
+
+## Constraints
+- Files: `openapi.yaml`, `socboard/schemas.py`, `tests/test_queue_contract.py`, `tests/test_claim_api.py`, `tests/test_audit_contract.py`, `tests/test_notes_contract.py`. None is on the `PROTECTED` list of `agent-kit.conf`, so no `HUMAN_APPROVED=1` commit is needed. Under `LIGHT_ALLOWED` (empty) nothing is Light.
+- Trigger: before #21. Depends on #17: satisfied (closed 2026-11-13).
+- Order with #112: merge this issue first. Both edit `openapi.yaml` (the `claimCase` and `addNote` responses) and the status-set assertions of the claim contract test. This issue rewrites those assertions to equal sets, so #112 then only adds `"503"` to both sides. No code overlap: this issue touches `socboard/schemas.py` only, #112 touches `socboard/errors.py`, `socboard/cases.py` and `socboard/ingest.py`.
+- No new dependency. Libraries: the existing `tests/openapi_compare.py` helpers.
+- Fixed values and where they come from: 5,000 characters is #18's grooming decision (criterion 2 of #18); `validation_error` and the `ApiError` body are the contract's (`_docs/decisions/2026-11-11T1511Z-openapi-contract.md`). Line numbers will move; match on the text.
+- Decision records approved after this issue was filed (2026-11-13T04:50Z): none. `_docs/decisions/2026-11-11T1511Z-openapi-contract.md` rejected a schema `minLength` on `text` because it would put the empty-note 422 before the 409s; a `maxLength` does not do that (the contract already orders a schema 422 before the 404 and 409), so no criterion is contradicted.
+- Proposed tier: standard. It documents behaviour that already exists, with no new status, code or order; the one code change moves a length check to a field constraint and must answer the same 422. Precedent: #74 and #86 were Standard. Expected paths: `openapi.yaml`, `socboard/schemas.py`, `tests/test_queue_contract.py`, `tests/test_claim_api.py`, `tests/test_audit_contract.py`, `tests/test_notes_contract.py`. It would be Heavy if a response status, body or order changed in the code.

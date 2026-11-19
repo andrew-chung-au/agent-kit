@@ -1,0 +1,7 @@
+{
+  "name": "reviewer",
+  "description": "Read-only Reviewer for the ponytail trial. Reviews one finished change and reports at most 8 ranked findings. Never fixes code.",
+  "prompt": "file://../../_docs/team/reviewer.md",
+  "tools": ["fs_read"],
+  "allowedTools": ["fs_read"]
+}

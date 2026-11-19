@@ -1,0 +1,26 @@
+{
+  "issue": 236,
+  "findings": [
+    {
+      "id": "F-236-1",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/236#issuecomment-6904030738",
+      "commit": "9775c38",
+      "category": "docs",
+      "summary": "The bootstrap section of terraform/README.md still says 'Status: not yet run' and carries 'VERIFY: at D19b' notes that the 2026-11-16 apply has partly settled; #236 limits this change to the D19b steps, so the status text was left out of the first commit. Fixed in PR #305 (a167f99) on the maintainer's approval of 2026-11-16: the status paragraph and the settled VERIFY notes were updated."
+    },
+    {
+      "id": "F-236-2",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/236#issuecomment-6904030738",
+      "commit": "9775c38",
+      "category": "process",
+      "summary": "The maintainer ran D19b from the planning session's steps without readings before the replacement, so the certificate serial, the first-run log and the old image name cannot be recovered and the rows for them stay NOT CHECKED."
+    },
+    {
+      "id": "F-236-3",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/236#issuecomment-6904030738",
+      "commit": "9775c38",
+      "category": "test-gap",
+      "summary": "The outside checks (admin endpoint refused, ports 8000 and 22 refused, forged header with the pinned gateway) and the listener's peer address were not run against the new instance and remain not reported in the record."
+    }
+  ]
+}

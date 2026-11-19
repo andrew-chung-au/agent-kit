@@ -1,0 +1,47 @@
+{
+  "issue": 190,
+  "findings": [
+    {
+      "id": "F-190-1",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/190#issuecomment-6881808013",
+      "commit": "2533047",
+      "category": "test-gap",
+      "summary": "The static Dockerfile test accepts USER 00, USER 0000 and USER +0, which Docker reads as root; the real Dockerfile uses 10001."
+    },
+    {
+      "id": "F-190-2",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/190#issuecomment-6881808013",
+      "commit": "2533047",
+      "category": "test-gap",
+      "summary": "The named-paths-only check misses COPY ./. ./, COPY .* ./ and COPY ** ./; the real Dockerfile uses none."
+    },
+    {
+      "id": "F-190-3",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/190#issuecomment-6881808013",
+      "commit": "2533047",
+      "category": "hardening",
+      "summary": "The image file checker compares names case-sensitively and scans line by line, so an upper-case env-file name or a credential split over two lines is missed."
+    },
+    {
+      "id": "F-190-4",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/190#issuecomment-6881808013",
+      "commit": "2533047",
+      "category": "hardening",
+      "summary": "The ignore file for the image build has no pattern for SQLite database files; the checker would still refuse one in the image."
+    },
+    {
+      "id": "F-190-5",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/190#issuecomment-6881808013",
+      "commit": "2533047",
+      "category": "docs",
+      "summary": "The human task file names a dependency-install stage the Dockerfile does not have, and step 4 says the risk is none where the template asks what would print if the rule fails."
+    },
+    {
+      "id": "F-190-6",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/190#issuecomment-6881808013",
+      "commit": "2533047",
+      "category": "test-gap",
+      "summary": "No CI run shows the wrong-Python-minor refusal; only the static test does."
+    }
+  ]
+}

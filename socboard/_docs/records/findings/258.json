@@ -1,0 +1,47 @@
+{
+  "issue": 258,
+  "findings": [
+    {
+      "id": "F-258-1",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/258#issuecomment-6898871038",
+      "commit": "ed9c29a",
+      "category": "hardening",
+      "summary": "A branch pattern with a slash-star-star part, such as one that ends in a slash and main, is treated as a pattern the helper models and does not match main; if GitHub lets it match a bare main, a real workflow would be classified as unable to run on main."
+    },
+    {
+      "id": "F-258-2",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/258#issuecomment-6898871038",
+      "commit": "ed9c29a",
+      "category": "hardening",
+      "summary": "A push trigger that only ignores tags and names no branch filter is classified as running on every push to main, although GitHub does not run it for a branch push; the mistake is on the safe side but would force such a probe into both lists."
+    },
+    {
+      "id": "F-258-3",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/258#issuecomment-6898871038",
+      "commit": "ed9c29a",
+      "category": "test-gap",
+      "summary": "Reading workflow files with the yaml extension is correct but unguarded: no such workflow exists and no test uses one, so dropping the extension from the file search still passes."
+    },
+    {
+      "id": "F-258-4",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/258#issuecomment-6898871038",
+      "commit": "ed9c29a",
+      "category": "docs",
+      "summary": "The messages for a stale trigger-list entry and for a required-list mismatch say what is wrong but not what to do about it, unlike the message for an unfiltered push workflow."
+    },
+    {
+      "id": "F-258-5",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/258#issuecomment-6898871038",
+      "commit": "ed9c29a",
+      "category": "hardening",
+      "summary": "An empty branch list, and a null branch list together with a tag filter, are classified as unable to run on main; GitHub most likely rejects both as invalid, so it is not expected to matter."
+    },
+    {
+      "id": "F-258-6",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/258#issuecomment-6898531087",
+      "commit": "4e6c7d1",
+      "category": "process",
+      "summary": "The two list tests written for the publish workflow passed their own QA and CI but had never been run against a workflow of another shape (a string trigger, a pull-request-only workflow, a probe on its own branch); the first such workflow broke them. It is a second case for the proposal that a check be shown to fail, and to hold, on inputs other than the ones it was written beside."
+    }
+  ]
+}

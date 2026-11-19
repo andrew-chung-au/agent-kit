@@ -1,0 +1,61 @@
+{
+  "issue": 269,
+  "findings": [
+    {
+      "id": "F-269-1",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/269#issuecomment-6907088762",
+      "commit": "2bca2e1",
+      "category": "test-gap",
+      "summary": "No test feeds the artifact list an entry with a missing or boolean repository id, so the type guards in the main-and-this-repository filter are unexercised."
+    },
+    {
+      "id": "F-269-2",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/269#issuecomment-6907088762",
+      "commit": "2bca2e1",
+      "category": "hardening",
+      "summary": "The head-repository side of the filter compares by equality, so a boolean true would equal a repository id of 1; GitHub's data cannot produce this."
+    },
+    {
+      "id": "F-269-3",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/269#issuecomment-6907084801",
+      "commit": "5dd6b71",
+      "category": "hardening",
+      "summary": "A rollback can name only a digest held by one of dev's newest 30 non-expired records; an older one is refused with the never-ran-in-dev message, which misleads but fails safe."
+    },
+    {
+      "id": "F-269-4",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/269#issuecomment-6907084801",
+      "commit": "5dd6b71",
+      "category": "docs",
+      "summary": "The previous prod digest is read in the resolve job, before the approval wait, so the summary's line can be stale if another promote finishes during the wait."
+    },
+    {
+      "id": "F-269-5",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/269#issuecomment-6907084801",
+      "commit": "5dd6b71",
+      "category": "hardening",
+      "summary": "The artifact zip is read fully into memory before its single small file is checked, so a very large artifact slows or fails the resolve job."
+    },
+    {
+      "id": "F-269-6",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/269#issuecomment-6907086173",
+      "commit": "5dd6b71",
+      "category": "wording",
+      "summary": "The approved body says three jobs but lists two, and says a dev record's result is already where dev's real record says already deployed; the build follows the two jobs and dev's real value."
+    },
+    {
+      "id": "F-269-7",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/269#issuecomment-6907086173",
+      "commit": "5dd6b71",
+      "category": "hardening",
+      "summary": "An actor login with a bot suffix is refused, after the role is assumed but before the document is sent, so a bot-started promote fails without deploying."
+    },
+    {
+      "id": "F-269-8",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/269#issuecomment-6907084801",
+      "commit": "5dd6b71",
+      "category": "test-gap",
+      "summary": "No test passes a digest input that starts with a dash; argparse refuses it with exit 2 before any call, which is safe but is not the script's own tested refusal."
+    }
+  ]
+}

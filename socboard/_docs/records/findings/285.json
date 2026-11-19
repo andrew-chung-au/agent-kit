@@ -1,0 +1,40 @@
+{
+  "issue": 285,
+  "findings": [
+    {
+      "id": "F-285-1",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/285#issuecomment-6904629129",
+      "commit": "5669b21",
+      "category": "wording",
+      "summary": "The contract says the public case id is decimal digits only, while openapi.yaml calls ids opaque, so the contract is tied to the current id format in the code."
+    },
+    {
+      "id": "F-285-2",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/285#issuecomment-6904629129",
+      "commit": "5669b21",
+      "category": "hardening",
+      "summary": "The environment name and service version come from operator-set OTEL_RESOURCE_ATTRIBUTES with no character limit, so section 9's claim that every value is fixed is slightly too strong."
+    },
+    {
+      "id": "F-285-3",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/285#issuecomment-6904629129",
+      "commit": "5669b21",
+      "category": "wording",
+      "summary": "The contract gives the ingest server span no attributes, narrower than the criterion, so #290 must not add HTTP attributes without changing the contract first."
+    },
+    {
+      "id": "F-285-4",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/285#issuecomment-6904629129",
+      "commit": "5669b21",
+      "category": "process",
+      "summary": "In Kiro Web the Tests and Lint steps of make verify cannot run because uv cannot write its Python folder, so CI stood in for them."
+    },
+    {
+      "id": "F-285-5",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/285#issuecomment-6904629129",
+      "commit": "5669b21",
+      "category": "test-gap",
+      "summary": "Nothing checks yet that the canary block parses as one kind=value line per forbidden kind; #290 or #295 should."
+    }
+  ]
+}

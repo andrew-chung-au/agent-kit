@@ -1,0 +1,33 @@
+{
+  "issue": 310,
+  "findings": [
+    {
+      "id": "F-310-1",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/310#issuecomment-6906357266",
+      "commit": "16a5344",
+      "category": "wording",
+      "summary": "Graded Low: the contract's opening rule names the two operator-set attributes as the values not derived from a request, which reads as a complete list although service.name, timestamp and logger are not request-derived either."
+    },
+    {
+      "id": "F-310-2",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/310#issuecomment-6905809695",
+      "commit": "0fc63c1",
+      "category": "docs",
+      "summary": "The data-model decision record says keys are exposed as decimal strings, which is true of the key helper but can mislead a reader next to the contract's opaque case id."
+    },
+    {
+      "id": "F-310-3",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/310#issuecomment-6905809695",
+      "commit": "0fc63c1",
+      "category": "process",
+      "summary": "The QA role file does not say what to do while the CI run that stands in for Verify is still in progress, and the first QA posted PASS before CI finished."
+    },
+    {
+      "id": "F-310-4",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/310#issuecomment-6906218347",
+      "commit": "0fc63c1",
+      "category": "process",
+      "summary": "The orchestrator did not have the .kiro/steering files in context and launched the first QA without the Medium stopping rule, so a criterion failure was reported as a wording finding and the verdict had to be voided."
+    }
+  ]
+}

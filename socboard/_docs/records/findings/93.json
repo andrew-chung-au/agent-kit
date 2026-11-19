@@ -1,0 +1,33 @@
+{
+  "issue": 93,
+  "findings": [
+    {
+      "id": "F-93-1",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/93#issuecomment-6891397785",
+      "commit": "db1a6a6",
+      "category": "process",
+      "summary": "The branch holds a human task file and, before the merge, the session summary and findings file, which are paths beyond the two the criterion lists; the human decides whether docs paths count."
+    },
+    {
+      "id": "F-93-2",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/93#issuecomment-6891397785",
+      "commit": "db1a6a6",
+      "category": "docs",
+      "summary": "The human task file still describes a removal step an earlier commit already did, and its result table is empty."
+    },
+    {
+      "id": "F-93-3",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/93#issuecomment-6891397785",
+      "commit": "db1a6a6",
+      "category": "test-gap",
+      "summary": "The push check's Lint section was not seen: the human's pasted push output showed only the final verify line."
+    },
+    {
+      "id": "F-93-4",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/93#issuecomment-6891238058",
+      "commit": "db1a6a6",
+      "category": "process",
+      "summary": "The first protected commit held only the removal of the proposal file because the apply step was missed, and the checks still passed, since an empty LINT_CMD runs no gate."
+    }
+  ]
+}

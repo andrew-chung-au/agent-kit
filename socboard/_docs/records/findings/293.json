@@ -1,0 +1,68 @@
+{
+  "issue": 293,
+  "findings": [
+    {
+      "id": "F-293-1",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/293#issuecomment-6937681624",
+      "commit": "fc56ba5",
+      "category": "test-gap",
+      "summary": "The Grafana provisioning (datasource links, derived field, the dashboard's queries and the screenshot waits) was written from the project's documentation and cannot be run in the sandbox, so the first socboard observability run with the screenshot step is the first check of it."
+    },
+    {
+      "id": "F-293-2",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/293#issuecomment-6937681624",
+      "commit": "fc56ba5",
+      "category": "process",
+      "summary": "Three files beyond the issue's list were added: scripts/observability_secrets.py (the generator the body implies), scripts/observability_up.py (so the refused case for a missing Docker or generator is testable before the Makefile diff lands) and observability/screenshots/manifest.py (the manifest builder and its check)."
+    },
+    {
+      "id": "F-293-3",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/293#issuecomment-6937681624",
+      "commit": "fc56ba5",
+      "category": "docs",
+      "summary": "The collector now turns the kept resource attributes into series labels (resource_to_telemetry_conversion), which the dashboard's environment and version filters need; the contract says metrics have no label beyond them, which still holds, but it changes the series' labels that #292 recorded."
+    },
+    {
+      "id": "F-293-4",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/293#issuecomment-6937681624",
+      "commit": "fc56ba5",
+      "category": "process",
+      "summary": "The screenshots, the artifact and the committed evidence folder need the workflow diff (setup-node, setup-bun, the browser install, SCREENSHOT_DIR and an upload step) applied by the maintainer first; until then check.sh skips the screenshot part."
+    },
+    {
+      "id": "F-293-5",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/293#issuecomment-6937681624",
+      "commit": "2fdc419",
+      "category": "process",
+      "summary": "Giving Grafana the 384 MiB it needs (it was killed at 160) meant lowering the limits #292 merged for the collector (256 to 128), Tempo and Loki (384 to 256) and their volume caps (256 to 192); they rest on one run where the five used a few tens of MiB each, so a longer run should be watched."
+    },
+    {
+      "id": "F-293-6",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/293#issuecomment-6937681624",
+      "commit": "2fdc419",
+      "category": "process",
+      "summary": "QA found that the alert rule of #296 links to the dashboard uid socboard-queue-latency, so the new dashboard takes that uid instead of changing #296's files, and a test now ties the rule's dashboard_url to it."
+    },
+    {
+      "id": "F-293-7",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/293#issuecomment-6937681624",
+      "commit": "0543ad8",
+      "category": "docs",
+      "summary": "The first evidence run showed the dashboard's quantiles all under 500 ms, because the contract's first bucket bound is 0.5 s and the probe's delays are a few milliseconds, and the logs screenshot caught Explore's spinner; both are stated beside the evidence in the README."
+    },
+    {
+      "id": "F-293-8",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/293#issuecomment-6937681624",
+      "commit": "0543ad8",
+      "category": "process",
+      "summary": "The maintainer's commit applied the workflow and the AGENTS.md lines but not the Makefile targets, so make observability-up does not exist on the branch yet and the README names it."
+    },
+    {
+      "id": "F-293-9",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/293#issuecomment-6937681624",
+      "commit": "91cd429",
+      "category": "test-gap",
+      "summary": "The proof of #295 (scripts/observability_check.py) failed once on this pull request's run (no queue.first_seen span linked to the ingest span of its trace) and passed on the re-run of the same commit and on the push run, so it is timing-sensitive; the screenshots still ran after it because check.sh now exits with the proof's code only at the end."
+    }
+  ]
+}

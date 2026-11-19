@@ -1,0 +1,47 @@
+{
+  "issue": 191,
+  "findings": [
+    {
+      "id": "F-191-1",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/191#issuecomment-6883396961",
+      "commit": "2f573c7",
+      "category": "hardening",
+      "summary": "A truncated response body counts as a whole answer: step 1 passes on it and steps 2 to 5 fail only because the JSON does not parse."
+    },
+    {
+      "id": "F-191-2",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/191#issuecomment-6883396961",
+      "commit": "2f573c7",
+      "category": "hardening",
+      "summary": "A URL with a non-ASCII character in its path exits 1 with no request sent, where every other refused URL exits 2."
+    },
+    {
+      "id": "F-191-3",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/191#issuecomment-6883396961",
+      "commit": "2f573c7",
+      "category": "hardening",
+      "summary": "A full run imports two length constants from the app, so it needs the app's packages installed; the module is not standard-library only for the full check."
+    },
+    {
+      "id": "F-191-4",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/191#issuecomment-6883396961",
+      "commit": "2f573c7",
+      "category": "test-gap",
+      "summary": "IPv6 loopback could not be tested end to end because the sandbox cannot bind ::1."
+    },
+    {
+      "id": "F-191-5",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/191#issuecomment-6883396961",
+      "commit": "2f573c7",
+      "category": "docs",
+      "summary": "The tests of the make target are in a file the issue's Constraints do not name."
+    },
+    {
+      "id": "F-191-6",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/191#issuecomment-6883665279",
+      "commit": "7a09fbe",
+      "category": "hardening",
+      "summary": "A name that resolves to several unreachable addresses takes one connect timeout per address; excluded by the reworded time-limit criterion (the human's ruling)."
+    }
+  ]
+}

@@ -1,0 +1,47 @@
+{
+  "issue": 292,
+  "findings": [
+    {
+      "id": "F-292-1",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/292#issuecomment-6936614862",
+      "commit": "12d1729",
+      "category": "test-gap",
+      "summary": "The collector's transform processor, Tempo's and Loki's retention keys and the tmpfs volume options were written from the projects' current documentation and cannot be run in the sandbox, so CI's socboard observability run is the first check of them; each carries a VERIFY note."
+    },
+    {
+      "id": "F-292-2",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/292#issuecomment-6936614862",
+      "commit": "12d1729",
+      "category": "docs",
+      "summary": "The disk limit the body asks for in each config is a size cap on the named volume in the compose file (an in-memory file system), because Tempo and Loki have no disk-size setting of their own; the data does not survive a host restart."
+    },
+    {
+      "id": "F-292-3",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/292#issuecomment-6936614862",
+      "commit": "12d1729",
+      "category": "process",
+      "summary": "The canary check needed an option on the emitter (--canary) and an absent subcommand on query.py, two additions to #340's files that the body of #292 implies but does not list."
+    },
+    {
+      "id": "F-292-4",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/292#issuecomment-6936614862",
+      "commit": "12d1729",
+      "category": "test-gap",
+      "summary": "The skeleton directory observability/ci/skeleton/ was removed and its configs moved, so the first-run record of #340 now points at paths that exist only in history; the record carries a note."
+    },
+    {
+      "id": "F-292-5",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/292#issuecomment-6936614862",
+      "commit": "12d1729",
+      "category": "process",
+      "summary": "The body asks for a rendered-config pytest skipped by a marker where Compose is missing, but make verify's weakened-tests check fails on any added skip marker, so the rendered check became a script run by check.sh and its tests always run."
+    },
+    {
+      "id": "F-292-6",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/292#issuecomment-6936614862",
+      "commit": "12d1729",
+      "category": "hardening",
+      "summary": "The collector logs that the transform processor's context-prefixed statements are the older form and should be rewritten to the flat form (keep_keys(span.attributes, ...)); it works, and the rewrite is left for a later small change."
+    }
+  ]
+}

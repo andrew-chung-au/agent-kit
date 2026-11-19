@@ -1,0 +1,40 @@
+{
+  "issue": 240,
+  "findings": [
+    {
+      "id": "F-240-1",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/240#issuecomment-6907266723",
+      "commit": "c6462fb",
+      "category": "docs",
+      "summary": "The teardown's expected resource count for the server part is copied from a README line written before the deploy document existed, so it says 10 where the plan now shows 11."
+    },
+    {
+      "id": "F-240-2",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/240#issuecomment-6907266723",
+      "commit": "c6462fb",
+      "category": "docs",
+      "summary": "The teardown step that destroys the server part does not say in words that it deletes the data volume holding the live database and the public address."
+    },
+    {
+      "id": "F-240-3",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/240#issuecomment-6907266723",
+      "commit": "c6462fb",
+      "category": "docs",
+      "summary": "The secret rotation's undo refers to an old secret file that the steps have already rewritten and removed, and does not mention restoring the previous secret version from Secrets Manager."
+    },
+    {
+      "id": "F-240-4",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/240#issuecomment-6907266723",
+      "commit": "c6462fb",
+      "category": "docs",
+      "summary": "The restore has no explicit go or no-go step before it stops the app, the exit-10 row states the gateway as settled where the script marks it to be verified, and one check allows the empty lock file."
+    },
+    {
+      "id": "F-240-5",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/240#issuecomment-6907266723",
+      "commit": "c6462fb",
+      "category": "test-gap",
+      "summary": "The command forms in the runbook were checked from knowledge of the tools, not run or checked against their documentation; the human's runs are the live check."
+    }
+  ]
+}

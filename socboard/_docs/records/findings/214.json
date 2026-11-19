@@ -1,0 +1,40 @@
+{
+  "issue": 214,
+  "findings": [
+    {
+      "id": "F-214-1",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/214#issuecomment-6892088913",
+      "commit": "5f56554",
+      "category": "hardening",
+      "summary": "A spoiled lambda statement is a different class from the one the first unwrap checked, so it reached SQLite with an explicit id or a sequence write; fixed in 89d7653 and listed so the class of miss is on record."
+    },
+    {
+      "id": "F-214-2",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/214#issuecomment-6892206926",
+      "commit": "89d7653",
+      "category": "hardening",
+      "summary": "A null lambda whose private resolved attribute is overwritten by hand with None is not refused; it cannot be built through the public API and cannot execute."
+    },
+    {
+      "id": "F-214-3",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/214#issuecomment-6892306954",
+      "commit": "89d7653",
+      "category": "docs",
+      "summary": "The new lambda bullet in the audit guard's module docstring sits before the existing Not covered paragraph, so that paragraph now reads as part of the lambda bullet."
+    },
+    {
+      "id": "F-214-4",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/214#issuecomment-6892306954",
+      "commit": "89d7653",
+      "category": "hardening",
+      "summary": "An insert into the audit table with an explicit id nested inside a CTE is not refused by the guard; SQLite does not accept DML in a CTE, so it matters on Postgres only, and it predates lambdas."
+    },
+    {
+      "id": "F-214-5",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/214#issuecomment-6892088913",
+      "commit": "89d7653",
+      "category": "test-gap",
+      "summary": "Over-refusal of harmless lambda statements was probed by both QA launches but only some of those cases are pinned by tests in the repository."
+    }
+  ]
+}

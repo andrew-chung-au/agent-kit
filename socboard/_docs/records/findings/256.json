@@ -1,0 +1,47 @@
+{
+  "issue": 256,
+  "findings": [
+    {
+      "id": "F-256-1",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/256#issuecomment-6902578254",
+      "commit": "6d61d1c",
+      "category": "hardening",
+      "summary": "If a directory sits at the bootstrap write helper's target path, the install step copies the file into it, reports a change and leaves a temporary file there on every run; a fresh root disk never has that shape."
+    },
+    {
+      "id": "F-256-2",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/256#issuecomment-6902578254",
+      "commit": "6d61d1c",
+      "category": "process",
+      "summary": "main.tf gained a local for the app's upstream address, which the Constraints allowed only for a local the new data path needs; it followed the maintainer's dev/prod note and the rendered output is unchanged."
+    },
+    {
+      "id": "F-256-3",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/256#issuecomment-6902578254",
+      "commit": "6d61d1c",
+      "category": "process",
+      "summary": "The Engineer's scratch check rendered the template with terraform init and apply on a provider-less local configuration; it touched no AWS, but it is an apply, which agents must never run, and terraform console renders the same text."
+    },
+    {
+      "id": "F-256-4",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/256#issuecomment-6902578254",
+      "commit": "6d61d1c",
+      "category": "docs",
+      "summary": "The root README's Compose section still reads as if the data directory variable were the volume's mount point, though it is now a folder inside it."
+    },
+    {
+      "id": "F-256-5",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/256#issuecomment-6902578254",
+      "commit": "6d61d1c",
+      "category": "docs",
+      "summary": "The README's D19b step 3 still expects the volume's mount root to be owned by uid 999, which is now root; that subsection is left to #236."
+    },
+    {
+      "id": "F-256-6",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/256#issuecomment-6900887461",
+      "commit": "6d61d1c",
+      "category": "hardening",
+      "summary": "The bootstrap writes one Caddyfile with one site and orders Docker after one mount, so adding prod's site through user data would replace the instance; an import of a sites folder on the data volume would avoid that."
+    }
+  ]
+}

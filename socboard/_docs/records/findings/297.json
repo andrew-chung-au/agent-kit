@@ -1,0 +1,33 @@
+{
+  "issue": 297,
+  "findings": [
+    {
+      "id": "F-297-1",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/297#issuecomment-6936301963",
+      "commit": "c6877cc",
+      "category": "wording",
+      "summary": "Graded Low: the criterion's character rule for environment and version accepts the contract's canary strings, so the script also requires the caller to pass the expected values; the issue text and #312 should say so."
+    },
+    {
+      "id": "F-297-2",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/297#issuecomment-6936301963",
+      "commit": "c6877cc",
+      "category": "wording",
+      "summary": "Graded Low: refused extra labels and annotations are listed under the fixed words extra_label and extra_annotation rather than by field name, because the names come from the payload."
+    },
+    {
+      "id": "F-297-3",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/297#issuecomment-6936301963",
+      "commit": "c6877cc",
+      "category": "hardening",
+      "summary": "Graded Low: one failed poll exits 2 with no retry, and incident.json is written with no fsync."
+    },
+    {
+      "id": "F-297-4",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/297#issuecomment-6936519536",
+      "commit": "a8bd60b",
+      "category": "test-gap",
+      "summary": "Graded Low: the tests pin only two out-of-range startsAt values; the +14:00, -12:00 and one-minute offsets at the year limits are handled but not pinned."
+    }
+  ]
+}

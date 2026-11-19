@@ -1,0 +1,40 @@
+{
+  "issue": 261,
+  "findings": [
+    {
+      "id": "F-261-1",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/261#issuecomment-6899355026",
+      "commit": "361cf32",
+      "category": "test-gap",
+      "summary": "Only the first ipam.config entry of the stack network is checked, in the test and in the CI step, so a second pool entry would go unchecked. Taken into #271, whose branch checks every entry and whose proposed CI step requires exactly one."
+    },
+    {
+      "id": "F-261-2",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/261#issuecomment-6899355026",
+      "commit": "361cf32",
+      "category": "test-gap",
+      "summary": "The cross-check with terraform/README.md passes when the first line containing 'The forwarded address' names the gateway in backticks; a reworded or removed paragraph gives the same message as a wrong address. The read-only coupling to a Terraform-lane file is accepted."
+    },
+    {
+      "id": "F-261-3",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/261#issuecomment-6899355026",
+      "commit": "361cf32",
+      "category": "wording",
+      "summary": "The README sentence about the pinned gateway is one long parenthetical inside the Ports bullet of the Compose stack section."
+    },
+    {
+      "id": "F-261-4",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/261#issuecomment-6899355026",
+      "commit": "361cf32",
+      "category": "hardening",
+      "summary": "A second stack on the same server would need its own value for the 10.231.77 literals, GATEWAY in the test, the CI step's network name and the README sentence. Filed as #271 at the maintainer's request."
+    },
+    {
+      "id": "F-261-5",
+      "source": "https://github.com/andrew-chung-au/socboard/pull/273",
+      "commit": "e42efce",
+      "category": "process",
+      "summary": "Pull request #264 was merged three minutes before the human's protected CI commit was pushed to its branch, so main pinned the gateway without checking it in CI until pull request #273 carried the commit. Nothing checked that the human-task commit was on the branch before the merge; the task file's push step and the merge are separate human steps."
+    }
+  ]
+}

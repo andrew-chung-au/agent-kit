@@ -1,0 +1,26 @@
+{
+  "issue": 31,
+  "findings": [
+    {
+      "id": "F-31-1",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/31#issuecomment-6889339262",
+      "commit": "1fb014e",
+      "category": "test-gap",
+      "summary": "Prettier split the queue's refresh-failed banner text into two adjacent text nodes with the same visible text, and no test pins that DOM shape."
+    },
+    {
+      "id": "F-31-2",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/31#issuecomment-6889339262",
+      "commit": "1fb014e",
+      "category": "process",
+      "summary": "make frontend-format rewrites three markdown files that ESLint does not read on every run, so each run needs a git restore of them before a commit."
+    },
+    {
+      "id": "F-31-3",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/31#issuecomment-6889280959",
+      "commit": "1fb014e",
+      "category": "hardening",
+      "summary": "The react-refresh/only-export-components warning for buttonVariants in src/components/ui/button.tsx is left in place, since moving the export is not a layout change."
+    }
+  ]
+}

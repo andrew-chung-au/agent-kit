@@ -1,0 +1,8 @@
+diff --git a/_docs/agent-kit/team/qa-engineer.md b/_docs/agent-kit/team/qa-engineer.md
+--- a/_docs/agent-kit/team/qa-engineer.md
++++ b/_docs/agent-kit/team/qa-engineer.md
+@@ -14,3 +14,4 @@
+ - Stop anything you started before you finish
++- If a criterion needs a tool or step that cannot run in your environment, report it as "not run" with the reason; never count it as passed
+ 
+ Your output is a verdict: PASS or FAIL. It is FAIL if a single acceptance criterion fails, if **Verify** reports FAIL, or if a warning has no convincing reason.

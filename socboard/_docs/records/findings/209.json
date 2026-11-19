@@ -1,0 +1,159 @@
+{
+  "issue": 209,
+  "findings": [
+    {
+      "id": "F-209-1",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/209#issuecomment-6902390913",
+      "commit": "f82999e",
+      "category": "test-gap",
+      "summary": "A workflow with both a quoted \"on\" key and an unquoted on key reads as two keys in PyYAML, so the trigger rule can miss the second trigger list."
+    },
+    {
+      "id": "F-209-2",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/209#issuecomment-6902390913",
+      "commit": "f82999e",
+      "category": "test-gap",
+      "summary": "The plan workflow test accepts a step that copies the plan file elsewhere."
+    },
+    {
+      "id": "F-209-3",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/209#issuecomment-6902390913",
+      "commit": "f82999e",
+      "category": "test-gap",
+      "summary": "The plan workflow test accepts terraform_wrapper set to true, which would make the setup action echo command output."
+    },
+    {
+      "id": "F-209-4",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/209#issuecomment-6902390913",
+      "commit": "f82999e",
+      "category": "test-gap",
+      "summary": "A terraform command spelled with an empty quote pair inside the word is not recognised as a terraform command by the test."
+    },
+    {
+      "id": "F-209-5",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/209#issuecomment-6902390913",
+      "commit": "f82999e",
+      "category": "hardening",
+      "summary": "A failed terraform show prints two fixed lines rather than one."
+    },
+    {
+      "id": "F-209-6",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/209#issuecomment-6902390913",
+      "commit": "f82999e",
+      "category": "hardening",
+      "summary": "Very deeply nested plan JSON makes the check script raise a traceback, and its standard error is not discarded, so script line numbers could reach the public log."
+    },
+    {
+      "id": "F-209-7",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/209#issuecomment-6902390913",
+      "commit": "f82999e",
+      "category": "test-gap",
+      "summary": "The job summary cannot be read over the REST API, so its content in live runs rests only on the script's own tests."
+    },
+    {
+      "id": "F-209-8",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/209#issuecomment-6906114662",
+      "commit": "f50d5d0",
+      "category": "hardening",
+      "summary": "A failure inside the AWS credentials action prints that action's own error text, which the fixed-message rule does not cover."
+    },
+    {
+      "id": "F-209-9",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/209#issuecomment-6906114662",
+      "commit": "f50d5d0",
+      "category": "hardening",
+      "summary": "With the in-run log check removed, nothing checks the public plan log for a role unique ID until follow-up 307, and masking works only while the secret holds the current role's ID."
+    },
+    {
+      "id": "F-209-10",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/209#issuecomment-6906114662",
+      "commit": "f50d5d0",
+      "category": "wording",
+      "summary": "The approved issue body still says no masking step is used; the human's ruling recorded in the decision record overrides it."
+    },
+    {
+      "id": "F-209-11",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/209#issuecomment-6906624488",
+      "commit": "ad977a1",
+      "category": "wording",
+      "summary": "The issue's replay criterion names a fixed count of five workflows, which went stale as main gained workflow files."
+    },
+    {
+      "id": "F-209-12",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/209#issuecomment-6906221660",
+      "commit": "f50d5d0",
+      "category": "process",
+      "summary": "The weakened-test check cannot see tests deleted from a file that is new relative to the base, so the removed log-check tests needed a review by hand."
+    },
+    {
+      "id": "F-209-13",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/209#issuecomment-6906221660",
+      "commit": "f50d5d0",
+      "category": "hardening",
+      "summary": "The add-mask command masks only the first line of a multi-line value; a role unique ID has one line, so this matters only if the secret is set wrongly."
+    },
+    {
+      "id": "F-209-14",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/209#issuecomment-6906221660",
+      "commit": "f50d5d0",
+      "category": "hardening",
+      "summary": "The state bucket variable is expanded into the script text instead of being passed through an environment variable."
+    },
+    {
+      "id": "F-209-15",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/209#issuecomment-6907105153",
+      "commit": "978470e",
+      "category": "hardening",
+      "summary": "The checkout step keeps its default of persisting the read token in git config while branch code runs, as the terraform check workflow also does."
+    },
+    {
+      "id": "F-209-16",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/209#issuecomment-6907105153",
+      "commit": "978470e",
+      "category": "docs",
+      "summary": "The first addendum of the decision record says the one-job shape no longer holds, while the second addendum returns the workflow to one job."
+    },
+    {
+      "id": "F-209-17",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/209#issuecomment-6906624488",
+      "commit": "ad977a1",
+      "category": "docs",
+      "summary": "The earlier dated session summary for this issue still lists the missing secret in the setup docs as open, after it was fixed; summaries are records and are not edited."
+    },
+    {
+      "id": "F-209-18",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/209#issuecomment-6906875917",
+      "commit": "7db13b0",
+      "category": "hardening",
+      "summary": "The check script refuses a plan with no resources at all, which is fine for the server part but would block an empty configuration."
+    },
+    {
+      "id": "F-209-19",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/209#issuecomment-6906114662",
+      "commit": "f50d5d0",
+      "category": "process",
+      "summary": "Issue 281 merged a change to the server Terraform with no re-apply step, so main drifted from the account and a plan of an unchanged pull request showed one change until the human applied it."
+    },
+    {
+      "id": "F-209-20",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/209#issuecomment-6905214191",
+      "commit": "f50d5d0",
+      "category": "hardening",
+      "summary": "The plan step prints only a fixed message, so a denied read has to be found by hand; the human suggested printing only the denied action's name, which is not secret."
+    },
+    {
+      "id": "F-209-21",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/209#issuecomment-6908462488",
+      "commit": "2988b71",
+      "category": "process",
+      "summary": "One Engineer launch edited files with Python heredoc scripts instead of the edit tool, against the command-shape rule; the resulting diff was reviewed and approved as shown."
+    },
+    {
+      "id": "F-209-22",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/209#issuecomment-6905214191",
+      "commit": "f82999e",
+      "category": "process",
+      "summary": "Pull request 263 was marked ready for review by someone outside the lane before either QA launch had passed."
+    }
+  ]
+}

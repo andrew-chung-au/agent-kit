@@ -1,0 +1,8 @@
+diff --git a/_docs/agent-kit/team/software-engineer.md b/_docs/agent-kit/team/software-engineer.md
+--- a/_docs/agent-kit/team/software-engineer.md
++++ b/_docs/agent-kit/team/software-engineer.md
+@@ -22,3 +22,3 @@
+ - The issue is still open, with a comment containing:
+-  - the verify result and what you did, with one line per acceptance criterion saying done, not done or not checked, and where
++  - the verify result and what you did, with one line per acceptance criterion saying done, not done or not checked, and where, and a list of each check you could not run here, with the reason
+   - choices you made that the issue doesn't cover

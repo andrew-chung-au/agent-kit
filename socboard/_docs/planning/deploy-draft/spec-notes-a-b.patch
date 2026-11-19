@@ -1,0 +1,20 @@
+diff --git a/_docs/specs.md b/_docs/specs.md
+index 6dca0db..3004b73 100644
+--- a/_docs/specs.md
++++ b/_docs/specs.md
+@@ -75,13 +75,13 @@ Each story is a tracker issue; acceptance criteria are written on the issue. Pri
+ 
+ These are the product invariants; agents must keep them (they also appear in `AGENTS.md`):
+ 
+-- A new alert appears in the queue within **5 seconds (N = 5s)** with a severity. The client polls the queue every **3 seconds** (configurable via env var); with ingest + rule scoring taking milliseconds, worst-case visible latency is the poll interval plus processing, comfortably under N. N = 5s is both the product SLO and the threshold the observability alert fires on, so it is chosen with headroom rather than as a best case.
++- A new alert appears in the queue within **5 seconds (N = 5s)** with a severity. The client polls the queue every **3 seconds** (configurable when the frontend is built, `VITE_POLL_INTERVAL_MS`); with ingest + rule scoring taking milliseconds, worst-case visible latency is the poll interval plus processing, comfortably under N. N = 5s is both the product SLO and the threshold the observability alert fires on, so it is chosen with headroom rather than as a best case.
+ - An alert has **at most one owner** at a time, including under concurrent claims: of two simultaneous claims, exactly one wins, on any supported database (SQLite and Postgres).
+ - Closing a case **requires a reason**.
+ - The audit trail for a case can be read **in order**, start to finish, and is **append-only**: entries are never edited or deleted.
+ - Alert text is **untrusted**: escaped when shown, never treated as instructions.
+ - **No machine learning in the critical path.** Every severity and every status change is explainable and testable.
+-- **Secrets come only from the environment**, set from the cloud secret store at deploy time: the ingest key, the seeded passwords and the database password never appear in the repository, the image, the frontend bundle or Terraform state outputs. In deployed mode a missing secret stops the app at start-up.
++- **Secrets come only from the environment**, set from the cloud secret store at deploy time: the ingest key, the token signing secret, the seeded passwords and the database password never appear in the repository, the image, the frontend bundle or Terraform state outputs. In deployed mode a missing secret stops the app at start-up.
+ - **The public deployment holds synthetic data only** (Section 7).
+ - No long-lived cloud key exists in the repository or in GitHub secrets. CI cannot change its own permissions; the human applies the definitions of CI's roles.
+ 

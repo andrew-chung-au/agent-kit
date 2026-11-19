@@ -1,0 +1,4 @@
+# The spec-note patch keeps unified-diff context lines: an unchanged blank line is a single
+# space, and removing it would break the patch. The whitespace check is off for patch files
+# in this folder only; the Markdown files here are still checked.
+*.patch -whitespace

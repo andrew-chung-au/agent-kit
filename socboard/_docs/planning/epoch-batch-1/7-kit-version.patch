@@ -1,0 +1,8 @@
+diff --git a/agent-kit.conf b/agent-kit.conf
+--- a/agent-kit.conf
++++ b/agent-kit.conf
+@@ -12,3 +12,3 @@
+ # pristine kit, <base>+<repo>.<n> (1.9+myrepo.2) once its files are changed here.
+-KIT_VERSION="1.10+socboard.1"
++KIT_VERSION="1.10+socboard.2"
+ 

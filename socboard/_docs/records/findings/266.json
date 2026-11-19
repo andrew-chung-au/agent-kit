@@ -1,0 +1,26 @@
+{
+  "issue": 266,
+  "findings": [
+    {
+      "id": "F-266-1",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/266#issuecomment-6905487484",
+      "commit": "eea9398",
+      "category": "test-gap",
+      "summary": "The rule that the two Caddy sites never share an upstream is checked only on the default values, because the ports are locals and not variables, so a change that edited both locals together would pass."
+    },
+    {
+      "id": "F-266-2",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/266#issuecomment-6905487484",
+      "commit": "eea9398",
+      "category": "docs",
+      "summary": "The README step that validates the Caddyfile on the host (caddy validate run as the caddy user) has not been run on a host and is marked VERIFY."
+    },
+    {
+      "id": "F-266-3",
+      "source": "https://github.com/andrew-chung-au/socboard/issues/266#issuecomment-6905487484",
+      "commit": "eea9398",
+      "category": "process",
+      "summary": "The issue's start condition (#237's first deploy has run once) was waived by the maintainer on 2026-11-16 for building and merging; the apply of this change still waits for that deploy."
+    }
+  ]
+}

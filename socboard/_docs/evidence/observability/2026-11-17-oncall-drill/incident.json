@@ -1,0 +1,11 @@
+{
+  "alertname": "QueueLatencyOverSLO",
+  "dashboard_url": "http://localhost:3000/d/socboard-queue-latency",
+  "environment": "ci",
+  "owner": "socboard on-call (the maintainer)",
+  "query": "histogram_quantile(0.95, sum by (le) (rate(socboard_probe_time_to_queue_seconds_bucket[5m])))",
+  "refused": [],
+  "startsAt": "2026-11-17T16:20:01Z",
+  "summary": "A new alert took more than 5 seconds to show in the SOCBoard queue (95th percentile of the probe over 5 minutes).",
+  "version": "d665893d67a7"
+}

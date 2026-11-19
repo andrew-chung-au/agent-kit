@@ -1,0 +1,10 @@
+{
+  "issue": 339,
+  "findings": [
+    {"id": "F-339-1", "source": "https://github.com/andrew-chung-au/socboard/issues/339#issuecomment-6937323087", "commit": "be243d7", "category": "test-gap", "summary": "The Markdown table reader keys tables by header, so two tables with identical headers in one section would keep only the last."},
+    {"id": "F-339-2", "source": "https://github.com/andrew-chung-au/socboard/issues/339#issuecomment-6937323087", "commit": "be243d7", "category": "test-gap", "summary": "An indented table is not seen as a table and the separator row is not checked; a reformatted required table still fails loudly."},
+    {"id": "F-339-3", "source": "https://github.com/andrew-chung-au/socboard/issues/339#issuecomment-6937323087", "commit": "be243d7", "category": "docs", "summary": "The contract's Implemented-by columns, section 5 and its rule bullets are not machine-checked, which no criterion asked for."},
+    {"id": "F-339-4", "source": "https://github.com/andrew-chung-au/socboard/issues/339#issuecomment-6937323087", "commit": "be243d7", "category": "test-gap", "summary": "The How-to-use test matches phrases by substring, so a rewording that keeps the phrases but flips the meaning would pass."},
+    {"id": "F-339-5", "source": "https://github.com/andrew-chung-au/socboard/issues/339#issuecomment-6937079219", "commit": "be243d7", "category": "docs", "summary": "The contract gives the alert expression only as a sentence, leaves three annotation texts to the rule file, and repeats service.name for the probe, so the machine file resolves each by reading."}
+  ]
+}

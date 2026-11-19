@@ -1,0 +1,93 @@
+{
+  "commit": "a8baaad",
+  "issue": 295,
+  "note": "Redacted report printed by observability/ci/check.sh between its marker lines in the socboard observability job log; ids, known span names, digit times and result lines only.",
+  "report": {
+    "canary": {
+      "kindsSearched": [
+        "account-number",
+        "alert-description",
+        "alert-title",
+        "case-note",
+        "ingest-key",
+        "password",
+        "token"
+      ],
+      "stores": {
+        "collector": {
+          "found": []
+        },
+        "loki": {
+          "found": []
+        },
+        "prometheus": {
+          "found": []
+        },
+        "tempo": {
+          "found": []
+        }
+      }
+    },
+    "canaryTraceId": "52e0b67e7b7844292f6aeb5a8f407c2d",
+    "loki": {
+      "lines": [
+        {
+          "event": "alert.ingested",
+          "time": "1794889391734280960",
+          "traceId": "1473a37dfc180d30c02d7418765124b1"
+        },
+        {
+          "event": "alert.first_in_queue",
+          "time": "1794889391738085632",
+          "traceId": "1473a37dfc180d30c02d7418765124b1"
+        }
+      ]
+    },
+    "prometheus": {
+      "exemplars": {
+        "socboard_alert_time_to_queue_seconds_bucket": {
+          "time": 1794889391.737,
+          "traceId": "1473a37dfc180d30c02d7418765124b1"
+        },
+        "socboard_probe_time_to_queue_seconds_bucket": {
+          "time": 1794889391.738,
+          "traceId": "1473a37dfc180d30c02d7418765124b1"
+        }
+      }
+    },
+    "results": [
+      "trace id: 1473a37dfc180d30c02d7418765124b1",
+      "probe: one cycle, exit 0",
+      "tempo: found POST /api/alerts, ingest.alert and a linked queue.first_seen",
+      "loki: found alert.ingested and alert.first_in_queue with trace_id as structured metadata",
+      "prometheus socboard_alert_time_to_queue_seconds_bucket: found an exemplar",
+      "prometheus socboard_probe_time_to_queue_seconds_bucket: found an exemplar",
+      "canary tempo: none of the 7 canary kinds found",
+      "canary loki: none of the 7 canary kinds found",
+      "canary prometheus: none of the 7 canary kinds found",
+      "canary collector log: none of the 7 canary kinds found"
+    ],
+    "startedAt": 1794889391.19603,
+    "tempo": {
+      "queue_first_seen": {
+        "spanId": "54e1b583267d4ff8",
+        "traceId": "ad3aed724226647b0cac305774e061a7"
+      },
+      "spans": [
+        {
+          "name": "ingest.alert",
+          "spanId": "845cb9a7334b9e38",
+          "start": "1794889391727738671"
+        },
+        {
+          "name": "POST /api/alerts",
+          "spanId": "53bd683703796557",
+          "start": "1794889391726393830"
+        }
+      ]
+    },
+    "traceId": "1473a37dfc180d30c02d7418765124b1"
+  },
+  "run_id": "44016640671",
+  "run_url": "https://github.com/andrew-chung-au/socboard/actions/runs/44016640671"
+}
