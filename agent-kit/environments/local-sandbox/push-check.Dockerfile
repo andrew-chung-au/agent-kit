@@ -1,4 +1,4 @@
-# Reference image for the push check (see environments.md, "The push-check image").
+# Reference image for the push check (see README.md, "The push-check image").
 # The push check runs `make install verify` in a throwaway container. The default
 # image, python:3.12, has git and make but no Node and no uv, so a Node plus uv
 # project's `make install` fails there with exit 127. This image adds both, at the

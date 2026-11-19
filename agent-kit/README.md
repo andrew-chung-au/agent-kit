@@ -13,7 +13,7 @@ A project can take the kit alone, or the kit plus the dev container (the local s
 
 ## Which file to open
 
-Each doc states its purpose and reader in its first lines. H is the human, A an agent.
+Each doc opens with what it is for; the Reader column says who reads it. H is the human, A an agent.
 
 | I want to | Open | Reader |
 |---|---|---|
