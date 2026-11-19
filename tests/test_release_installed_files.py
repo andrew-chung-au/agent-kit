@@ -1,6 +1,6 @@
 """The release note about installed files and shipping the map (issue #118).
 
-Text only: nothing here runs a script. The kit README's release/update text must state that
+Text only: nothing here runs a script. The kit's releasing.md text must state that
 the zip unpacks only the kit folder, that installed files are not placed by the unzip, and
 that the human places them using installed-files.txt; that no agent places an installed
 file; and that the human-machine entries are compared as in piece (e). installed-files.txt
@@ -13,7 +13,7 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
 KIT = REPO / "agent-kit"
-README = KIT / "README.md"
+README = KIT / "releasing.md"
 MAP = KIT / "installed-files.txt"
 
 
@@ -58,7 +58,7 @@ class ReleaseInstalledFilesTest(unittest.TestCase):
     def test_it_points_the_human_machine_entries_at_piece_e(self):
         self.assertIn("`human-machine`", self.flat)
         self.assertIn("Comparing the installed push check", self.flat)
-        self.assertIn("`environments.md`", self.flat)
+        self.assertIn("`environments/local-sandbox/README.md`", self.flat)
 
 
 if __name__ == "__main__":

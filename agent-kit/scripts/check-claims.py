@@ -33,7 +33,7 @@ blocks are read; prose is never a claim. Three checks:
 3. Blueprints coverage. Every installable path must be named in blueprints.md
    (in backticks or a table cell). Installable means every top-level entry of
    the kit except its own docs (README.md, blueprints.md, environments.md,
-   install-and-upgrade.md, setup.md, process.md), plus every first-level directory with a file in it
+   install-and-upgrade.md, CHANGELOG.md, releasing.md, setup.md, process.md), plus every first-level directory with a file in it
    under templates/, scripts/, githooks/, claude-code/, opencode/,
    environments/, procedures/ and team/. A path is covered when blueprints.md
    names it, names a parent directory ending in `/`, or (for a directory)
@@ -61,8 +61,8 @@ MAKE_OPTS_WITH_VALUE = {
     "-C", "-f", "-I", "-o", "-W",
     "--directory", "--file", "--include", "--old-file", "--assume-old",
 }
-KIT_DOCS = {"README.md", "blueprints.md", "environments.md", "install-and-upgrade.md", "setup.md",
-            "process.md"}
+KIT_DOCS = {"README.md", "blueprints.md", "environments.md", "install-and-upgrade.md", "CHANGELOG.md",
+            "releasing.md", "setup.md", "process.md"}
 MODULE_DIRS = ("templates", "scripts", "githooks", "claude-code", "opencode",
                "environments", "procedures", "team")
 IGNORED_NAMES = {"__pycache__"}

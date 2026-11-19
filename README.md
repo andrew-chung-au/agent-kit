@@ -54,41 +54,11 @@ This repository is developed with the kit. Its closed issues (the Issues tab) an
 
 ## Install and quick start
 
-There is no tagged release or release zip yet (issue #9 tracks it), so installing means cloning this repository and copying files out of it. You need `git`, `make` and `bash`; the container path also needs Docker on your own machine.
+There is no tagged release or release zip yet (issue #9 tracks it), so installing means cloning this repository and copying files out of it. Every install and upgrade path (a new project, an existing repo, with or without the dev container, a Codespace or a local checkout) is written out step by step in [agent-kit/install-and-upgrade.md](agent-kit/install-and-upgrade.md): pick your situation there. The release steps are in [agent-kit/releasing.md](agent-kit/releasing.md), and what changed in each version is in [agent-kit/CHANGELOG.md](agent-kit/CHANGELOG.md).
 
-### Path 1: kit only
+Never run `make` in a clean clone. The reasons and the sandbox rules are in [agent-kit/environments.md](agent-kit/environments.md#local-sandbox); the sandbox token and the push-check image are in [agent-kit/environments/local-sandbox/README.md](agent-kit/environments/local-sandbox/README.md).
 
-1. Clone this repository, and copy its `agent-kit/` folder into your project as `_docs/agent-kit/`.
-2. Start your AI coding tool in the project folder and say: "Set up this project using `_docs/agent-kit/setup.md`." Review what it proposes, then approve or correct it.
-3. Run `make hooks` wherever agents commit (not in a clean clone in the local sandbox profile).
-
-### Path 2: kit plus dev container
-
-This is the local sandbox profile: the agent works in a container with a token that cannot push, and you review and push from a separate clean clone.
-
-One script does the local setup for you. Clone this repository into a plain folder on your machine (one that is not inside any git work tree), then run the script from that folder:
-
-```
-cd ~/projects
-git clone <this repository's URL> agent-kit
-bash ~/projects/agent-kit/agent-kit/scripts/bootstrap-project.sh <your repository's URL>
-```
-
-It creates `<repo>` (the clean clone) and `<repo>-sandbox` in the current folder, adds the `sandbox` remote, installs the push check to `~/.agent-hooks/pre-push` and the clean clone's `.git/hooks/pre-push`, and copies the kit to `_docs/agent-kit/`, the recipe to `.devcontainer/` and the CI template to `.github/workflows/verify.yml`. It refuses to run inside any git work tree (a sandbox is one) and refuses a kit with uncommitted changes or a commit that is on no reviewed remote branch (the `sandbox` remote doesn't count), so unreviewed agent commits are never copied (`--kit <folder>` picks another kit clone; if yours is refused, `git fetch` in it and retry). It copies only the kit's git-tracked files. Re-running changes nothing: files you edited are kept, and `--force` replaces them. It stops at local files: it never pushes. Then:
-
-1. Put your git name and noreply email in `.devcontainer/setup.sh`, and resolve the CI template's placeholders (for a standalone repo, delete the two `paths:` filters and set `working-directory` to `.`).
-2. Run step 2 of path 1 (`"Set up this project using _docs/agent-kit/setup.md."`), then review, commit and push from the clean clone.
-3. Open only the project's `<repo>-sandbox` folder in the container. The first build runs `make hooks` there. Commit the `.devcontainer/devcontainer-lock.json` that the first rebuild creates.
-4. Optional: if your project's install step needs Node or uv, build the push-check image from `agent-kit/environments/local-sandbox/push-check.Dockerfile` and set `AGENT_PUSH_CHECK_IMAGE` to it. Without it the push check uses `python:3.12`. See what it would check with `AGENT_PUSH_CHECK_PLAN=1 git push --dry-run origin HEAD`; without `--dry-run` the push goes through unchecked.
-5. If your checks need a database, use the Compose variant in `agent-kit/environments/local-sandbox/compose/`: copy its three files into `.devcontainer/`, next to the standard `setup.sh`.
-
-To do the local setup by hand instead, the script's steps are: copy `agent-kit/environments/local-sandbox/devcontainer.json` and `setup.sh` into `.devcontainer/`, `agent-kit/templates/ci-verify.yml.template` to `.github/workflows/verify.yml`, and `agent-kit/environments/local-sandbox/pre-push` to `~/.agent-hooks/pre-push` and each clean clone's `.git/hooks/pre-push` (executable) — all from a clean clone, never a sandbox.
-
-Never run `make` in the clean clone. The reasons, the sandbox token and the exact commands are in [agent-kit/environments.md](agent-kit/environments.md#local-sandbox); the image is described under [the push-check image](agent-kit/environments.md#the-push-check-image). The steps for path 1 are written out in [agent-kit/README.md](agent-kit/README.md#adding-the-kit-to-a-project-folder); that document stays the reference.
-
-### Installed files
-
-Some kit files are installed outside the kit folder: the dev container recipe, the CI workflow and the push check. `agent-kit/installed-files.txt` is the map of which kit file goes where. `make kit-check` reads it, read-only, and reports each repository entry as `unchanged`, `local, ignored`, `drift` or `missing`; the two push-check entries it only names, because they live on your machine and no sandbox tool opens them. No agent copies an installed file: you do, from a clean clone. The forward import is step 7 of `agent-kit/procedures/kit-import.md`, `make kit-feedback` writes the reverse-import bundle, and comparing the installed push check is a human-only step in [agent-kit/environments.md](agent-kit/environments.md#comparing-the-installed-push-check-human-only). The map ships inside the kit folder at release.
+Some kit files are installed outside the kit folder (the dev container recipe, the CI workflow and the push check). `make kit-check` reports whether each still matches; the map and the rules are under "Installed files" in [agent-kit/README.md](agent-kit/README.md#updating-the-kit).
 
 ## Where things live
 
@@ -120,7 +90,7 @@ These limits are described in more detail in [agent-kit/README.md](agent-kit/REA
 No test or CI run checks the following.
 
 - **The push check, end to end.** `agent-kit/environments/local-sandbox/pre-push` runs on the human's machine in a throwaway Docker container. The sandbox has no Docker. `tests/test_gate_push_check.py` tests its logic with a stand-in for Docker.
-- **The container build, the push-check image and the Compose variant.** Nothing here builds the dev container, builds the image, or starts the Compose stack, and the sandbox has no Docker. The Node, nvm and uv pins and the Postgres tag are unverified until someone rebuilds; they are listed in `agent-kit/environments.md`. Tests check the recipe files as text.
+- **The container build, the push-check image and the Compose variant.** Nothing here builds the dev container, builds the image, or starts the Compose stack, and the sandbox has no Docker. The Node, nvm and uv pins and the Postgres tag are unverified until someone rebuilds; they are listed in `agent-kit/environments/local-sandbox/README.md`. Tests check the recipe files as text.
 - **The Codespaces profile.** Issue #10 is open and marked "needs testing".
 - **The OpenCode layer.** `agent-kit/opencode/` holds role definitions, permission rules and a permission-logging plugin. Its JSON is syntax-checked and some tests compare its settings as text, but no automated check runs OpenCode itself, so this README does not claim it works end to end. The human checked most of the permission rules by hand on one OpenCode version (1.19.5), with the steps in `_human-tasks/2026-11-02T1220Z-human-task-047-engineer-opencode-by-hand-checks.md`; one rule, the block on `git commit --no-verify`, is covered by tests only. The logging plugin's checks in a real session are still open under issue #20.
 - **Whether the prose here is true.** `tests/test_root_readme.py` checks links, paths and make targets, not sentences. A person reads the diff.
