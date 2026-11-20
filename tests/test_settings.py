@@ -457,6 +457,36 @@ class RefusalTest(Fixture):
     def test_append_assignment(self):
         self.assert_refused("LANES+=2\n", 1, "not +=")
 
+    # Fix round 3: very long digit strings get the normal refusal, never a traceback.
+    def test_a_very_long_whole_number(self):
+        result = self.assert_refused("LANES=" + "9" * 4301 + "\n", 1, "LANES has")
+        self.assertNotIn("Traceback", result.stderr)
+
+    def test_a_very_long_minutes_value(self):
+        result = self.assert_refused("STATUS_EVERY=" + "1" * 5000 + "m\n", 1, "STATUS_EVERY has")
+        self.assertNotIn("Traceback", result.stderr)
+
+    def test_a_very_long_ship_rule_rounds(self):
+        result = self.assert_refused("SHIP_RULE=rounds:" + "1" * 5000 + "\n", 1, "SHIP_RULE has")
+        self.assertNotIn("Traceback", result.stderr)
+
+    def test_a_long_value_is_shortened_in_the_reason(self):
+        for line, name in (("LANES=" + "1" * 5000, "LANES has '"), ("PROFILE=" + "x" * 5000, "unknown profile '"),
+                           ("STATUS_EVERY=" + "1" * 5000 + "m", "STATUS_EVERY has '")):
+            with self.subTest(name=name):
+                result = self.assert_refused(f"# c\n{line}\n", 2, name)
+                self.assertLess(len(result.stderr), 200, result.stderr)
+                self.assertIn("... (", result.stderr)
+                self.assertIn(" characters)", result.stderr)
+
+    def test_a_long_unknown_name_is_shortened_in_the_reason(self):
+        result = self.assert_refused("A" * 5000 + "=1\n", 1, "unknown setting AAAA")
+        self.assertLess(len(result.stderr), 200, result.stderr)
+        self.assertIn("... (5000 characters)", result.stderr)
+
+    def test_a_short_value_is_echoed_whole(self):
+        self.assert_refused("QA_FAIL_AT=X\n", 1, "QA_FAIL_AT has 'X'; allowed:")
+
     def test_a_conf_that_cannot_be_opened(self):
         (self.work / "agent-kit.conf").mkdir()
         result = self.run_reader(None)

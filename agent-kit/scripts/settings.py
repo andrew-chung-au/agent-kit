@@ -106,8 +106,29 @@ class SettingsError(Exception):
     """A refusal: the message is the reason, naming the file and line where there is one."""
 
 
+ECHO_LIMIT = 40
+
+
+def clip(text: str) -> str:
+    """Conf text as echoed in a reason: at most ECHO_LIMIT characters, then a length marker."""
+    if len(text) <= ECHO_LIMIT:
+        return text
+    return f"{text[:ECHO_LIMIT]}... ({len(text)} characters)"
+
+
+def echo(value: str) -> str:
+    """A conf value quoted for a reason, shortened the same way as clip()."""
+    if len(value) <= ECHO_LIMIT:
+        return repr(value)
+    return f"{value[:ECHO_LIMIT]!r}... ({len(value)} characters)"
+
+
 def whole_in(value: str, lo: int, hi: int) -> bool:
-    return bool(WHOLE.fullmatch(value)) and lo <= int(value) <= hi
+    # Length first: a value with more digits than hi is out of range, and int() on very long
+    # digit strings raises ValueError (Python 3.11+ limit), which would escape the refusal.
+    if len(value) > len(str(hi)) or not WHOLE.fullmatch(value):
+        return False
+    return lo <= int(value) <= hi
 
 
 def allowed(value: str, kind: tuple) -> bool:
@@ -205,7 +226,7 @@ def scan(conf: Path, label: str) -> dict:
         if name in KNOWN_CONF:
             continue
         if name not in TABLE:
-            raise SettingsError(f"{where}: unknown setting {name} (see customizing.md for the settings)")
+            raise SettingsError(f"{where}: unknown setting {clip(name)} (see customizing.md for the settings)")
         if operator != "=":
             raise SettingsError(f"{where}: {name} must be set with =, not {operator}")
         if name in found:
@@ -215,8 +236,8 @@ def scan(conf: Path, label: str) -> dict:
             raise SettingsError(f"{where}: {name} has text after its value; only spaces may follow")
         if not allowed(value, TABLE[name][2]):
             if name == "PROFILE":
-                raise SettingsError(f"{where}: unknown profile {value!r}; allowed: {', '.join(PROFILES)}")
-            shown = repr(value) if value else "an empty value"
+                raise SettingsError(f"{where}: unknown profile {echo(value)}; allowed: {', '.join(PROFILES)}")
+            shown = echo(value) if value else "an empty value"
             raise SettingsError(f"{where}: {name} has {shown}; allowed: {describe(TABLE[name][2])}")
         found[name] = (value, number)
     return found
