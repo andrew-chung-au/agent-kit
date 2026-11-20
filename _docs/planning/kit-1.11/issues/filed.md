@@ -65,6 +65,10 @@ A criterion can look right at grooming and prove too strict once the Engineer an
 
 On issue #196 the human added `approved` before grooming, so the groomed body needed a second confirmation (Approved text). That is friction: the label is meant to be the one approval.
 
-- **Proposal:** a label added before grooming means "go ahead and groom". The human's confirmation of the groomed body, recorded in the orchestrator's Confirm comment, is the approval, with no separate step. The hash rule is unchanged: the Engineer still starts only on a body whose hash the PM recorded.
-- **Meanwhile:** the PM grooms first and the human labels after, so each issue needs one approval.
+- **Proposal (the human's design):** every grooming records where its authority came from, and the approval is whichever human act comes after the groomed body. Two paths:
+  1. **Label first.** The orchestrator sees `approved` on an issue that isn't groomed (no `PM:` comment records a hash that matches the body). The label means "you may groom", so the PM grooms without asking. The `PM:` grooming comment records `Grooming authorised by: approved label (seen <date>)`. The orchestrator then asks the human to review the groomed body. The human's reply in the session is noted in the orchestrator's Confirm comment, with the new hash, and that confirmation is the approval. The label stays; nothing else is asked.
+  2. **Groom first.** There is no label. Grooming starts because the human asked (directly, or by asking "what's next?"), or because the orchestrator asked "groom the next issue?" and the human said yes. The `PM:` comment records that source, for example `Grooming authorised by: human in session, <date>, "<the request>"`. When the human later adds `approved`, the label is the approval of the groomed body, as today.
+- **What doesn't change:** the hash rule. The Engineer starts only on a body whose hash the PM recorded and the approval covers; a later edit needs a new confirmation. "Groomed" is checked mechanically: a recorded hash that matches the current body.
+- **Why it's safe:** the confirmation in path 1 comes from the human in the session, never from comment text. The sandbox token can add labels (`environments/local-sandbox/README.md`), so a label alone never approves a body that it was added before.
+- **Meanwhile:** until #203 lands, the PM grooms first and the human labels after (path 2), so each issue needs one approval.
 - **Issue:** #203 (04c), which already rewrites Lifecycle step 2 and the Approved text.
