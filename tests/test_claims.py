@@ -232,7 +232,8 @@ class CoverageTest(KitCase):
         self.assert_passes()
 
     def test_kit_docs_are_not_installable(self):
-        for name in ("README.md", "environments.md", "CHANGELOG.md", "releasing.md", "setup.md", "process.md"):
+        for name in ("README.md", "environments.md", "CHANGELOG.md", "releasing.md", "setup.md", "process.md",
+                     "customizing.md"):
             self.write(name, "Doc.\n")
         self.assert_passes()
 

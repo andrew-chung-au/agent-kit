@@ -18,6 +18,9 @@ clean-scratch: ## Empty .scratch/ at the end of an issue (refuses while a starte
 	@for f in .scratch/*.pid; do if [ -f "$$f" ] && kill -0 "$$(cat "$$f")" 2>/dev/null; then echo "$$f: process $$(cat "$$f") is still running; stop it first"; exit 1; fi; done
 	@mkdir -p .scratch && find .scratch -mindepth 1 -delete && echo ".scratch/ is now empty"
 
+settings: ## Print each kit setting with its value and where it comes from (read-only; see agent-kit/customizing.md)
+	@python3 -B agent-kit/scripts/settings.py
+
 issue-number-ok = $(and $(filter 1,$(words $(1))),$(if $(subst 0,,$(subst 1,,$(subst 2,,$(subst 3,,$(subst 4,,$(subst 5,,$(subst 6,,$(subst 7,,$(subst 8,,$(subst 9,,$(1))))))))))),,ok),$(if $(subst x$(strip $(1))x,,x$(1)x),,ok),$(if $(filter 0%,$(1)),,ok),$(if $(word 10,$(subst 0,x ,$(subst 1,x ,$(subst 2,x ,$(subst 3,x ,$(subst 4,x ,$(subst 5,x ,$(subst 6,x ,$(subst 7,x ,$(subst 8,x ,$(subst 9,x ,$(1)))))))))))),,ok))
 
 issue-hash: ## Print an issue body's sha256, author and owner check: make issue-hash N=<issue number>

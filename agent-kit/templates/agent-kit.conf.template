@@ -46,3 +46,26 @@ LIGHT_ALLOWED=()
 
 # Commits touching these need HUMAN_APPROVED=1 (see the hook line in AGENTS.md).
 PROTECTED=( 'AGENTS.md' 'CLAUDE.md' 'Makefile' 'agent-kit.conf' '_docs/specs.md' '_docs/agent-kit/*' )
+
+# Kit settings: what each does, its allowed values and the issue that makes it take
+# effect are in _docs/agent-kit/customizing.md. `make settings` shows each value and
+# where it comes from. To change one, remove the "# " from its line and set the value:
+# NAME=value at the start of the line, nothing after it. A written line wins over the
+# profile. Left commented out, the profile (default solo) and the kit defaults apply.
+# PROFILE=solo
+# GROOM_AHEAD=2
+# LANES=1
+# DELIVERY_LEAD=off
+# STATUS_EVERY=milestone
+# DECISION_BUDGET=3
+# QA_FAIL_AT=M
+# QA_SCOPE_STRICT=yes
+# RECHECK=changed
+# FIX_CHECK_LOOPS=2
+# ASK_AT=4
+# SHIP_RULE=none
+# STEP_UP=ask
+# FINDINGS_TO_ISSUE_AT=C
+# FINDINGS_GROUP_AT=5
+# FINDINGS_KEEP_SWEEPS=5
+# HEAVY_SECOND_QA=on

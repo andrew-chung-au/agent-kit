@@ -25,6 +25,7 @@ Each doc opens with what it is for; the Reader column says who reads it. H is th
 | Set up or review a project with the kit | `setup.md` | A |
 | Know how work moves from idea to done | `process.md` | A |
 | Know what a project needs and when | `blueprints.md` | A |
+| Change a kit value for my project (a setting or a profile), or look up the grades | `customizing.md` | H, A |
 | Review a newer kit against my kit | `procedures/kit-import.md` | A |
 | Use one step of the process (verify, ask the human, plan, sweep) | `procedures/` | A |
 | Use Claude Code or OpenCode with the kit | `claude-code/START.md`, `opencode/START.md` | H, A |
