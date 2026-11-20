@@ -69,3 +69,5 @@ PROTECTED=( 'AGENTS.md' 'CLAUDE.md' 'Makefile' 'agent-kit.conf' '_docs/specs.md'
 # FINDINGS_GROUP_AT=5
 # FINDINGS_KEEP_SWEEPS=5
 # HEAVY_SECOND_QA=on
+# WAIVABLE_GATES (set here only, never per issue): the QA gates a recorded Waiver: may name.
+# WAIVABLE_GATES=heavy-second-qa,qa-recheck

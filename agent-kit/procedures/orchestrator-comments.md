@@ -1,8 +1,10 @@
 # Orchestrator comments
 
-Layouts for the four comments the orchestrator writes on an issue. Copy one, keep the fixed lines, fill the per-issue facts (marked **fact**).
+Layouts for the five comments the orchestrator writes on an issue. Copy one, keep the fixed lines, fill the per-issue facts (marked **fact**).
 
 Rules: start with `Orchestrator:`. Post with `make issue-comment N=<n> FILE=.scratch/<name>.md`, never a raw `gh` write (target in `templates/Makefile.github.mk`). Name no env file; the scanner refuses it.
+
+Lines scripts read: each is `<Label>: <value>` alone on its line from column 1, the label worded exactly, in an owner comment with the named first line.
 
 ## Claim
 
@@ -19,6 +21,11 @@ Fixed: the claim is released; nothing is merged or closed.
 
 Fixed: the human confirmed the new body in this session; the hash re-check ran; the PM must record the hash in a `PM:` comment.
 **Fact:** the new hash, the old hash, what changed.
+
+## Ruling
+
+Fixed: first line `Orchestrator: Ruling`, then `Human ruled: <YYYY-MM-DD>`; record only what the human said in this session. Each `Ruling: NAME=value` sets a setting for this issue (`make settings N=<n>` reads it); other `Ruling:` text records a process ruling. `Waiver: <gate> - <reason>` names a QA gate the human waived: `heavy-second-qa` or `qa-recheck`, as `WAIVABLE_GATES` allows (`customizing.md`). A waiver is recorded but no script acts on it yet.
+**Fact:** the date, each ruling and waiver.
 
 ## Close
 
