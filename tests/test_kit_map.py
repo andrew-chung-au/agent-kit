@@ -15,10 +15,11 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
+from kit_repo import new_workdir
+
 REPO = Path(__file__).resolve().parent.parent
 KIT = REPO / "agent-kit"
 SCRIPT = KIT / "scripts" / "kit-map.py"
-SCRATCH = REPO / ".scratch" / "test-kit-map"
 
 spec = importlib.util.spec_from_file_location("kit_map", SCRIPT)
 kit_map = importlib.util.module_from_spec(spec)
@@ -27,13 +28,11 @@ spec.loader.exec_module(kit_map)
 
 class Base(unittest.TestCase):
     def setUp(self):
-        shutil.rmtree(SCRATCH, ignore_errors=True)
-        self.repo = SCRATCH / "repo"
+        self.root = new_workdir(prefix="kit-map-")
+        self.addCleanup(shutil.rmtree, self.root, ignore_errors=True)
+        self.repo = self.root / "repo"
         self.kit = self.repo / "agent-kit"
         self.kit.mkdir(parents=True)
-
-    def tearDown(self):
-        shutil.rmtree(SCRATCH, ignore_errors=True)
 
     def write(self, text: str):
         (self.kit / "installed-files.txt").write_text(text, encoding="utf-8")
@@ -113,7 +112,7 @@ class RefusalTest(Base):
         self.refused(self.line("~/x"), "plain relative path")
 
     def test_install_path_outside_repo_via_symlink(self):
-        outside = SCRATCH / "outside"
+        outside = self.root / "outside"
         outside.mkdir()
         os.symlink(outside, self.repo / "escape")
         self.refused(self.line("escape/x"), "symlink")

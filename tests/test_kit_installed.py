@@ -18,12 +18,13 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
+from kit_repo import new_workdir
+
 REPO = Path(__file__).resolve().parent.parent
 KIT = REPO / "agent-kit"
 MAP_SCRIPT = KIT / "scripts" / "kit-map.py"
 CHECK_SCRIPT = KIT / "scripts" / "kit-check.py"
 MANIFEST_SCRIPT = KIT / "scripts" / "kit-manifest.py"
-SCRATCH = REPO / ".scratch" / "test-kit-installed"
 
 spec = importlib.util.spec_from_file_location("kit_map", MAP_SCRIPT)
 kit_map = importlib.util.module_from_spec(spec)
@@ -47,13 +48,11 @@ def snapshot(root: Path) -> dict:
 
 class Base(unittest.TestCase):
     def setUp(self):
-        shutil.rmtree(SCRATCH, ignore_errors=True)
-        self.repo = SCRATCH / "repo"
+        self.root = new_workdir(prefix="kit-installed-")
+        self.addCleanup(shutil.rmtree, self.root, ignore_errors=True)
+        self.repo = self.root / "repo"
         self.kit = self.repo / "agent-kit"
         self.kit.mkdir(parents=True)
-
-    def tearDown(self):
-        shutil.rmtree(SCRATCH, ignore_errors=True)
 
     def write_map(self, text: str):
         (self.kit / "installed-files.txt").write_text(text, encoding="utf-8")
@@ -174,7 +173,7 @@ class RefusalTest(Base):
         self.assertEqual(snapshot(self.repo), before)
 
     def test_symlinked_install_parent_is_refused(self):
-        outside = SCRATCH / "outside"
+        outside = self.root / "outside"
         outside.mkdir(parents=True)
         os.symlink(outside, self.repo / "escape")
         self.kit_source("src/x", "a\n")
@@ -199,9 +198,9 @@ class ReadOnlyTest(Base):
             "src/dev.json | .devcontainer/dev.json | repo | none\n"
             "src/hook | ~/.agent-hooks/pre-push | human-machine | none\n")
         self.installed(".devcontainer/dev.json", "DRIFTED\n")
-        before = snapshot(SCRATCH)
+        before = snapshot(self.root)
         kit_map.scan_installed(self.kit, self.repo)
-        self.assertEqual(snapshot(SCRATCH), before)
+        self.assertEqual(snapshot(self.root), before)
 
 
 class CommandLineTest(Base):
@@ -249,17 +248,15 @@ class KitCheckIntegrationTest(unittest.TestCase):
     """The real kit-check.py, run as a subprocess from a throwaway project folder."""
 
     def setUp(self):
-        shutil.rmtree(SCRATCH, ignore_errors=True)
-        self.project = SCRATCH / "project"
+        self.root = new_workdir(prefix="kit-installed-")
+        self.addCleanup(shutil.rmtree, self.root, ignore_errors=True)
+        self.project = self.root / "project"
         self.kit = self.project / "_docs" / "agent-kit"
         self.kit.mkdir(parents=True)
         shutil.copytree(KIT / "scripts", self.kit / "scripts",
                         ignore=shutil.ignore_patterns("__pycache__"))
         (self.project / "agent-kit.conf").write_text(
             'KIT_DIR="_docs/agent-kit"\nTEST_CMD="true"\n', encoding="utf-8")
-
-    def tearDown(self):
-        shutil.rmtree(SCRATCH, ignore_errors=True)
 
     def kit_file(self, rel: str, text: str):
         path = self.kit / rel

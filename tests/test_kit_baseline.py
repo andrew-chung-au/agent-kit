@@ -45,7 +45,7 @@ def snapshot(root: Path) -> dict:
 
 class Base(unittest.TestCase):
     def setUp(self):
-        SCRATCH.mkdir(exist_ok=True)
+        SCRATCH.mkdir(parents=True, exist_ok=True)
         self.work = Path(tempfile.mkdtemp(prefix="kit-baseline-", dir=SCRATCH))
         self.addCleanup(shutil.rmtree, self.work, ignore_errors=True)
         self.rel = self.work.relative_to(REPO).as_posix()
@@ -353,9 +353,9 @@ class RefusalTest(Base):
     def test_it_writes_nothing(self):
         self.history()
         self.live_from_c2()
-        before = (snapshot(self.live), snapshot(self.src), sorted(p.name for p in SCRATCH.iterdir()))
+        before = snapshot(self.work)
         self.assertEqual(self.run_script().returncode, 0)
-        self.assertEqual((snapshot(self.live), snapshot(self.src), sorted(p.name for p in SCRATCH.iterdir())), before)
+        self.assertEqual(snapshot(self.work), before)
 
 
 class MakeTargetTest(Base):

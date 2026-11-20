@@ -21,11 +21,12 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
+from kit_repo import new_workdir
+
 REPO = Path(__file__).resolve().parent.parent
 KIT = REPO / "agent-kit"
 SCRIPT = KIT / "scripts" / "kit-feedback.py"
 TEMPLATE = KIT / "templates" / "Makefile.mk"
-SCRATCH = REPO / ".scratch" / "test-kit-feedback"
 
 spec = importlib.util.spec_from_file_location("kit_feedback", SCRIPT)
 kit_feedback = importlib.util.module_from_spec(spec)
@@ -49,18 +50,16 @@ def snapshot(root: Path) -> dict:
 
 class Base(unittest.TestCase):
     def setUp(self):
-        shutil.rmtree(SCRATCH, ignore_errors=True)
-        self.run_dir = SCRATCH / "run"
-        self.project = SCRATCH / "proj"
-        self.reference = SCRATCH / "ref"
+        self.root = new_workdir(prefix="kit-feedback-")
+        self.addCleanup(shutil.rmtree, self.root, ignore_errors=True)
+        self.run_dir = self.root / "run"
+        self.project = self.root / "proj"
+        self.reference = self.root / "ref"
         self.pkit = self.project / "_docs" / "agent-kit"
         for d in (self.run_dir / ".scratch", self.pkit, self.reference):
             d.mkdir(parents=True)
         (self.project / "agent-kit.conf").write_text(
             'KIT_DIR="_docs/agent-kit"\nTEST_CMD="true"\n', encoding="utf-8")
-
-    def tearDown(self):
-        shutil.rmtree(SCRATCH, ignore_errors=True)
 
     def kit_source(self, base: Path, rel: str, text: str):
         path = base / rel
@@ -238,7 +237,7 @@ class PrivacyTest(Base):
         text = self.bundle_text()
         self.assertIn("# project: <project root>", text)
         self.assertIn("# reference kit: <reference kit root>", text)
-        for private in (str(self.project), str(self.reference), str(SCRATCH), str(REPO)):
+        for private in (str(self.project), str(self.reference), str(self.root), str(REPO)):
             self.assertNotIn(private, text)
         self.assertNotIn(str(REPO), done.stdout)  # the success line is relative too
 
@@ -261,10 +260,10 @@ class PrivacyTest(Base):
 
     def test_error_messages_carry_no_absolute_path(self):
         done = subprocess.run(
-            [sys.executable, "-B", str(SCRIPT), str(SCRATCH / "nope"), str(self.reference)],
+            [sys.executable, "-B", str(SCRIPT), str(self.root / "nope"), str(self.reference)],
             cwd=str(self.run_dir), stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=60)
         self.assertEqual(done.returncode, 2)
-        self.assertNotIn(str(SCRATCH), done.stderr)
+        self.assertNotIn(str(self.root), done.stderr)
         self.assertNotIn(str(REPO), done.stderr)
         self.assertIn("the project root is missing", done.stderr)
 
@@ -357,7 +356,7 @@ class PrivacyTest(Base):
 
     # 6. A hard link under an ordinary name to a secret file.
     def test_an_installed_file_with_two_hard_links_is_refused(self):
-        secret = SCRATCH / "secret-elsewhere"
+        secret = self.root / "secret-elsewhere"
         secret.write_text("API_TOKEN=hunter2-SECRET\n", encoding="utf-8")
         self.project_source("env/x", "base\n")
         self.reference_source("env/x", "base\n")
@@ -677,13 +676,13 @@ class RefusalTest(Base):
         self.project_source("env/x", "a\n")
         self.reference_source("env/x", "a\n")
         self.write_map("env/x | ../escape | repo | none\n")
-        before = snapshot(SCRATCH)
+        before = snapshot(self.root)
         done = self.run_script()
         self.assertEqual(done.returncode, 2, done.stdout)
         self.assertIn("line 1", done.stderr)
         self.assertIn("nothing written", done.stderr)
         self.assertFalse(sorted((self.run_dir / ".scratch").glob("kit-feedback-*")))
-        self.assertEqual(snapshot(SCRATCH), before)
+        self.assertEqual(snapshot(self.root), before)
 
     def test_a_symlink_named_like_a_skipped_name_is_refused_and_writes_no_bundle(self):
         # #143: kit_files skips *.pyc and __pycache__ only when they are real.
@@ -693,7 +692,7 @@ class RefusalTest(Base):
         for name, target in (("x.pyc", "nowhere"), ("__pycache__", "env"), ("env/y.pyc", "x")):
             for tree in (self.pkit, self.reference):
                 with self.subTest(name=name, tree=tree.name):
-                    before = snapshot(SCRATCH)
+                    before = snapshot(self.root)
                     (tree / name).symlink_to(target)
                     try:
                         done = self.run_script()
@@ -702,7 +701,7 @@ class RefusalTest(Base):
                     self.assertEqual(done.returncode, 2, done.stdout + done.stderr)
                     self.assertIn(f"symlink in the kit folder: {name}", done.stderr)
                     self.assertFalse(sorted((self.run_dir / ".scratch").glob("kit-feedback-*")))
-                    self.assertEqual(snapshot(SCRATCH), before)
+                    self.assertEqual(snapshot(self.root), before)
 
     def test_the_missing_map_error_carries_no_absolute_path(self):
         # The parser's own message quotes the kit root in full; _scrub must still catch it.
@@ -714,7 +713,7 @@ class RefusalTest(Base):
         self.assertIn("installed-files.txt is missing", done.stderr)
         self.assertIn("<project root>", done.stderr)
         self.assertNotIn(str(self.project), done.stderr)
-        self.assertNotIn(str(SCRATCH), done.stderr)
+        self.assertNotIn(str(self.root), done.stderr)
 
     def test_an_unreadable_installed_file_error_carries_no_absolute_path(self):
         self.project_source("env/setup.sh", "base\n")
@@ -755,14 +754,14 @@ class RefusalTest(Base):
 
     def test_a_missing_project_root_is_refused(self):
         done = subprocess.run(
-            [sys.executable, "-B", str(SCRIPT), str(SCRATCH / "nope"), str(self.reference)],
+            [sys.executable, "-B", str(SCRIPT), str(self.root / "nope"), str(self.reference)],
             cwd=str(self.run_dir), stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=60)
         self.assertEqual(done.returncode, 2)
         self.assertIn("nothing written", done.stderr)
 
 
     def test_a_symlinked_scratch_folder_is_refused_and_nothing_lands_outside(self):
-        elsewhere = SCRATCH / "elsewhere"
+        elsewhere = self.root / "elsewhere"
         elsewhere.mkdir()
         shutil.rmtree(self.run_dir / ".scratch")
         os.symlink(elsewhere, self.run_dir / ".scratch")
@@ -832,7 +831,7 @@ class MakeTargetTest(Base):
         done = self.run_make(f"PROJECT={self.project}", f"KIT={self.reference}")
         self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
         text = self.bundle_text()
-        for private in (str(self.project), str(self.reference), str(SCRATCH)):
+        for private in (str(self.project), str(self.reference), str(self.root)):
             self.assertNotIn(private, text)
             self.assertNotIn(private, done.stdout)
 
