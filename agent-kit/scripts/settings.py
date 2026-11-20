@@ -97,7 +97,7 @@ ASSIGNMENT = re.compile(r"([A-Za-z_][A-Za-z0-9_]*)(\+?=)(.*)", re.S)
 # This reader does not parse bash, so any such line is refused, including some that bash
 # would not apply (an array element or a line inside a multi-line quoted value).
 ANYWHERE = re.compile(r"(?<![A-Za-z0-9_])(" + "|".join(re.escape(n) for n in NAMES) + r")\+?=")
-BOM = "﻿"
+BOM = chr(0xFEFF)  # the UTF-8 byte order mark, decoded
 VALUE = re.compile(r"(?:\"([^\"]*)\"|'([^']*)'|([^\s\"']*))([ \t]*)(.*)", re.S)
 WHOLE = re.compile(r"0|[1-9][0-9]*")
 
@@ -174,10 +174,15 @@ def parse_value(rest: str):
 def scan(conf: Path, label: str) -> dict:
     """name -> (value, line number) for each setting or PROFILE written in the conf."""
     try:
-        text = conf.read_bytes().decode("utf-8")
+        data = conf.read_bytes()
     except FileNotFoundError:
         raise SettingsError(f"{label}: not found (run from the folder that holds {CONF})")
-    except (OSError, ValueError):
+    except OSError as error:
+        cause = error.strerror or type(error).__name__
+        raise SettingsError(f"{label}: cannot be opened ({cause})")
+    try:
+        text = data.decode("utf-8")
+    except ValueError:
         raise SettingsError(f"{label}: cannot be read as UTF-8 text")
     if text.startswith(BOM):
         # bash reads the mark as part of the first word, so a first-line assignment would

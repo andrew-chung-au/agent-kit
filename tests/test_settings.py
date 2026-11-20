@@ -27,6 +27,7 @@ _spec = importlib.util.spec_from_file_location("kit_settings", SCRIPT)
 settings = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(settings)
 
+BOM = chr(0xFEFF)  # written as a code point, not as the invisible character
 LMC = ("choice", ("L", "M", "C"))
 ON_OFF = ("choice", ("on", "off"))
 
@@ -436,10 +437,10 @@ class RefusalTest(Fixture):
         self.assert_refused("if true; then LANES=5; fi\n", 1, "LANES must be on a line of its own")
 
     def test_profile_after_a_byte_order_mark(self):
-        self.assert_refused("﻿PROFILE=team\n", 1, "byte order mark")
+        self.assert_refused(BOM + "PROFILE=team\n", 1, "byte order mark")
 
     def test_byte_order_mark_before_a_known_line(self):
-        self.assert_refused('﻿KIT_DIR="agent-kit"\n', 1, "byte order mark")
+        self.assert_refused(BOM + 'KIT_DIR="agent-kit"\n', 1, "byte order mark")
 
     def test_setting_inside_an_array_is_refused_conservatively(self):
         self.assert_refused("PROTECTED=( 'a'\n            LANES=2 )\n", 2, "LANES must be on a line of its own")
@@ -455,6 +456,21 @@ class RefusalTest(Fixture):
 
     def test_append_assignment(self):
         self.assert_refused("LANES+=2\n", 1, "not +=")
+
+    def test_a_conf_that_cannot_be_opened(self):
+        (self.work / "agent-kit.conf").mkdir()
+        result = self.run_reader(None)
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(result.stdout, "")
+        self.assertIn("settings: agent-kit.conf: cannot be opened (", result.stderr)
+        self.assertNotIn("UTF-8", result.stderr)
+
+    def test_a_conf_that_is_not_utf8(self):
+        (self.work / "agent-kit.conf").write_bytes(b"LANES=\xff\n")
+        result = self.run_reader(None)
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(result.stdout, "")
+        self.assertIn("settings: agent-kit.conf: cannot be read as UTF-8 text", result.stderr)
 
     def test_missing_conf(self):
         result = self.run_reader(None)
