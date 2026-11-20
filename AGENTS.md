@@ -21,7 +21,7 @@ Layout: `agent-kit/` is the kit source (README, setup, process, `team/`, `proced
 
 ## Project settings
 
-- **Environment:** local sandbox (dev container; you can't push: your GitHub token is read-only). No Docker, so the push check can't run end to end here. See `agent-kit/environments.md`.
+- **Environment:** local sandbox (dev container; you can't push: your GitHub token is read-only). No Docker, so the push check can't run end to end here. See `agent-kit/environments.md`. In a Claude Code cloud session the agent may push its own `claude/*` session branch, only as `git push -u origin <current branch>` (the git guard's opt-in cloud push; `AGENT_KIT_CLOUD_PUSH=1` in `.claude/settings.json`). It never pushes `main`, force-pushes or merges; the human reviews and merges the pull request.
 - **Branching:** commit directly to `main`.
 - **Dependencies:** none. Kit scripts run with bash, git, make, coreutils and the Python 3 standard library only, and the push check runs on the human's machine with only git, docker and coreutils. Propose any new dependency at the decision point; never install one.
 - **Session summaries:** `_session-summaries/`, named as in `agent-kit/procedures/session-summary.md`.
@@ -57,7 +57,7 @@ Rules only judgment can keep. They apply at all times.
 
 ## Enforced by hooks
 
-Hooks and tool settings block broad staging, `--no-verify`, pushes, the tool's own reading and editing of `.env` files, shell commands naming `.env` files (Claude Code's hook; in OpenCode a text-pattern rule), and commits of protected files (listed in `agent-kit.conf`) without human approval. If a hook blocks you, fix the cause or ask the human; never work around it.
+Hooks and tool settings block broad staging, `--no-verify`, pushes (except the opt-in cloud-session push of the agent's own `claude/*` branch; see Environment), the tool's own reading and editing of `.env` files, shell commands naming `.env` files (Claude Code's hook; in OpenCode a text-pattern rule), and commits of protected files (listed in `agent-kit.conf`) without human approval. If a hook blocks you, fix the cause or ask the human; never work around it.
 
 ## Read when
 
