@@ -40,3 +40,31 @@ The filed bodies name other 1.11 issues by draft id (01a, 02, ...). Read each id
 4. 09a and 09b: the Kiro parts of the parent's C2 and C6 moved to 09b.
 5. One-line reasons for the parts' grades were written by the PM where the draft gave reasons only for the parent.
 6. 08b also relies on 01a (the vocabulary); its Needs line says so.
+
+## Grooming notes from the human (2026-11-20)
+
+The PM folds these into the issues named when it grooms each one. Each change still goes through grooming and the human's label.
+
+### A. Amend a criterion: a third answer to "ship or fix?"
+
+A criterion can look right at grooming and prove too strict once the Engineer and QA meet it. Today the only answers are fix (the loop) or ship (accept it as not done). Add **amend**: the criterion is wrong, not the code.
+
+- **The three answers:** fix (the code is wrong; the Engineer fixes it), ship (the criterion is right but not worth finishing now; it is marked not done and a follow-up issue is filed), amend (the criterion is rewritten, re-approved and re-checked).
+- **Where amend is offered:**
+  1. The patchwork guard's approach review (a finding's second failure): "the criterion is the problem" is one conclusion the Engineer may reach, besides "change approach".
+  2. QA's findings: a finding marked `category: criterion` ("stricter than the goal needs") goes to the human, not back to the Engineer for another round.
+  3. Before building: if the Engineer sees a criterion can't be met as written, it raises that at once instead of failing through the loop.
+- **Safeguards:**
+  - Only the human chooses amend; an agent proposes new wording but never rewrites an approved criterion. It is a stop decision point.
+  - It uses the existing approved-text steps: the PM drafts the new criterion, the human confirms, the orchestrator posts a Confirm comment naming the new hash, the PM records it, and QA re-checks only the amended criterion.
+  - It can't cross the bounds no level can cross (#197): an amend that would drop QA, lower a tier or weaken a security rule is refused, as an override would be.
+  - Every amend is logged, and the sweep counts amended criteria per issue as a signal that grooming writes criteria too strict.
+- **Issues:** #199 (03a): a new criterion with the three answers and the three places amend is offered (most of the change). #204 (05): "amend an approved criterion" in the stop-point list. #201 (04a): a fourth checklist form, `C<n>: challenged (<reason>)`. #200 (03b): the ship path files its follow-up issue, and the sweep counts amends.
+
+### B. A label added before grooming means "go ahead and groom"
+
+On issue #196 the human added `approved` before grooming, so the groomed body needed a second confirmation (Approved text). That is friction: the label is meant to be the one approval.
+
+- **Proposal:** a label added before grooming means "go ahead and groom". The human's confirmation of the groomed body, recorded in the orchestrator's Confirm comment, is the approval, with no separate step. The hash rule is unchanged: the Engineer still starts only on a body whose hash the PM recorded.
+- **Meanwhile:** the PM grooms first and the human labels after, so each issue needs one approval.
+- **Issue:** #203 (04c), which already rewrites Lifecycle step 2 and the Approved text.
