@@ -7,9 +7,15 @@ The problem in one or two sentences, with evidence: where it showed up and what 
 One or two sentences on what should be true when this is done.
 
 ## Acceptance criteria
-- [ ] A statement you can check by looking at the result
-- [ ] One line per case, including the awkward ones
-- [ ] For each limit on what something may do: how it's enforced, and a case that must be refused
+
+Number each criterion `C1`, `C2`, ... up by one, and give it an indented `Check:` line saying how it is verified. Once the issue is approved, a criterion keeps its id: a removed criterion leaves a gap, and a new one takes the next unused number.
+
+- [ ] C1. A statement you can check by looking at the result
+  Check: how it is verified: a command, a test name, or a reading of a named file
+- [ ] C2. One line per case, including the awkward ones
+  Check: the test that covers each case
+- [ ] C3. For each limit on what something may do: how it's enforced, and a case that must be refused
+  Check: the test or command that shows the refusal
 
 ## Out of scope
 - Something that does not belong in this task, moved to #TASK-NUMBER

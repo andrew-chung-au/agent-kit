@@ -4,10 +4,11 @@ Each case pipes a PreToolUse payload to the hook, as Claude Code does, from
 inside a throwaway git repo under .scratch/ whose current branch is set with a
 real checkout. Cloud env vars inherited from the session are removed first.
 
-Phase 1 locks in the core denial: the hook has no cloud-session allow path,
-so every push is blocked, even with AGENT_KIT_CLOUD_PUSH=1 and
-CLAUDE_CODE_REMOTE=true on a claude/ branch. Phase 6 changes these tests when
-it adds the cloud-session module.
+Push is blocked except for the opt-in cloud-session push: AGENT_KIT_CLOUD_PUSH=1
+and CLAUDE_CODE_REMOTE=true, the exact form `git push [-u|--set-upstream] origin
+<branch>`, and <branch> the current branch under claude/. Every other push stays
+blocked: no env vars or only one, main, a non-claude branch, another claude branch,
+force, delete, refspecs, extra options, git global options or a prefix before git.
 """
 from __future__ import annotations
 
@@ -101,6 +102,68 @@ class GuardGitTest(unittest.TestCase):
     def test_push_of_main_blocked_with_both_vars_on_claude_branch(self):
         self.checkout("claude/x")
         self.assert_push_blocked(self.run_command("git push origin main", BOTH))
+
+    def test_push_blocked_with_remote_but_no_opt_in(self):
+        self.checkout("claude/x")
+        result = self.run_command("git push -u origin claude/x", {"CLAUDE_CODE_REMOTE": "true"})
+        self.assert_push_blocked(result)
+
+    def test_push_blocked_with_wrong_var_values(self):
+        self.checkout("claude/x")
+        for env in ({"AGENT_KIT_CLOUD_PUSH": "true", "CLAUDE_CODE_REMOTE": "true"},
+                    {"AGENT_KIT_CLOUD_PUSH": "1", "CLAUDE_CODE_REMOTE": "1"}):
+            with self.subTest(env=env):
+                self.assert_push_blocked(self.run_command("git push -u origin claude/x", env))
+
+    CLOUD_PUSH_REFUSED = [
+        "git push",
+        "git push origin",
+        "git push -u origin claude/y",
+        "git push -u origin claude/x:main",
+        "git push -u origin HEAD",
+        "git push -f origin claude/x",
+        "git push --force-with-lease origin claude/x",
+        "git push -u origin claude/x --force",
+        "git push --delete origin claude/x",
+        "git push origin :claude/x",
+        "git push -u upstream claude/x",
+        "git push --mirror origin",
+        "git push --all origin",
+        "git push --tags origin claude/x",
+        "git push -u origin claude/x main",
+        "git -C .. push -u origin claude/x",
+        "git -c x=y push -u origin claude/x",
+        "FOO=1 git push -u origin claude/x",
+        "env git push -u origin claude/x",
+        "git push -u origin claude/../main",
+    ]
+
+    def test_other_push_forms_blocked_on_claude_branch(self):
+        self.checkout("claude/x")
+        for command in self.CLOUD_PUSH_REFUSED:
+            with self.subTest(command=command):
+                self.assert_push_blocked(self.run_command(command, BOTH))
+
+    def test_chained_push_still_checks_each_part(self):
+        self.checkout("claude/x")
+        result = self.run_command("git push -u origin claude/x && git push origin main", BOTH)
+        self.assert_push_blocked(result)
+
+    # The opt-in cloud-session push: let through.
+
+    def test_cloud_push_of_current_claude_branch_allowed(self):
+        self.checkout("claude/x")
+        for command in ("git push -u origin claude/x", "git push --set-upstream origin claude/x",
+                        "git push origin claude/x"):
+            with self.subTest(command=command):
+                result = self.run_command(command, BOTH)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(result.stderr, "")
+
+    def test_hook_docstring_describes_the_cloud_push(self):
+        doc = GUARD.read_text(encoding="utf-8").split('"""')[1]
+        for text in ("AGENT_KIT_CLOUD_PUSH=1", "CLAUDE_CODE_REMOTE=true", "claude/"):
+            self.assertIn(text, doc)
 
     # Happy path and unparseable input: let through.
 

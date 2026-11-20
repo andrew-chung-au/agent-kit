@@ -8,8 +8,17 @@ Blocks, with the reason and the allowed alternative:
 - broad staging: `git add .`, `-A`, `--all`, `-u`, `--update`, `:/`, `*`
 - `git commit -a` / `--all` (also in clusters such as `-am`)
 - skipping hooks: `--no-verify`, and `git commit -n` (also in clusters such as `-nm`)
-- `git push` (only the human pushes)
+- `git push` (only the human pushes), with one opt-in exception for Claude Code cloud
+  sessions (below)
 - changing `core.hooksPath` (would switch off the kit's git hooks)
+
+Cloud-session push (opt-in): a push is let through only when all of these hold:
+`AGENT_KIT_CLOUD_PUSH=1` (the project opts in, for example in `.claude/settings.json` `env`),
+`CLAUDE_CODE_REMOTE=true` (set by Claude Code in its cloud sessions, so a local session
+stays blocked), the command is exactly `git push origin <branch>` or
+`git push -u|--set-upstream origin <branch>` with nothing before `git` and no other option,
+and `<branch>` is the current branch and starts with `claude/`. Force, delete, other refs,
+`main` and every other form stay blocked.
 
 `HUMAN_APPROVED=1 git commit ...` is allowed: Claude Code asks the human before
 any command with an environment prefix, and that prompt is the approval check.
@@ -28,8 +37,10 @@ template denies `.env` shell commands by a text pattern instead (not a boundary)
 from __future__ import annotations
 
 import json
+import os
 import re
 import shlex
+import subprocess
 import sys
 
 OPERATOR_CHARS = ";&|\n()"
@@ -105,6 +116,34 @@ def short_cluster_has(args, letter: str) -> bool:
     return any(a.startswith("-") and not a.startswith("--") and letter in a[1:] for a in args)
 
 
+CLOUD_PUSH_PREFIXES = (["origin"], ["-u", "origin"], ["--set-upstream", "origin"])
+CLOUD_BRANCH = re.compile(r"claude/[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)*")
+
+
+def current_branch() -> str | None:
+    try:
+        out = subprocess.run(["git", "rev-parse", "--abbrev-ref", "HEAD"],
+                             capture_output=True, text=True, timeout=10)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return out.stdout.strip() if out.returncode == 0 else None
+
+
+def cloud_push_allowed(tokens) -> bool:
+    """True only for the exact opt-in cloud-session push (see the module docstring)."""
+    if os.environ.get("AGENT_KIT_CLOUD_PUSH") != "1" or os.environ.get("CLAUDE_CODE_REMOTE") != "true":
+        return False
+    if len(tokens) < 4 or tokens[0] != "git" or tokens[1] != "push":
+        return False
+    args = tokens[2:]
+    branch = args[-1]
+    if args[:-1] not in CLOUD_PUSH_PREFIXES:
+        return False
+    if not CLOUD_BRANCH.fullmatch(branch) or ".." in branch:
+        return False
+    return branch == current_branch()
+
+
 def check(sub: str, args) -> str | None:
     if "--no-verify" in args:
         return "Never skip git hooks (--no-verify). If a hook blocks you, fix the cause or ask the human."
@@ -135,6 +174,8 @@ def main() -> None:
             sys.exit(2)
         parts = git_parts(tokens)
         if not parts:
+            continue
+        if parts[0] == "push" and cloud_push_allowed(tokens):
             continue
         reason = check(*parts)
         if reason:

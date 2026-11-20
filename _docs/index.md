@@ -38,3 +38,4 @@ By file. Add project manifests here.
 | `_docs/decisions/169-kit-baseline.md` | Decision to find a no-manifest kit's baseline with `kit-baseline.py` and make its manifest by hand (#169) | Approved |
 | `_docs/decisions/182-doc-structure.md` | Decision to split the kit docs by purpose with one home per fact, and test the intended copies (#182) | Approved |
 | `_docs/decisions/172-github-repo-source.md` | Decision that the GitHub wrappers take the repository from `GITHUB_REPO` in `agent-kit.conf` and use `gh api` (#172) | Approved |
+| `_docs/decisions/196-kit-settings.md` | Decision that kit settings live in `agent-kit.conf`, read as text by one reader in the kit's scripts, with profiles; and that acceptance criteria are numbered `C<n>` with a `Check:` line (#196) | Approved 2026-11-20 |

@@ -25,6 +25,7 @@ Each doc opens with what it is for; the Reader column says who reads it. H is th
 | Set up or review a project with the kit | `setup.md` | A |
 | Know how work moves from idea to done | `process.md` | A |
 | Know what a project needs and when | `blueprints.md` | A |
+| Change a kit value for my project (a setting or a profile), or look up the grades | `customizing.md` | H, A |
 | Review a newer kit against my kit | `procedures/kit-import.md` | A |
 | Use one step of the process (verify, ask the human, plan, sweep) | `procedures/` | A |
 | Use Claude Code or OpenCode with the kit | `claude-code/START.md`, `opencode/START.md` | H, A |
@@ -54,10 +55,11 @@ _docs/agent-kit/
   setup.md           setup and review procedure (for agents)
   blueprints.md      what a project needs, and when
   process.md         lifecycle: planning, backlog, roles, verification, handover
+  customizing.md     kit settings, profiles and the grade vocabulary
   team/              pm.md, software-engineer.md, qa-engineer.md
   procedures/        verify.md, session-summary.md, asking-the-human.md, sweep.md, processes.md, permission-log.md, kit-import.md, orchestrator-comments.md, planning.md
   templates/         AGENTS.md, agent-kit.conf, Makefile (core and GitHub parts), task, human-task, session-summary, docs-index, starter-docs, roadmap, source, measurement, adr, runbook, CI workflow, and GitHub issue and pull request templates
-  scripts/           verify.sh, check-staged.sh, check-tier.sh, assert-clean.sh, install-hooks.sh, lib.sh, issue-*.sh, issue-hash.py and github_api.py (issue text and the `gh api` reads), scan-issue-body.sh, kit-check.py, kit-compare.py, kit-baseline.py, kit-feedback.py, kit-manifest.py, kit-map.py (kit and installed-file checks), check-claims.py, dup-report.py, sweep-due.py, permission-report.py, permission-logs-prune.py and helpers
+  scripts/           verify.sh, check-staged.sh, check-tier.sh, assert-clean.sh, install-hooks.sh, lib.sh, issue-*.sh, issue-hash.py and github_api.py (issue text and the `gh api` reads), scan-issue-body.sh, kit-check.py, kit-compare.py, kit-baseline.py, kit-feedback.py, kit-manifest.py, kit-map.py (kit and installed-file checks), check-claims.py, dup-report.py, sweep-due.py, settings.py (kit settings), permission-report.py, permission-logs-prune.py and helpers
   githooks/          pre-commit, pre-push and a Git LFS pass-through, installed at the repo root
   installed-files.txt  map of kit files installed outside the kit folder, and where
   releasing.md       cutting a release and building the kit zip (human only)

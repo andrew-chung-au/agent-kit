@@ -2,6 +2,14 @@
 
 What changed in each kit version, and what an existing project must do about it. Newest first. Reader: the human upgrading a project; the steps themselves are in `install-and-upgrade.md`.
 
+## Changes in 1.11
+
+Not released yet. Each entry says what was added or changed, and any behaviour change it makes.
+
+**Settings and vocabulary**
+- **Kit settings, profiles and the grade vocabulary** (`customizing.md`, `scripts/settings.py`, the `settings` target, `templates/agent-kit.conf.template`; #196): every kit value the 1.11 process uses is a setting with a kit default, changed by one `NAME=value` line in `agent-kit.conf` or set in groups by `PROFILE=solo|team|fleet`. `make settings` prints each value and where it comes from, and refuses unknown names, bad values and malformed lines with the line number. `customizing.md` lists the settings, the profiles and the Reasoning, Effort and Impact grades. Nothing reads the settings yet: each later 1.11 entry states any behaviour change its setting makes. Existing projects: no action needed. To get `make settings`, add the target from `templates/Makefile.mk`; to see the settings in your conf, copy the commented block at the end of the conf template. If your `agent-kit.conf` holds variables of your own, `make settings` refuses them by name until they move out.
+- **Numbered acceptance criteria** (`templates/task-template.md`, `team/pm.md`; #196): each criterion is written `- [ ] C<n>. <statement>` with an indented `Check:` line saying how it is verified, and keeps its id once the issue is approved. Existing projects: nothing; groom new issues with the new template.
+
 ## Changes in 1.10
 
 1.10 is the first release that ships a `MANIFEST.sha256` (see `releasing.md`), so a project can import it by `procedures/kit-import.md` and compare with `make kit-check`. Each change says what an existing project must do. A project last at 1.9 should do them all, in the order of the situation that fits in `install-and-upgrade.md` (situations 4 to 6).
