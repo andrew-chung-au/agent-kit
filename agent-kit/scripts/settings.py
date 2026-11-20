@@ -20,8 +20,10 @@ NAME=value, NAME="value" or NAME='value', with nothing after it but spaces or ta
 Comment lines, blank lines, indented lines and the existing conf names (KNOWN_CONF) are
 passed over unread. Refused, with the line number: an unknown name at the start of a
 line, an unknown profile, a value outside the allowed values (empty or wrong case
-included), the same setting or PROFILE written twice, anything after the value, and an
-indented or `export` assignment to a setting or PROFILE. A missing conf is refused too.
+included), the same setting or PROFILE written twice, anything after the value, a setting
+or PROFILE followed by = anywhere but its own line at column 1 (indented, after export,
+after another assignment or `;`, inside `if ... fi`), and a leading UTF-8 byte order mark.
+A missing conf is refused too.
 
 Output: PROFILE first, then one line per setting in table order,
     <NAME>=<value> (<source>)
@@ -89,10 +91,13 @@ NAMES = tuple(row[0] for row in SETTINGS)
 TABLE = {row[0]: row for row in SETTINGS}
 
 ASSIGNMENT = re.compile(r"([A-Za-z_][A-Za-z0-9_]*)(\+?=)(.*)", re.S)
-# An assignment bash would also apply but that does not start at column 1: indented, or
-# after export (or declare, typeset, readonly, local, with or without options).
-LOOSE_ASSIGNMENT = re.compile(r"[ \t]*(?:(?:export|declare|typeset|readonly|local)"
-                              r"(?:[ \t]+-[A-Za-z]+)*[ \t]+)?([A-Za-z_][A-Za-z0-9_]*)\+?=")
+# A setting name followed by = or += anywhere in a line. Outside a setting's own line at
+# column 1, bash (when lib.sh sources the conf) might apply it: indented, after export or
+# declare, after another assignment (`KIT_DIR=x LANES=5`), after `;`, inside `if ... fi`.
+# This reader does not parse bash, so any such line is refused, including some that bash
+# would not apply (an array element or a line inside a multi-line quoted value).
+ANYWHERE = re.compile(r"(?<![A-Za-z0-9_])(" + "|".join(re.escape(n) for n in NAMES) + r")\+?=")
+BOM = "﻿"
 VALUE = re.compile(r"(?:\"([^\"]*)\"|'([^']*)'|([^\s\"']*))([ \t]*)(.*)", re.S)
 WHOLE = re.compile(r"0|[1-9][0-9]*")
 
@@ -174,16 +179,23 @@ def scan(conf: Path, label: str) -> dict:
         raise SettingsError(f"{label}: not found (run from the folder that holds {CONF})")
     except (OSError, ValueError):
         raise SettingsError(f"{label}: cannot be read as UTF-8 text")
+    if text.startswith(BOM):
+        # bash reads the mark as part of the first word, so a first-line assignment would
+        # not apply there; refused rather than stripped, so the two readers never disagree.
+        raise SettingsError(f"{conf.name} line 1: starts with a UTF-8 byte order mark; save the file without one")
     found = {}
     for number, line in enumerate(text.split("\n"), 1):
         where = f"{conf.name} line {number}"
+        if line.lstrip(" \t").startswith("#"):
+            continue  # comment line: passed over
         match = ASSIGNMENT.match(line)
+        if match is None or match.group(1) not in TABLE:
+            elsewhere = ANYWHERE.search(line)
+            if elsewhere:
+                raise SettingsError(f"{where}: {elsewhere.group(1)} must be on a line of its own, at column 1 "
+                                    "as NAME=value (not indented, after export, or after other text)")
         if match is None:
-            loose = LOOSE_ASSIGNMENT.match(line)
-            if loose and loose.group(1) in TABLE:
-                raise SettingsError(f"{where}: {loose.group(1)} must start at column 1 as NAME=value, "
-                                    "not indented or after export")
-            continue  # comment, blank or indented line: passed over
+            continue  # blank or indented line: passed over
         name, operator, rest = match.groups()
         if name in KNOWN_CONF:
             continue

@@ -212,7 +212,10 @@ class DocTest(unittest.TestCase):
             "explained by the comments in `templates/agent-kit.conf.template`",
             "**A profile never stops you customizing.**",
             "the kit adds a setting only when there's evidence that projects need different values",
-            "When a setting is added, its default is the value the kit used before",
+            "When a setting is added, its default keeps what the kit did before, unless the human decides otherwise",
+            "Every default the human decides differently is listed under \"Defaults that differ from what the kit "
+            "does today\" above, and the issue that wires it announces the change in its changelog entry",
+            "The reader doesn't parse bash, so it is conservative",
             "`HEAVY_SECOND_QA=off` has no effect yet",
         ):
             self.assertIn(needle, self.flat, needle)
@@ -418,6 +421,37 @@ class RefusalTest(Fixture):
         for line in ("export LANES=2", "export PROFILE=team", "declare -x LANES=2", "\tQA_FAIL_AT=C"):
             with self.subTest(line=line):
                 self.assert_refused(f"{line}\n", 1, "column 1")
+
+    # Fix round (QA finding): lines bash would apply as a setting are refused, never passed over.
+    def test_setting_after_a_known_assignment(self):
+        self.assert_refused("KIT_DIR=x LANES=5\n", 1, "LANES must be on a line of its own")
+
+    def test_setting_after_a_semicolon(self):
+        self.assert_refused("# conf\nKIT_DIR=x; LANES=5\n", 2, "LANES must be on a line of its own")
+
+    def test_setting_after_another_export_name(self):
+        self.assert_refused("export X=1 LANES=2\n", 1, "LANES must be on a line of its own")
+
+    def test_setting_inside_if(self):
+        self.assert_refused("if true; then LANES=5; fi\n", 1, "LANES must be on a line of its own")
+
+    def test_profile_after_a_byte_order_mark(self):
+        self.assert_refused("﻿PROFILE=team\n", 1, "byte order mark")
+
+    def test_byte_order_mark_before_a_known_line(self):
+        self.assert_refused('﻿KIT_DIR="agent-kit"\n', 1, "byte order mark")
+
+    def test_setting_inside_an_array_is_refused_conservatively(self):
+        self.assert_refused("PROTECTED=( 'a'\n            LANES=2 )\n", 2, "LANES must be on a line of its own")
+
+    def test_a_setting_named_in_a_comment_is_passed_over(self):
+        found = self.values("# LANES=5\n  # export QA_FAIL_AT=C\nKIT_DIR=x\n")
+        self.assertEqual(found["LANES"], ("1", "kit default"))
+        self.assertEqual(found["QA_FAIL_AT"], ("M", "kit default"))
+
+    def test_known_lines_without_a_setting_are_still_passed_over(self):
+        found = self.values('KIT_DIR=x OTHER=1\nTEST_CMD="make test" ; true\nexport X=1 Y=2\n')
+        self.assertTrue(all(source == "kit default" for _, source in found.values()))
 
     def test_append_assignment(self):
         self.assert_refused("LANES+=2\n", 1, "not +=")
