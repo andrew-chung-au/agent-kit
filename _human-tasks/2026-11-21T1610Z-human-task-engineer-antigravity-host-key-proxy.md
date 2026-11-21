@@ -2,27 +2,35 @@
 
 ## Purpose
 
-**Status (2026-11-21): not run.** Give the dev container a way to reach Gemini without the key ever being inside it: a Caddy container joins the dev container's network namespace and adds the `x-goog-api-key` header in flight, so the container is told only a dummy key and `127.0.0.1:8787`. This is the setup step for `2026-11-21T1524Z-human-task-engineer-antigravity-live-checks.md`; run this one first, or that task stops at its step 3. Issue: none.
+**Status (2026-11-21): done, all four steps passed.** Give the dev container a way to reach Gemini without the key ever being inside it: a Caddy container joins the dev container's network namespace and adds the `x-goog-api-key` header in flight, so the container is told only a dummy key and `127.0.0.1:8787`. This is the setup step for `2026-11-21T1524Z-human-task-engineer-antigravity-live-checks.md`; run this one first, or that task stops at its step 3. Issue: none.
 
 The proxy has to be a container here. This dev container runs under Docker Desktop, so it sits in the Docker Desktop VM (`172.17.0.2`, gateway `172.17.0.1`) and `host.docker.internal` points at Windows (`192.168.65.254`), not at the WSL distro; a process in WSL is in a third network namespace that nothing in the VM can route to. A sibling container is the only place the dev container can reach that does not put the key inside it.
 
 ## Where to run it
 
-A WSL shell where `docker` reaches Docker Desktop, for steps 1 to 3; the dev container's own terminal for step 4. Press Ctrl-C first in the terminal that is still running `caddy run` from the earlier attempt: that process is replaced by the container, and the `~/bin/caddy` binary is no longer used.
+One command in the dev container for pre-check 1, a WSL shell where `docker` reaches Docker Desktop for pre-check 2 and steps 1 to 3, and the dev container's own terminal again for step 4. Press Ctrl-C first in the terminal that is still running `caddy run` from the earlier attempt: that process is replaced by the container, and the `~/bin/caddy` binary is no longer used.
 
 Not here: a CodeBuddy or Claude Code session, in either place. The key is typed into a WSL shell once, and an agent must never be the thing that types it.
 
 ## Before you start
 
-1. Find the dev container's name, which step 2 needs.
+1. In the dev container, read its container id, which pre-check 2 matches against.
 
 ```
-docker ps --format '{{.Names}}'
+hostname
 ```
 
-Expected: one name per running container, one of them for this workspace. Write that name down. If different: if the list is empty, the dev container is not running; start it and repeat.
+Expected: twelve hex characters. Write them down. If different: if it is a word rather than hex, this is not the container the recipe built; stop.
 
-2. Confirm the config from the earlier attempt is still there.
+2. In the WSL shell, find that container's name, which step 2 needs.
+
+```
+docker ps --format '{{.Names}} {{.ID}}'
+```
+
+Expected: one line per running container, and one of them carries the id from pre-check 1; the name on that line is the one step 2 uses. Write it down. If different: if no line carries that id, this `docker` is talking to a different engine than the one running the dev container; stop and report that.
+
+3. Confirm the config from the earlier attempt is still there.
 
 ```
 ls ~/gemini-proxy.Caddyfile
@@ -44,11 +52,11 @@ If different: if the shell rejects the line, the key holds a character the shell
 ### Step 2: Start the proxy beside the dev container
 
 ```
-docker run -d --name gemini-proxy --network container:<name> -e GEMINI_KEY -v ~/gemini-proxy.Caddyfile:/etc/caddy/Caddyfile:ro caddy
+docker run -d --name gemini-proxy --network container:devcontainer -e GEMINI_KEY -v ~/gemini-proxy.Caddyfile:/etc/caddy/Caddyfile:ro caddy
 ```
 
-Expected: one long container id, and on the first run a short `Unable to find image ... locally` followed by the pull. Replace `<name>` with the name from the pre-check; the `container:` form puts the proxy in the dev container's network namespace, so it listens on `127.0.0.1:8787` there and nowhere else.
-If different: `No such container` means the name in `container:` is wrong or that container stopped; `invalid reference format` means the `-v` path was mangled; a mount error mentioning the file means Docker cannot read it from WSL, and that is worth recording before trying another way.
+Expected: one long container id, and on the first run a short `Unable to find image ... locally` followed by the pull. Replace `devcontainer` with the name from pre-check 2, as a plain word: an angle bracket in that position is read by the shell as a redirect, which is why it must not be used. The `container:` form puts the proxy in the dev container's network namespace, so it listens on `127.0.0.1:8787` there and nowhere else.
+If different: `No such container: devcontainer` means the name was not replaced, or that container stopped; `invalid reference format` means the `-v` path was mangled; a mount error mentioning the file means Docker cannot read it from WSL, and that is worth recording before trying another way.
 
 ### Step 3: Confirm the proxy is serving
 
@@ -72,14 +80,16 @@ If different: `401` or `403` means the proxy is up but the key is missing or wro
 
 ## Record the result
 
-**Status (2026-11-21): not run.** Fill the table and commit this file with the result. Results contain no secrets either: the status code, not the response body.
+**Status (2026-11-21): run, all four steps passed.** Run by the repository owner in the WSL shell and this dev container. Results contain no secrets: the status code, not the response body.
 
 | Step | Pass or fail | Output or note |
 |---|---|---|
-| 1 | | |
-| 2 | | |
-| 3 | | |
-| 4 | | |
+| 1 | pass | no output; the variable was still exported from the earlier attempt |
+| 2 | pass | pulled `caddy:latest` (`sha256:4851e54a…`), started `551cdc1e9762…` on `--network container:happy_cori` |
+| 3 | pass | last line `serving initial configuration`, `addr: ":8787"` |
+| 4 | pass | `200` from `http://127.0.0.1:8787/v1beta/models` |
+
+The pre-checks also passed: `hostname` printed the id that `docker ps` matched to `happy_cori`, and `~/gemini-proxy.Caddyfile` was present from the earlier attempt. Two failures came first and are worth keeping: `--network container:<name>` was read by bash as a redirect, which is why the step now uses a plain word, and the earlier host-side Caddy in WSL was unreachable from this container at both `host.docker.internal` and `172.17.0.1`, which is why the proxy is a container.
 
 ## Risk
 
