@@ -2,10 +2,12 @@
 set -euo pipefail
 export PATH="$HOME/.local/bin:$HOME/.opencode/bin:$PATH"
 
-# The Claude volume starts out owned by root; hand it to the container user
-if [ -d "$HOME/.claude" ]; then
-  sudo chown -R "$(id -u):$(id -g)" "$HOME/.claude"
-fi
+# Mounted volumes start out owned by root; hand them to the container user
+for dir in "$HOME/.claude" "$HOME/.codebuddy"; do
+  if [ -d "$dir" ]; then
+    sudo chown -R "$(id -u):$(id -g)" "$dir"
+  fi
+done
 
 if ! command -v make >/dev/null; then
   sudo apt-get update && sudo apt-get install -y make
