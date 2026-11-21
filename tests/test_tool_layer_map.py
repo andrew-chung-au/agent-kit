@@ -1,7 +1,7 @@
 """The installed-file map covers the files the tool layers copy into projects (issue #170).
 
-opencode/START.md and claude-code/START.md tell the human to copy some kit files as they are
-(role definitions, the sweep skill, the permission-log plugin). Each has a line in
+opencode/START.md, claude-code/START.md and codebuddy/START.md tell the human to copy some kit
+files as they are (role definitions, the sweep skill, the permission-log plugin). Each has a line in
 agent-kit/installed-files.txt with the rule `optional`, so `make kit-check` reports a stale copy as
 `drift` and a copy the project never installed as `not installed (optional)`, not as a failure.
 Files that are merged rather than copied are not on the map.
@@ -29,8 +29,10 @@ _spec = importlib.util.spec_from_file_location("kit_map", MAP_SCRIPT)
 kit_map = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(kit_map)
 
-LAYERS = {"opencode": "opencode/START.md", "claude-code": "claude-code/START.md"}
-MERGED = ("opencode.json", ".claude/settings.json", "CLAUDE.md")
+LAYERS = {"opencode": "opencode/START.md", "claude-code": "claude-code/START.md",
+          "codebuddy": "codebuddy/START.md"}
+TOOL_DIRS = (".opencode/", ".claude/", ".codebuddy/")
+MERGED = ("opencode.json", ".claude/settings.json", "CLAUDE.md", ".codebuddy/settings.json")
 OLD_PLUGIN = "// V1 plugin: OpenCode 2.2.5 refuses to load this one\nexport default { name: 'permission-log' }\n"
 
 
@@ -41,9 +43,11 @@ def start_rows(layer: str):
         cells = [c.strip() for c in line.strip().strip("|").split("|")]
         if not line.startswith("| `") or len(cells) != 3:
             continue
+        if not cells[1].startswith("`"):
+            continue  # "Merged into ..." or "Runs in place ...": not a copy
         installed = re.match(r"`([^`]+)`", cells[1])
-        if not installed or not installed.group(1).startswith((".opencode/", ".claude/")):
-            continue  # merged, run in place or placed outside a tool folder: not a copy
+        if not installed or not installed.group(1).startswith(TOOL_DIRS):
+            continue  # placed outside a tool folder: not a copy
         for name in re.findall(r"`([^`]+)`", cells[0]):
             target = installed.group(1)
             if target.endswith("/"):
@@ -64,7 +68,7 @@ class MapCoversTheStartFilesTest(unittest.TestCase):
     def test_every_file_a_start_file_says_to_copy_has_a_map_line(self):
         # The two cannot drift apart: a new row in a START table with no map line fails here.
         rows = [row for layer in LAYERS for row in start_rows(layer)]
-        self.assertGreaterEqual(len(rows), 9, rows)  # 3 agents + sweep + plugin, 3 agents + sweep
+        self.assertGreaterEqual(len(rows), 13, rows)  # 3 agents + sweep + plugin, 3 agents + sweep, 3 agents + sweep
         for source, install in rows:
             with self.subTest(source=source, install=install):
                 self.assertIn((source, install), self.entries, "a START file copies it; the map has no line")
@@ -81,18 +85,22 @@ class MapCoversTheStartFilesTest(unittest.TestCase):
             ("claude-code/agents/qa-engineer.md", ".claude/agents/qa-engineer.md"),
             ("claude-code/agents/software-engineer.md", ".claude/agents/software-engineer.md"),
             ("claude-code/skills/sweep/SKILL.md", ".claude/skills/sweep/SKILL.md"),
+            ("codebuddy/agents/pm.md", ".codebuddy/agents/pm.md"),
+            ("codebuddy/agents/qa-engineer.md", ".codebuddy/agents/qa-engineer.md"),
+            ("codebuddy/agents/software-engineer.md", ".codebuddy/agents/software-engineer.md"),
+            ("codebuddy/skills/sweep/SKILL.md", ".codebuddy/skills/sweep/SKILL.md"),
         ]))
 
     def test_every_tool_layer_map_line_is_a_start_row(self):
         rows = {row for layer in LAYERS for row in start_rows(layer)}
         for (source, install), entry in self.entries.items():
-            if install.startswith((".opencode/", ".claude/")):
+            if install.startswith(TOOL_DIRS):
                 with self.subTest(install=install):
                     self.assertIn((source, install), rows, "a map line no START file asks for")
 
     def test_tool_layer_lines_are_repo_entries_with_the_optional_rule_and_a_real_source(self):
         for (source, install), entry in self.entries.items():
-            if install.startswith((".opencode/", ".claude/")):
+            if install.startswith(TOOL_DIRS):
                 with self.subTest(install=install):
                     self.assertEqual((entry.kind, entry.allowed), ("repo", "optional"))
                     self.assertTrue((KIT / source).is_file(), source)
@@ -103,7 +111,8 @@ class MapCoversTheStartFilesTest(unittest.TestCase):
             with self.subTest(path=path):
                 self.assertNotIn(path, installs)
         sources = [source for source, _ in self.entries]
-        for source in ("opencode/opencode.json", "claude-code/settings.json", "claude-code/CLAUDE.md.template"):
+        for source in ("opencode/opencode.json", "claude-code/settings.json", "claude-code/CLAUDE.md.template",
+                       "codebuddy/settings.json"):
             self.assertNotIn(source, sources)
 
     def test_the_existing_lines_are_unchanged(self):
@@ -138,7 +147,7 @@ class ProjectScanTest(unittest.TestCase):
         """The scan's lines for the tool-layer entries only."""
         reports = kit_map.scan_installed(KIT, self.project)
         return {r.install: line for r, line in zip(reports, kit_map.report_lines(reports))
-                if r.install.startswith((".opencode/", ".claude/"))}
+                if r.install.startswith(TOOL_DIRS)}
 
     def test_a_v1_permission_log_plugin_is_drift_not_unchanged(self):
         # The case that motivated #170: a project's old plugin against the current map.

@@ -3,8 +3,8 @@
 The copies and their rules are listed in `agent-kit/README.md`, "Intended copies";
 this test is the check that `make test` runs for each one. It compares the AGENTS.md
 shared block, the pull request template, `CLAUDE.md`, the docs index and the sweep
-skill. The role copies differ by design in this repo, so it compares them after the
-two named rewrites.
+skills (Claude Code, OpenCode and CodeBuddy). The role copies differ by design in this
+repo, so it compares them after the two named rewrites.
 """
 from __future__ import annotations
 
@@ -75,6 +75,12 @@ class IntendedCopiesTest(unittest.TestCase):
         self.assertIn("disable-model-invocation: true\n", claude)
         self.assertNotIn("disable-model-invocation", opencode)
         self.assertEqual(claude.replace("disable-model-invocation: true\n", ""), opencode)
+
+    def test_the_codebuddy_sweep_skill_matches_the_claude_one(self):
+        # Both keep the sweep manual; only the pointer's tool name could drift.
+        claude = (KIT / "claude-code" / "skills" / "sweep" / "SKILL.md").read_text(encoding="utf-8")
+        codebuddy = (KIT / "codebuddy" / "skills" / "sweep" / "SKILL.md").read_text(encoding="utf-8")
+        self.assertEqual(codebuddy, claude)
 
     def test_the_docs_index_keeps_the_headings_of_its_template(self):
         copy = headings((REPO / "_docs" / "index.md").read_text(encoding="utf-8"))

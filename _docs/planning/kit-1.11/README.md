@@ -18,9 +18,9 @@
 - **Related open issues, unlabelled:** issue #188 (push-check uv stub; until fixed, `unset AGENT_PUSH_CHECK_IMAGE` before pushing the kit), issue #191 (usage visibility; later), issue #192 (install-guide wording), issue #193 (tests that share `.scratch/`; all four files, approved scope).
 - **Tool economics** shape the design: Claude Code has a five-hour window and is the only tool with a model step-up (`STEP_UP`); OpenCode runs free models; Kiro has month credits and its auto model is cheaper than a named one.
 
-## CodeBuddy (in progress)
+## CodeBuddy
 
-Decided on 2026-11-21, before writing a layer; the live spike ran the same day on CodeBuddy 2.185.0.
+Decided on 2026-11-21; the live spike ran the same day on CodeBuddy 2.185.0, and the layer was written from those results the same day.
 
 - `AGENTS.md` is the single always-loaded core-rules home. CodeBuddy loads a folder's `AGENTS.md` when that folder has no `CODEBUDDY.md`, and a parent `CODEBUDDY.md` does not shadow a child `AGENTS.md`; the kit adds no `CODEBUDDY.md`. Project rules, if used, live at `.codebuddy/rules/<name>/RULE.mdc`; use Agent Requested (`alwaysApply: false` plus a description) rather than the undocumented `paths` key.
 - No model swapping in CodeBuddy, as in OpenCode and Kiro: `STEP_UP` stays Claude-only, and a step-up attempt notes that no escalated model is configured (3.5).
@@ -37,4 +37,4 @@ Live spike results (2026-11-21, CodeBuddy 2.185.0; steps and observations in `_h
 - **Parent discovery:** with the default, a parent `CODEBUDDY.md` and the child `AGENTS.md` both load, plus a grandparent `AGENTS.md`; in the parent folder itself, `CODEBUDDY.md` shadows the parent's `AGENTS.md`. `memory.parentDiscovery: false` loads only the child `AGENTS.md`.
 - **Not covered:** model selection and the status line.
 
-The settings template can now be written from these results. Keep `AGENTS.md` as the single core-rules home and add no `CODEBUDDY.md`; use the colon permission form, the guard with `|| exit 2`, and `memory.parentDiscovery: false` for monorepos. Do not enable `allowUntrustedFrontmatterHooks` globally.
+The layer is written from these results: `codebuddy/START.md`, `codebuddy/settings.json`, the three agent files and the sweep skill. Keep `AGENTS.md` as the single core-rules home and add no `CODEBUDDY.md`; use the colon permission form, the guard with `|| exit 2`, and `memory.parentDiscovery: false` for monorepos. Do not enable `allowUntrustedFrontmatterHooks` globally. `memory.parentDiscovery` ships commented out, because the default suits every project that is not a monorepo and the setting only narrows what loads.

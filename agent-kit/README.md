@@ -28,7 +28,7 @@ Each doc opens with what it is for; the Reader column says who reads it. H is th
 | Change a kit value for my project (a setting or a profile), or look up the grades | `customizing.md` | H, A |
 | Review a newer kit against my kit | `procedures/kit-import.md` | A |
 | Use one step of the process (verify, ask the human, plan, sweep) | `procedures/` | A |
-| Use Claude Code or OpenCode with the kit | `claude-code/START.md`, `opencode/START.md` | H, A |
+| Use Claude Code, OpenCode or CodeBuddy with the kit | `claude-code/START.md`, `opencode/START.md`, `codebuddy/START.md` | H, A |
 
 ## How the controls work
 
@@ -70,10 +70,11 @@ _docs/agent-kit/
   environments/      local-sandbox/: README (setup and reference), push check, push-check image, dev container recipe, Compose variant (reference copies)
   claude-code/       optional Claude Code layer: START.md, role definitions, sweep skill, hooks, settings
   opencode/          optional OpenCode layer: START.md, role definitions, sweep skill, permission settings, permission log plugin
+  codebuddy/         optional CodeBuddy layer: START.md, role definitions, sweep skill, permission settings (runs the shared git guard)
 ```
 
 **Two choices per project.** The core kit is the same everywhere; two things vary:
-- **Which agent tool.** A tool layer adds that tool's own enforcement on top of the core kit. `claude-code/START.md` adds role definitions, a hook that blocks forbidden git commands before they run, a hook that won't let the Engineer finish while `make verify` fails, and permission rules. `opencode/START.md` adds role definitions and permission rules. Setup installs the layer for the tool you use.
+- **Which agent tool.** A tool layer adds that tool's own enforcement on top of the core kit. `claude-code/START.md` adds role definitions, a hook that blocks forbidden git commands before they run, a hook that won't let the Engineer finish while `make verify` fails, and permission rules. `opencode/START.md` adds role definitions and permission rules. `codebuddy/START.md` adds role definitions, a manual sweep skill, permission rules and the same git guard as Claude Code. Setup installs the layer for the tool you use.
 - **Where agents run.** `environments.md` describes the three profiles: where the agent works, where the kit's hooks are active, where you review and push, and what checks a push. Read it before setting up a local sandbox.
 
 ## Installing and upgrading
@@ -105,7 +106,7 @@ The kit's files are protected in every project, so changes need your approval. I
 
 **Installed files.** `installed-files.txt` lists each kit file that is installed outside the kit folder, where it goes, whether it is a `repo` file or a `human-machine` file (the push check), and what a local copy may differ in. In a project:
 - `make kit-check` reads the map, read-only, and reports each `repo` entry as `unchanged`, `local, ignored` (it differs only where the map allows), `drift` or `missing`. A `human-machine` entry is only named ("not checked here"); no sandbox tool opens that path. A map entry the parser rejects stops the check with the parser's message.
-- The tool layers' copied files (`.opencode/agents/`, `.opencode/skills/sweep/SKILL.md`, `.opencode/plugins/permission-log.js`, `.claude/agents/` and `.claude/skills/sweep/SKILL.md`) are on the map with the rule `optional`: a project may use one tool, both or neither, and the permission log is optional. A file that is not installed reads `not installed (optional)` and is not a failure; one that is installed must match exactly, so an old copy is `drift`. The files that are merged rather than copied (`opencode.json`, `.claude/settings.json`, `CLAUDE.md`) are not on the map: they differ by project, so `make kit-check` does not compare them; review them at an import.
+- The tool layers' copied files (`.opencode/agents/`, `.opencode/skills/sweep/SKILL.md`, `.opencode/plugins/permission-log.js`, `.claude/agents/`, `.claude/skills/sweep/SKILL.md`, `.codebuddy/agents/` and `.codebuddy/skills/sweep/SKILL.md`) are on the map with the rule `optional`: a project may use one tool, several or none, and the permission log is optional. A file that is not installed reads `not installed (optional)` and is not a failure; one that is installed must match exactly, so an old copy is `drift`. The files that are merged rather than copied (`opencode.json`, `.claude/settings.json`, `CLAUDE.md`, `.codebuddy/settings.json`) are not on the map: they differ by project, so `make kit-check` does not compare them; review them at an import.
 - The forward import has an installed-files step, step 7 of `procedures/kit-import.md`.
 - The reverse import can write a feedback bundle of a project's changed installed and kit files: `make kit-feedback PROJECT=<project root> KIT=<reference kit>` (read-only, writes only under `.scratch/`).
 - No agent copies an installed file. You do, from a clean clone. To compare the installed push check, follow "Comparing the installed push check (human only)" in `environments/local-sandbox/README.md`.
@@ -119,6 +120,7 @@ The kit's files are protected in every project, so changes need your approval. I
 | `.github/pull_request_template.md` | `templates/github/pull_request_template.md` | Byte for byte |
 | `CLAUDE.md` | `claude-code/CLAUDE.md.template` | Byte for byte in this repo. A project merges it rather than copying it, so it is off `installed-files.txt` and is reviewed at an import |
 | `claude-code/skills/sweep/SKILL.md` | `opencode/skills/sweep/SKILL.md` | Equal, apart from Claude Code's `disable-model-invocation: true` front-matter line, which the OpenCode copy leaves out |
+| `codebuddy/skills/sweep/SKILL.md` | `claude-code/skills/sweep/SKILL.md` | Equal: CodeBuddy also keeps the sweep manual with `disable-model-invocation: true` |
 | `_docs/index.md` | `templates/docs-index.md` | Instantiated once, then filled in with this project's tables, so only its section headings are compared; `tests/test_human_task.py` keeps the human-task entry type in both |
 
 `_human-tasks/*` reuse the boilerplate in `templates/human-task.md`, but they are dated records, not copies, so no check polices them.
@@ -129,4 +131,4 @@ The git hooks carry their own version number. `make hooks` upgrades an older ins
 
 ## Tool-native enforcement
 
-Tools with their own hooks or permission systems can enforce the rules harder than instructions can. For Claude Code, that's the `claude-code/` layer. For other tools, follow the same pattern: keep the configuration in the tool's own folder, have it call the kit's scripts and `make` targets, and keep `AGENTS.md` and this kit as the source of truth.
+Tools with their own hooks or permission systems can enforce the rules harder than instructions can. For Claude Code, that's the `claude-code/` layer; for OpenCode, `opencode/`; for CodeBuddy, `codebuddy/`. For other tools, follow the same pattern: keep the configuration in the tool's own folder, have it call the kit's scripts and `make` targets, and keep `AGENTS.md` and this kit as the source of truth.
