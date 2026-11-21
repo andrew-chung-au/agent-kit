@@ -47,8 +47,10 @@ Paste the output or write pass or fail for each step. Commit this file with the 
 
 | Step | Pass or fail | Output or note |
 |---|---|---|
-| 1 | | |
-| 2 | | |
+| 1 | pass | Done by the human; reported in session on 2026-11-21 ("the label is already created"). |
+| 2 | pass | Not separately recorded; the human confirmed the label exists. |
+
+**Status: done (2026-11-21).**
 
 ## Risk
 
