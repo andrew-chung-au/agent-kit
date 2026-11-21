@@ -21,6 +21,16 @@ clean-scratch: ## Empty .scratch/ at the end of an issue (refuses while a starte
 	@for f in .scratch/*.pid; do if [ -f "$$f" ] && kill -0 "$$(cat "$$f")" 2>/dev/null; then echo "$$f: process $$(cat "$$f") is still running; stop it first"; exit 1; fi; done
 	@mkdir -p .scratch && find .scratch -mindepth 1 -delete && echo ".scratch/ is now empty"
 
+# settings reads agent-kit.conf as text through scripts/settings.py (never sources it)
+# and takes one optional variable, N: with it, the target checks N as issue-hash does,
+# writes the issue's dump as issue-dump does (needs gh) and reads that issue's override
+# and session rulings too. What each setting does: customizing.md in the kit folder.
+settings: ## Print each kit setting with its value and where it comes from, for one issue with N (see _docs/agent-kit/customizing.md): make settings [N=<issue number>]
+	$(if $(value N),$(if $(call issue-number-ok,$(value N)),,$(error Usage: make settings [N=<issue number>])))
+	$(if $(value N),@mkdir -p .scratch)
+	$(if $(value N),@if python3 -B _docs/agent-kit/scripts/github_api.py dump "$(N)" > ".scratch/issue-$(N).json.tmp" 2>/dev/null && python3 -B -m json.tool ".scratch/issue-$(N).json.tmp" > /dev/null 2>&1; then mv ".scratch/issue-$(N).json.tmp" ".scratch/issue-$(N).json"; else rm -f ".scratch/issue-$(N).json.tmp"; echo "settings: gh could not return valid JSON for issue $(N)" >&2; exit 1; fi)
+	@python3 -B _docs/agent-kit/scripts/settings.py $(if $(value N),"$(N)")
+
 # tool-versions prints one line per tool: "<tool>: <its first --version line>" or
 # "<tool>: missing". The list is fixed in the recipe and no variable is pasted
 # into the shell. To add a tool, give the project section below its own

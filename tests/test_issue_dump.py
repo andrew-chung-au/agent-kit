@@ -27,9 +27,13 @@ MAKEFILES = {"repo Makefile": REPO / "Makefile", "template Makefile.mk": TEMPLAT
 DUMP_REPO = "example-org/example-repo"  # the GITHUB_REPO written into each throwaway run folder
 KIT_SCRIPTS = REPO / "agent-kit" / "scripts"
 USAGE = "Usage: make issue-dump N=<issue number>"
-FIELDS = "number,title,body,state,labels,author,comments"
+FIELDS = "number,title,body,state,labels,author,comments,repositoryOwner"
 ISSUE = {"number": 27, "title": "T", "body": "B", "state": "OPEN", "labels": [{"name": "approved"}],
          "author": {"login": "me"}, "comments": [{"author": {"login": "me"}, "body": "c"}]}
+OWNER = "repo-owner"
+# Issue #197: the dump adds the repository owner, from the same `gh api repos/<repo>` read.
+DUMPED = {**ISSUE, "repositoryOwner": {"login": OWNER}}
+REPO_VIEW = {"stdout": json.dumps({"owner": {"login": OWNER, "id": 1}, "name": "example-repo"})}
 
 REFUSED = [
     "", "0", "007", "-1", "--help", "1e3", "1.5", "1 2", "1234567890", ".scratch/x", "../1",
@@ -59,6 +63,7 @@ class Case(unittest.TestCase):
             config = {"issue_view": {"stdout": ""}}
         else:
             config = rest_config(reply if reply is not None else json.dumps(ISSUE))
+            config["repo_view"] = REPO_VIEW
         (self.bin / "config.json").write_text(json.dumps(config), encoding="utf-8")
 
     def calls(self):
@@ -100,10 +105,35 @@ class SuccessTest(Case):
             self.assertEqual(done.stdout.strip(), ".scratch/issue-27.json")
             self.assertEqual(self.dumps(), ["issue-27.json"])
             data = json.loads((self.run_dir / ".scratch" / "issue-27.json").read_text())
-            self.assertEqual(data, ISSUE)
+            self.assertEqual(data, DUMPED)
             self.assertEqual(sorted(data), sorted(FIELDS.split(",")))
             self.assertEqual(self.calls(), [f"api repos/{DUMP_REPO}/issues/27",
-                                            f"api repos/{DUMP_REPO}/issues/27/comments?per_page=100&page=1"])
+                                            f"api repos/{DUMP_REPO}/issues/27/comments?per_page=100&page=1",
+                                            f"api repos/{DUMP_REPO}"])
+
+    def test_issue_and_head_outputs_have_no_repository_owner(self):
+        """#197 C2: only `dump` adds repositoryOwner; `issue` and `head` are unchanged."""
+        env = self.env()
+        for command in ("issue", "head"):
+            with self.subTest(command=command):
+                done = subprocess.run(["python3", "-B", str(KIT_SCRIPTS / "github_api.py"), command, DUMP_REPO, "27"],
+                                      env=env, capture_output=True, text=True, cwd=self.run_dir)
+                self.assertEqual(done.returncode, 0, done.stderr)
+                data = json.loads(done.stdout)
+                self.assertNotIn("repositoryOwner", data)
+                self.assertEqual(data["number"], 27)
+
+    def test_an_unreadable_owner_fails_the_dump(self):
+        for makefile in self.each_makefile():
+            for reply in ({"stdout": "{}"}, {"stdout": json.dumps({"owner": None})}, {"exit": 1}):
+                with self.subTest(reply=reply):
+                    config = json.loads((self.bin / "config.json").read_text())
+                    config["repo_view"] = reply
+                    (self.bin / "config.json").write_text(json.dumps(config))
+                    done = self.make(makefile, "N=27")
+                    self.assertNotEqual(done.returncode, 0)
+                    self.assertIn("issue-dump: gh could not return valid JSON for issue 27", done.stderr)
+                    self.assertEqual(self.dumps(), [])
 
     def test_nine_digits_accepted(self):
         for makefile in self.each_makefile():
@@ -117,7 +147,7 @@ class SuccessTest(Case):
             (self.run_dir / ".scratch" / "issue-27.json").write_text('{"old": true}')
             done = self.make(makefile, "N=27")
             self.assertEqual(done.returncode, 0, done.stderr)
-            self.assertEqual(json.loads((self.run_dir / ".scratch" / "issue-27.json").read_text()), ISSUE)
+            self.assertEqual(json.loads((self.run_dir / ".scratch" / "issue-27.json").read_text()), DUMPED)
             self.assertEqual(self.dumps(), ["issue-27.json"])
 
     def test_leading_space_is_dropped_by_make_itself(self):
@@ -128,7 +158,8 @@ class SuccessTest(Case):
             self.assertEqual(done.returncode, 0, done.stderr)
             self.assertEqual(self.dumps(), ["issue-1.json"])
             self.assertEqual(self.calls(), [f"api repos/{DUMP_REPO}/issues/1",
-                                            f"api repos/{DUMP_REPO}/issues/1/comments?per_page=100&page=1"])
+                                            f"api repos/{DUMP_REPO}/issues/1/comments?per_page=100&page=1",
+                                            f"api repos/{DUMP_REPO}"])
 
 
 class RefusedTest(Case):

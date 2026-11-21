@@ -1,0 +1,24 @@
+# Decision: issue overrides and session rulings are two more levels of `read_settings`, read from the issue dump, inside bounds no level can cross; waivers are recorded in the same layout
+
+Issue #197 (Heavy). The human approved this record with the groomed body (2026-11-20; `approved` label covering body sha256 `a6d7248934436005d75413a6ab1d546d705badb3bfe03fc038bdb52d1d855bc2`, Orchestrator Claim comment on #197). Copied here from the issue body's `## Decision record`.
+
+- **Decision:** `read_settings(conf_path, issue_path=None)` adds the issue override (an `Overrides:` body line, applied only with the human's `overrides` label and covered by the approved body hash) and the session ruling (a `Ruling: NAME=value` line in an owner `Orchestrator: Ruling` comment with a `Human ruled:` date), in that order above the project line. It reads the issue from the JSON `make issue-dump` writes, with the repository owner added to the dump, and starts no process. A `BOUNDS` table refuses values that would cross a bound at those two levels (today `HEAVY_SECOND_QA=off`); `PROFILE` and every name that isn't a setting are refused there. The same ruling comment may hold `Waiver: <gate> - <reason>` lines for the gates the project's `WAIVABLE_GATES` setting allows (a project line only; default both QA gates, and its allowed values can name no other gate); `read_rulings` parses and checks them, and nothing acts on them until #218. `make settings N=<n>` shows all five levels and runs before each Engineer and QA launch.
+- **Reason:** values that change often ("decision budget 8 while I'm away") shouldn't need a protected-file commit, but must be visible, scoped to one issue, and unable to lower QA or loosen a security rule (proposal 4.1). Reusing #196's reader keeps one parser and one refusal form; reading a file keeps #196's "no process" guarantee. Checking `Waiver:` lines here, in the one parser, means a mistyped or forbidden waiver is refused at the next launch, and the closing gate later imports the parser instead of growing a second one.
+- **Alternatives:**
+  - The reader calls `gh` itself: rejected, it breaks #196's C8 (no process) and makes the reader depend on the network.
+  - Take the owner from the `GITHUB_REPO` line in the conf: rejected, a renamed account or a case difference would silently drop every ruling; the dump records the owner from the same read the hash rule uses.
+  - Bounds as prose only: rejected, a bound nobody enforces is not a bound.
+  - Refuse `HEAVY_SECOND_QA=off` only on Heavy issues: rejected (human's answer 3), the reader would need the effective tier (labels plus the PM's proposal for the approved hash), and `off` does nothing anywhere yet; refusing it on every issue is simpler and stricter.
+  - Rulings in any owner `Orchestrator:` comment: rejected, a Claim or Close comment quoting a ruling would apply it again; a fixed first line and a date make a ruling a deliberate record.
+  - Drop the `overrides` label and rely on the body hash: rejected (human's answer 5); the label is a second deliberate act and shows overrides in the issue list.
+  - Waivers in this issue end to end, `issue-close.sh` included: rejected (human's answer 2); closing with a waived gate is a second intent and moved to #218.
+  - Leave `Waiver:` lines unparsed until #218: rejected, a waiver written in the meantime would go unchecked, and the layout would change twice.
+  - A fixed `WAIVABLE` tuple in `settings.py`: rejected (human's answer 7), which gates a project lets the human waive is a policy choice that belongs in `agent-kit.conf`; only the gates the kit can act on are fixed, as the setting's allowed values.
+  - `WAIVABLE_GATES` settable per issue: rejected, the ruling comment that records a waiver could then widen the list it is checked against.
+- **Trade-offs:**
+  - `make settings N=<n>` needs `gh` to refresh the dump; without it the launch stops.
+  - The reader trusts the dump; an edited ruling comment keeps its `createdAt`, and GitHub's edit history isn't read.
+  - All roles share the owner's account, so the owner rule stops other people's comments, not a role writing a ruling the human didn't give; the process rule ("only what the human said in the session") and the human's reading enforce that.
+  - An example `Overrides:` line in an issue body must sit inside a sentence in backticks, or the reader takes it (column 1) or refuses it (a bullet or indented line).
+  - Until #218 lands, a valid `Waiver:` line is a checked record only; the human still closes a waived issue by hand.
+- **Evidence:** #197 and its grooming comment (the human's answers of 2026-11-20); #196 (Decision record, `_docs/decisions/196-kit-settings.md`, the two `Orchestrator:` ruling comments); proposal `_docs/planning/kit-1.11/workflow-review.md` sections 3.3, 4.1 and 12; `_docs/records/findings/196.json` (F-196-3).

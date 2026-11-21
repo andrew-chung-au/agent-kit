@@ -24,7 +24,8 @@ numbers, never from issue text:
 Command line (used by the wrappers; the JSON has the field names `gh issue view --json`
 used to give, so the checks that read it did not change):
     github_api.py repo                 print the validated repository
-    github_api.py dump N               the issue with its comments, from the repository in the conf
+    github_api.py dump N               the issue with its comments, from the repository in the conf,
+                                       plus "repositoryOwner": {"login": ...}
     github_api.py issue REPO N         the issue with every comment (state, labels, author, comments ...)
     github_api.py head REPO N          the same without the comments
     github_api.py owner REPO           {"owner": {"login": ...}}
@@ -175,6 +176,18 @@ def owner(repo: str) -> dict:
     return {"owner": login_of(data["owner"])} if "owner" in data else {}
 
 
+def dump(repo: str, number: str) -> dict:
+    """The issue with every comment, plus "repositoryOwner": {"login": ...} from the same
+    `gh api repos/<repo>` read owner() makes, so settings.py can tell the owner's comments
+    from others' without a network call. ValueError if the owner can't be read."""
+    data = issue(repo, number)
+    person = owner(repo).get("owner")
+    if not isinstance(person, dict) or not isinstance(person.get("login"), str) or not person["login"]:
+        raise ValueError("cannot read the repository owner")
+    data["repositoryOwner"] = {"login": person["login"]}
+    return data
+
+
 def main(argv=None) -> int:
     args = sys.argv[1:] if argv is None else list(argv)
     try:
@@ -182,7 +195,7 @@ def main(argv=None) -> int:
             print(conf_repo())
             return 0
         if len(args) == 2 and args[0] == "dump":
-            print(json.dumps(issue(conf_repo(), args[1])))
+            print(json.dumps(dump(conf_repo(), args[1])))
             return 0
         if len(args) == 3 and args[0] in ("issue", "head"):
             print(json.dumps((issue if args[0] == "issue" else head)(args[1], args[2])))

@@ -1,0 +1,45 @@
+{
+  "provisional": "Written by hand on 2026-11-20, before the findings log exists. Fields follow the finding format in issue #198 (02); issue #200 (03b) defines the log's file format and takes this file over. The human graded all three below Critical (FINDINGS_TO_ISSUE_AT=C), so none gets its own issue.",
+  "issue": 196,
+  "findings": [
+    {
+      "id": "F-196-1",
+      "impact": "M",
+      "effort": "R",
+      "scope": "out",
+      "criterion": "none",
+      "category": "defect",
+      "group": "python-3.13-fs-errors",
+      "related": "none",
+      "recommendation": "Fix kit-map's symlink-loop handling or its test for Python 3.13; covered by issue #141's filesystem-failure audit (pointed there 2026-11-20).",
+      "what": "tests/test_kit_fs_errors.py OtherExceptionsTest.test_a_real_symlink_loop_in_resolve_is_a_map_error fails on Python 3.13: Path.resolve() no longer raises on a symlink loop, so MapError is never raised. make verify is red for every issue until it is fixed, and kit-map may no longer report a symlink loop as a map error. Not caused by #196.",
+      "how_found": "make verify during #196 (Engineer, every QA launch)."
+    },
+    {
+      "id": "F-196-2",
+      "impact": "L",
+      "effort": "R",
+      "scope": "out",
+      "criterion": "none",
+      "category": "debt",
+      "group": "settings-reader-vs-bash",
+      "related": "none",
+      "recommendation": "Fix when a later issue first reads a setting from shell: either have that reader refuse these forms or state the limits in customizing.md.",
+      "what": "agent-kit/scripts/settings.py reads agent-kit.conf as text and does not parse bash, so the two can disagree. Bash sets a setting the reader passes over: LANES[0]=5, export 'LANES'=5, declare \"LAN\"ES=5, : ${LANES:=5}, printf -v LANES 5, read LANES <<< 5, eval \"LAN\"\"ES=5\", . ./other.conf (or source), and a # continuation line inside a multi-line value followed by an assignment. The reader applies a column-1 line bash would not: inside if false ... fi, a function, a heredoc, after a backslash continuation, or inside a multi-line quoted value. Nothing reads settings from bash in #196, so no behaviour is affected today.",
+      "how_found": "QA probes during #196: .scratch/qa196_recheck_probe.py, qa196_2_probe.py, qa196_2b_probe.py (QA comments on #196)."
+    },
+    {
+      "id": "F-196-3",
+      "impact": "L",
+      "effort": "R",
+      "scope": "out",
+      "criterion": "none",
+      "category": "debt",
+      "group": "settings-not-wired",
+      "related": "none",
+      "recommendation": "Wire HEAVY_SECOND_QA=off at the project level in a later issue, or drop the value; until then customizing.md says off has no effect.",
+      "what": "HEAVY_SECOND_QA accepts on|off, but no 1.11 issue makes off do anything; issue #197 only refuses it as an override on a Heavy issue. The human chose to keep on|off and record this (2026-11-20).",
+      "how_found": "PM grooming of #196, question 2."
+    }
+  ]
+}

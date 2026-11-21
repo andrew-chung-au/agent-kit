@@ -13,7 +13,11 @@ DOC = KIT / "procedures" / "orchestrator-comments.md"
 AGENTS = ROOT / "AGENTS.md"
 TEMPLATE = KIT / "templates" / "AGENTS.md.template"
 
-HEADINGS = ("## Claim", "## Release", "## Confirm", "## Close")
+HEADINGS = ("## Claim", "## Release", "## Confirm", "## Ruling", "## Close")
+# Raised from 300 by issue #197 for the Ruling layout and the rule for lines scripts read.
+WORD_CAP = 420
+LINE_RULE = ("Lines scripts read: each is `<Label>: <value>` alone on its line from column 1, the label worded "
+             "exactly, in an owner comment with the named first line.")
 PREFIX_RULE = "start with `Orchestrator:`"
 POST_RULE = "`make issue-comment N=<n> FILE=.scratch/<name>.md`, never a raw `gh` write"
 REST_RULE = "REST fallback for reads; writes still use `make issue-comment`"
@@ -34,13 +38,13 @@ def sections(text):
 def check_doc(text):
     """Return a list of problems with the procedure text (empty when it is fine)."""
     problems = []
-    if not 1 <= words(text) <= 300:
+    if not 1 <= words(text) <= WORD_CAP:
         problems.append("word cap")
     found = sections(text)
     for heading in HEADINGS:
         if heading not in found:
             problems.append("missing " + heading)
-        elif "**Fact:**" not in found[heading] and heading in ("## Claim", "## Release", "## Confirm", "## Close"):
+        elif "**Fact:**" not in found[heading] and heading in HEADINGS:
             problems.append("no per-issue facts in " + heading)
     flat = " ".join(text.split())
     if PREFIX_RULE not in flat:
@@ -68,7 +72,17 @@ class OrchestratorCommentsTest(unittest.TestCase):
         self.assertEqual(check_doc(DOC.read_text(encoding="utf-8")), [])
 
     def test_doc_word_cap(self):
-        self.assertLessEqual(words(DOC.read_text(encoding="utf-8")), 300)
+        self.assertLessEqual(words(DOC.read_text(encoding="utf-8")), WORD_CAP)
+
+    def test_rule_for_lines_scripts_read(self):
+        self.assertIn(LINE_RULE, " ".join(DOC.read_text(encoding="utf-8").split()))
+
+    def test_ruling_layout_names_both_gates_and_its_lines(self):
+        ruling = " ".join(sections(DOC.read_text(encoding="utf-8"))["## Ruling"].split())
+        for needle in ("`Orchestrator: Ruling`", "`Human ruled: <YYYY-MM-DD>`", "`Ruling: NAME=value`",
+                       "`Waiver: <gate> - <reason>`", "`heavy-second-qa`", "`qa-recheck`", "`WAIVABLE_GATES`",
+                       "A waiver is recorded but no script acts on it yet"):
+            self.assertIn(needle, ruling)
 
     def test_every_layout_lists_fixed_and_fact_fields(self):
         found = sections(DOC.read_text(encoding="utf-8"))
@@ -103,7 +117,7 @@ class OrchestratorCommentsTest(unittest.TestCase):
         self.assertTrue(check_doc(text.replace("Never name an env file in a claim.", "")))
         self.assertTrue(check_doc(text.replace(REST_RULE, "the REST fallback")))
         self.assertTrue(check_doc(text.replace("writes still use", "writes may also use")))
-        self.assertTrue(check_doc(text + " word" * 300))
+        self.assertTrue(check_doc(text + " word" * WORD_CAP))
 
     def test_mutation_missing_read_when_line_fails(self):
         for path in (AGENTS, TEMPLATE):

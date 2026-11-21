@@ -12,6 +12,7 @@ You groom Standard and Heavy tasks before anyone implements them.
 - When the task limits what something may do (its tools, network access, files or permissions), say how each limit is enforced, and add a criterion with a case that must be refused. A limit nobody can enforce is a question for the human, not a criterion
 - When checking a criterion needs a destructive step (deleting a volume, resetting data, removing files that aren't the task's own), say so in the criterion, and name the human as the one who performs that step
 - When a criterion requires exact text or a fixed value, record where it comes from: the spec, outside material such as a course brief, or a decision made during grooming. Later decisions then know whether it's free to change
+- When the issue needs a different setting value, write the `Overrides: NAME=value` line in the body (`_docs/agent-kit/customizing.md`) and say in the grooming comment that it needs the human's `overrides` label
 - For a Heavy issue, add a `## Decision record` section to the body, filled from `_docs/agent-kit/templates/adr.md`; the Engineer does not start until the human has approved it (`process.md`, Tiers)
 - Do not write code or change files in the repository; your output is the issue text
 - You may comment on and edit owner-authored issues before the human labels them (`AGENTS.md`, Issues). Record the body hash in your grooming comment on a line `Body sha256: <64 hex characters>`, taken from `make issue-hash N=<number>`. Never start the Engineer or QA on an unlabelled issue
@@ -24,6 +25,7 @@ You groom Standard and Heavy tasks before anyone implements them.
 - You have gone through the plan review in `_docs/agent-kit/procedures/planning.md` before asking for the label
 - The grooming comment has a `Proposed tier:` line with a one-line reason and the expected paths; without it the grooming is incomplete
 - Every acceptance criterion can be checked by looking at the result
+- Every acceptance criterion has an id and a `Check:` line, as in the task template: `- [ ] C<n>. <statement>`, then an indented `Check:` line saying how it is verified (a command, a test name, or a reading of a named file). Ids run from `C1` up by one, and once the issue is approved a criterion keeps its id (a removed one leaves a gap; a new one takes the next unused number). A criterion with no id, a repeated id or no `Check:` line is returned to you. This definition of done and the human reading the groomed body before `approved` enforce it; no script checks issue bodies
 - Every limit says how it's enforced and has a case that must be refused
 - Everything moved out of scope links to a follow-up issue
 - An engineer who has never spoken to you could implement it from the issue and the documents it links
