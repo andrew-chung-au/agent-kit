@@ -22,10 +22,10 @@ class EnvRuleTest(unittest.TestCase):
         self.assertRegex(text, r"Never open, print or copy `\.env` files, including through the shell")
         self.assertIn("use `.env.example`", text)
 
-    def test_hook_line_says_claude_code_hook_and_opencode_text_rule_block_shell_env(self):
+    def test_hook_line_names_the_claude_code_and_codebuddy_hooks_and_the_opencode_text_rule(self):
         text = read("templates/AGENTS.md.template")
         line = next(l for l in text.splitlines() if l.startswith("Hooks and tool settings block"))
-        self.assertIn("shell commands naming `.env` files (Claude Code's hook; in OpenCode a text-pattern rule)", line)
+        self.assertIn("shell commands naming `.env` files (Claude Code's and CodeBuddy's hook; in OpenCode a text-pattern rule)", line)
         self.assertNotIn("OpenCode does not", line)
         self.assertNotIn("(not shell commands)", line)
 

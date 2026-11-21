@@ -144,7 +144,7 @@ In a monorepo, tools that restrict reads to the project folder will ask each tim
 
 Some tools let a project define named subagents. The orchestrator can then launch "the QA engineer" instead of a general-purpose agent that has to be told, in each launch message, to read the project's instructions. Each definition is a short pointer, so the role files in `_docs/agent-kit/team/` stay the single source of truth.
 
-For Claude Code and OpenCode, the layers provide all three: see `claude-code/START.md` and `opencode/START.md`. For another tool, write the same short pointer in that tool's format: "Read `AGENTS.md`, then `_docs/agent-kit/team/<role>.md`, and follow both. If something needs the human's approval, return the request to the orchestrator instead of running it." Protect the definitions in `agent-kit.conf`, because they decide what each role is told, and create them only for tools the human uses.
+For Claude Code, OpenCode and CodeBuddy, the layers provide all three: see `claude-code/START.md`, `opencode/START.md` and `codebuddy/START.md`. For another tool, write the same short pointer in that tool's format: "Read `AGENTS.md`, then `_docs/agent-kit/team/<role>.md`, and follow both. If something needs the human's approval, return the request to the orchestrator instead of running it." Protect the definitions in `agent-kit.conf`, because they decide what each role is told, and create them only for tools the human uses.
 
 ## Commit attribution
 
