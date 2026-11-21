@@ -7,7 +7,7 @@ The kit's rules are the same wherever agents run. What changes is:
 - what checks a push before it reaches GitHub.
 
 There are two separate choices:
-- **Which agent tool:** the core kit works with any tool that reads `AGENTS.md`. A tool layer adds that tool's own enforcement: `claude-code/` or `opencode/`. CodeBuddy reads `AGENTS.md` when no `CODEBUDDY.md` exists, so it needs no pointer file; its own layer is pending the live checks recorded in `_docs/planning/kit-1.11/README.md`.
+- **Which agent tool:** the core kit works with any tool that reads `AGENTS.md`. A tool layer adds that tool's own enforcement: `claude-code/` or `opencode/`. CodeBuddy reads `AGENTS.md` when no `CODEBUDDY.md` exists, so it needs no pointer file; its own layer is pending, with the live checks recorded in `_docs/planning/kit-1.11/README.md`.
 - **Where it runs:** one of the three profiles below. Record it in the **Environment** setting in `AGENTS.md`, so agents know what's available to them.
 
 | | Codespaces | Local sandbox | Local, no sandbox |

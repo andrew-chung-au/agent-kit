@@ -20,12 +20,21 @@
 
 ## CodeBuddy (in progress)
 
-Decided on 2026-11-21, before writing a layer:
+Decided on 2026-11-21, before writing a layer; the live spike ran the same day on CodeBuddy 2.185.0.
 
-- `AGENTS.md` is the single always-loaded core-rules home. CodeBuddy loads it when no `CODEBUDDY.md` exists, so the kit adds no `CODEBUDDY.md`. Project rules, if used, live at `.codebuddy/rules/<name>/RULE.mdc`; use Agent Requested (`alwaysApply: false` plus a description) rather than the undocumented `paths` key.
+- `AGENTS.md` is the single always-loaded core-rules home. CodeBuddy loads a folder's `AGENTS.md` when that folder has no `CODEBUDDY.md`, and a parent `CODEBUDDY.md` does not shadow a child `AGENTS.md`; the kit adds no `CODEBUDDY.md`. Project rules, if used, live at `.codebuddy/rules/<name>/RULE.mdc`; use Agent Requested (`alwaysApply: false` plus a description) rather than the undocumented `paths` key.
 - No model swapping in CodeBuddy, as in OpenCode and Kiro: `STEP_UP` stays Claude-only, and a step-up attempt notes that no escalated model is configured (3.5).
 - The status-line script is optional and fail-silent (context percentage and spend only, no quota), and the soft stop stays manual. Issue #191 stays decoupled.
-- `memory.parentDiscovery: false` is the candidate monorepo setting; verify it before adding it to a template.
-- The guard hardening in `agent-kit/claude-code/hooks/guard_git.py` applies to every tool that runs the hook; CodeBuddy will use the same script with `$CODEBUDDY_PROJECT_DIR` and the `|| exit 2` wrapper once the spike confirms hook behaviour.
+- `memory.parentDiscovery: false` is the monorepo setting: the spike confirmed the key is accepted without a warning and loads only the child `AGENTS.md`.
+- The guard hardening in `agent-kit/claude-code/hooks/guard_git.py` applies to every tool that runs the hook. The spike confirmed `PreToolUse` exit 2 blocks Bash and a failing hook is still blocked through the `|| exit 2` wrapper, so CodeBuddy uses the same script and wrapper; no JSON `permissionDecision` adapter is needed.
 
-Blocked on the live spike (`_human-tasks/2026-11-21T1056Z-human-task-engineer-codebuddy-live-checks.md`): permission-rule syntax (space-star vs colon), PreToolUse blocking (exit 2 vs JSON deny), which tool calls trigger the hook, hook crash/timeout behaviour, `PermissionRequest`/`PermissionDenied` payloads, frontmatter `Stop` without `allowUntrustedFrontmatterHooks`, `SubagentStop` agent identification, and the parent-discovery key. Do not write the settings template, create a `CODEBUDDY.md`, enable `allowUntrustedFrontmatterHooks` globally, or add a CodeBuddy layer before those results.
+Live spike results (2026-11-21, CodeBuddy 2.185.0; steps and observations in `_human-tasks/2026-11-21T1056Z-human-task-engineer-codebuddy-live-checks.md`):
+
+- **Permission rules:** both `Bash(echo allow-space *)` and `Bash(echo allow-colon:*)` are honored, for allow and deny; deny rules are hard stops. Use the documented colon form in the template; the space form works in this build but is not documented.
+- **Hooks:** `PreToolUse` exit 2 blocks Bash, fires for `Bash`, `Read`, `Agent` and `Grep` with a `*` matcher, and a hook that exits 1 is blocked through `|| exit 2`.
+- **Payloads:** `PermissionRequest` fires for an ask and carries `tool_use_id`/`call_id`; `PermissionDenied` fires for a deny rule with the same `call_id` and a `reason`. A human-rejected ask produced no `PermissionDenied`, so the log can record asks and hard denials but not the human's decision on an ask.
+- **Subagents:** a subagent frontmatter `Stop` hook did not run without `allowUntrustedFrontmatterHooks`; `SubagentStop` fires globally with `agent_id` and `agent_type`. Do not enable the trust flag; use a global `SubagentStop` hook to identify the agent, and rely on git hooks and QA.
+- **Parent discovery:** with the default, a parent `CODEBUDDY.md` and the child `AGENTS.md` both load, plus a grandparent `AGENTS.md`; in the parent folder itself, `CODEBUDDY.md` shadows the parent's `AGENTS.md`. `memory.parentDiscovery: false` loads only the child `AGENTS.md`.
+- **Not covered:** model selection and the status line.
+
+The settings template can now be written from these results. Keep `AGENTS.md` as the single core-rules home and add no `CODEBUDDY.md`; use the colon permission form, the guard with `|| exit 2`, and `memory.parentDiscovery: false` for monorepos. Do not enable `allowUntrustedFrontmatterHooks` globally.

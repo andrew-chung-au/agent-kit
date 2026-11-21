@@ -2,6 +2,8 @@
 
 ## Purpose
 
+**Status (2026-11-21): run on CodeBuddy 2.185.0; results are in "Record the result".** The settings template can be written from them, with two limits: a human-rejected ask produces no `PermissionDenied`, and a subagent frontmatter `Stop` hook does not run without the trust flag.
+
 Settle the live questions behind the CodeBuddy layer before its settings template is written: whether the permission syntax uses a space or a colon, whether `PreToolUse` exit 2 blocks Bash, whether a failing hook is still blocked by the `|| exit 2` wrapper, which events and payload fields CodeBuddy sends, whether a subagent frontmatter `Stop` hook runs without `allowUntrustedFrontmatterHooks`, and whether a parent `CODEBUDDY.md` shadows a project `AGENTS.md`. Issue: none. The fixture is `.scratch/codebuddy-spike/` in this working tree; it is git-ignored and was prepared for this run. The decisions it feeds are in `_docs/planning/kit-1.11/README.md` under "CodeBuddy (in progress)".
 
 ## Where to run it
@@ -247,7 +249,18 @@ Risk: none.
 
 ## Record the result
 
-For each step, write one of these words plus the first line of the message CodeBuddy showed. Commit this file with the result so a later run can compare. Results contain no secrets either.
+**Status (2026-11-21): run on CodeBuddy 2.185.0; results below.** The guard tests were 36/36 and `git status --short` was clean before the run. Steps 1 to 13 ran in one session in the fixture root; steps 14 and 15 each ran in a new session in the named folder. Two results differ from the expected: step 10 is partial (a human-rejected ask produced no `PermissionDenied`), and step 12 failed (the subagent frontmatter `Stop` hook did not run).
+
+What the run settles:
+
+1. **Permission syntax:** both `Bash(echo allow-space *)` and `Bash(echo allow-colon:*)` are honored, for `allow` and for `deny`; a deny rule is a hard stop with no approval path. Use the documented colon form in the template; the space form works in this build but is not documented, so don't rely on it.
+2. **`PreToolUse`:** exit 2 blocks Bash. The guard needs no JSON `permissionDecision` adapter. The hook fires for `Bash`, `Read`, `Agent` and `Grep` when the matcher is `*`. A hook that exits 1 is still blocked through the `|| exit 2` wrapper.
+3. **Permission payloads:** `PermissionRequest` fires for an ask and carries `tool_use_id`/`call_id`; `PermissionDenied` fires for a deny rule and carries the same `call_id` plus a `reason`. A human rejecting an ask produced no `PermissionDenied`, so the log can record asks and hard denials but not the human's decision on an ask.
+4. **Frontmatter `Stop`:** the subagent's frontmatter hook did not run without `allowUntrustedFrontmatterHooks`; `stop-count` was missing. `SubagentStop` fires globally with `agent_id` and `agent_type`, so a global hook can identify the subagent. Do not enable the trust flag; rely on git hooks and QA, and document that a subagent cannot self-block through frontmatter.
+5. **Parent discovery:** with the default, a parent `CODEBUDDY.md` does not shadow the child `AGENTS.md`; both load, and the grandparent `AGENTS.md` loads too. In the parent folder itself, `CODEBUDDY.md` shadows the parent's own `AGENTS.md` (its marker did not appear). `memory.parentDiscovery: false` loads only the child `AGENTS.md` and was accepted without a warning.
+6. **Not covered:** model selection and the status line; both remain as decided (no model swapping, best-effort status line).
+
+For each step, the words mean:
 
 | Word | What you see | What it means |
 | :--- | :--- | :--- |
@@ -259,21 +272,21 @@ For each step, write one of these words plus the first line of the message CodeB
 
 | Step | Expected | Observed | Pass or fail |
 |---|---|---|---|
-| 1 | allow-space runs | | |
-| 2 | allow-colon runs or prompts | | |
-| 3 | deny-space blocked or prompted | | |
-| 4 | deny-colon blocked or prompted | | |
-| 5 | blocked by the guard | | |
-| 6 | blocked with the hook's message | | |
-| 7 | read and bash both happen | | |
-| 8 | Read and Bash tool names recorded | | |
-| 9 | a prompt appears and is rejected | | |
-| 10 | both permission events recorded | | |
-| 11 | the subagent runs | | |
-| 12 | `stop-count` exists | | |
-| 13 | a `SubagentStop` line with an identifier | | |
-| 14 | markers recorded for the default | | |
-| 15 | only the child marker, no warning | | |
+| 1 | allow-space runs | runs, no prompt | pass |
+| 2 | allow-colon runs or prompts | runs, no prompt | pass |
+| 3 | deny-space blocked or prompted | denied by `Bash(echo deny-space *)` | pass |
+| 4 | deny-colon blocked or prompted | denied by `Bash(echo deny-colon:*)` | pass |
+| 5 | blocked by the guard | blocked by `PreToolUse` with "Don't push" | pass |
+| 6 | blocked with the hook's message | blocked with "spike hook failing on purpose" | pass |
+| 7 | read and bash both happen | read showed `SPIKE-AGENTS-MARKER`; bash prompted, was approved, printed `capture test` | pass |
+| 8 | Read and Bash tool names recorded | `Read`, `Bash`, `Agent` and `Grep` recorded | pass |
+| 9 | a prompt appears and is rejected | prompt appeared; rejected with "No, and tell CodeBuddy what to do differently" | pass |
+| 10 | both permission events recorded | `PermissionRequest` for both asks; `PermissionDenied` only for the two deny rules, none for the rejected ask | partial |
+| 11 | the subagent runs | `spike subagent ran` | pass |
+| 12 | `stop-count` exists | missing; the frontmatter `Stop` hook did not run | fail |
+| 13 | a `SubagentStop` line with an identifier | `SubagentStop` with `agent_id` and `agent_type: "spike"` | pass |
+| 14 | markers recorded for the default | `SPIKE-AGENTS-MARKER`, `SPIKE-PARENT-CODEBUDDY`, `SPIKE-CHILD-ON-AGENTS`; no `SPIKE-PARENT-AGENTS` | pass |
+| 15 | only the child marker, no warning | only `SPIKE-CHILD-OFF-AGENTS`; no warning about the key | pass |
 
 ## Risk
 
