@@ -1,18 +1,18 @@
-# Check Antigravity CLI's key, rules, hooks, subagents and skills by hand
+# Check Antigravity CLI's rules, hooks, subagents and skills by hand
 
 ## Purpose
 
-**Status (2026-11-21): not run.** Settle the live questions behind a possible Antigravity layer before any of it is written: whether requests reach the model through the credential proxy, whether `AGENTS.md` loads and walks parent folders, what a `PreToolUse` hook does on deny, crash, silence and timeout, whether a subagent and a skill are discovered, and whether headless mode soft-denies. Issue: none. The fixture is `.scratch/agy-spike/` in this working tree; it is git-ignored and `make clean-scratch` deletes it. The findings feed `_docs/planning/antigravity-cli.md`.
+**Status (2026-11-21): run, all twenty steps recorded.** Settle the live questions behind a possible Antigravity layer before any of it is written: whether `AGENTS.md` loads and walks parent folders, what a `PreToolUse` hook does on deny, crash, silence and timeout, whether a subagent and a skill are discovered, and whether headless mode soft-denies. Issue: none. The fixture is `.scratch/agy-spike/` in this working tree; it is git-ignored and `make clean-scratch` deletes it. The findings feed `_docs/planning/antigravity-cli.md`.
 
-**The real key never enters this container.** A proxy container beside this one holds it and injects it in flight, and this container reaches that proxy on its own loopback; this task exports only the dummy `proxy-injected`. If the proxy is not running, stop at step 3.
+**No credential is involved.** The CLI runs on the Antigravity starter quota, which needs no key and no sign-in, so there is nothing to set up before the behaviour checks. The API-key and proxy path was measured separately and is recorded in the planning doc.
 
 ## Where to run it
 
-A terminal at the repository root, started in `.scratch/agy-spike` for steps 1 to 3, then one interactive `agy --dangerously-skip-permissions` session in the same terminal for steps 4 and 7 to 18, and a new session in the same terminal in `.scratch/agy-spike/parent/child` for step 5. Steps 6, 8, 10, 12, 14 and 19 change the hook's mode from a second terminal in `.scratch/agy-spike`.
+A terminal at the repository root, in `.scratch/agy-spike` for step 1, then one interactive `agy --dangerously-skip-permissions` session in the same terminal for steps 2 to 4 and 7 to 18, and a new session in the same terminal in `.scratch/agy-spike/parent/child` for step 5. Steps 6, 8, 10, 12, 14 and 19 change the hook's mode from a second terminal in `.scratch/agy-spike`.
 
 Not here: a CodeBuddy session. The point is `agy`'s own behaviour, and a second agent in the loop would hide what the first one did.
 
-The proxy runs in its own container with the real key; nothing in this task reads or exports that key. Steps 1 and 2 must run in the same terminal as step 3, because they set the environment for `agy` only in that shell.
+Step 1 is headless and needs no session. Step 20 is headless again and can run in any container terminal.
 
 ## Before you start
 
@@ -32,13 +32,13 @@ ls -a .scratch/agy-spike
 
 Expected: `AGENTS.md`, `.agents` and `parent` among the entries.
 
-3. Confirm the CLI is in API-key mode.
+3. Confirm the API-key switch is off, so the CLI uses the starter quota.
 
 ```
-grep modelProvider ~/.gemini/antigravity-cli/settings.json
+grep -c modelProvider ~/.gemini/antigravity-cli/settings.json
 ```
 
-Expected: `"modelProvider": "gemini"`. If the file or the line is missing, stop: steps 1 to 3 cannot pass.
+Expected: `0`, and the command exits 1 because nothing matched. If different: `1` means `"modelProvider": "gemini"` is still set and the CLI will insist on `GEMINI_API_KEY`; remove that line before going on.
 
 4. Confirm the hook points at this checkout. If it names another path, edit that line before starting, then carry on.
 
@@ -66,48 +66,46 @@ Expected: no `M ` or `A ` line; ` M` and `??` lines are fine.
 
 ## Steps
 
-### Step 1: Give the CLI a dummy key
+### Step 1: One headless request on the starter quota
 
-Run this in the container terminal you will use for step 3.
-
-```
-export GEMINI_API_KEY=proxy-injected
-```
-
-Expected: no output. This value is not a secret; it only satisfies the CLI's non-empty check, and the proxy replaces it in flight.
-If different: if the shell complains, the name is wrong; retype it.
-
-### Step 2: Point the CLI at the proxy
-
-Run this in the same terminal.
-
-```
-export GOOGLE_GEMINI_BASE_URL=http://127.0.0.1:8787
-```
-
-Expected: no output. The proxy shares this container's network namespace, so the loopback address reaches it and nothing on the network does.
-If different: if `agy` later reports a connection error, the proxy container is not attached to this namespace; go back to the proxy task's step 2 and record that.
-
-### Step 3: One non-interactive request through the proxy
-
-Run this in the same terminal, from `.scratch/agy-spike`.
+Run this from `.scratch/agy-spike`.
 
 ```
 agy -p "Reply with exactly OK" --output-format json
 ```
 
-Expected: one JSON object with `"status":"SUCCESS"` and `"response"` containing `OK`, with the key injected by the proxy. Write the model and the token counts in the record.
-If different: `connection refused` means the proxy is not running; stop. `401` or `403` means the proxy's key is missing or wrong; stop and tell the orchestrator, never paste the key. `429` means the quota, not a broken setup: write `quotaId` or `quotaMetric` and stop.
+Expected: one JSON object with `"status":"SUCCESS"` and `"response"` containing `OK`. Write the model and the token counts in the record.
+If different: `429` means the quota, not a broken setup; write `quotaId` or `quotaMetric` and stop. A message naming `GEMINI_API_KEY` means the API-key switch is still on; go back to pre-check 3.
+
+### Step 2: Start the interactive session
+
+```
+agy --dangerously-skip-permissions
+```
+
+Expected: the banner names `(Antigravity Starter Quota)` and a model, and the session stays open; leave it open for steps 3 to 18. The flag turns the permission prompt off, so from step 7 onward a block can only come from the hook; without it, a permission prompt and a hook deny look the same in the transcript.
+If different: if it asks for a key or a sign-in, stop; the starter quota is not available on this machine.
+
+### Step 3: Record the starting quota
+
+Send this in the session from step 2.
+
+```
+/usage
+```
+
+Expected: weekly limits for the Gemini group and for the Claude and GPT group. Write both percentages and the reset time, so step 20's consumption can be compared against them.
+If different: if the command is unknown, record that and carry on; the quota is a measurement here, not a gate.
 
 ### Step 4: Does the project file load
 
-Start `agy --dangerously-skip-permissions` in `.scratch/agy-spike`, then send this message. The flag turns the permission prompt off, so from step 7 onward a block can only come from the hook; without it, a permission prompt and a hook deny look the same in the transcript.
+Send this message in the session from step 2.
 
 ```
 Without running any command and without reading any file, name the instruction files you were given when this session started. For each, give its path if you were told one, and quote its first line exactly. If you were given none, say so.
 ```
 
-Expected: `SPIKE-AGY-AGENTS`.
+Expected: `# Spike instructions`, and the repository's `AGENTS.md` alongside it, because the walk goes up to the checkout root. Record whether the answer names a path.
 If different: if it runs a command or opens a file to answer, the probe is inconclusive rather than failed; record that, and the marker it quoted.
 
 ### Step 5: Does a parent folder's file load
@@ -118,7 +116,7 @@ Start a new `agy --dangerously-skip-permissions` session in `.scratch/agy-spike/
 Without running any command and without reading any file, name the instruction files you were given when this session started. For each, give its path if you were told one, and quote its first line exactly. If you were given none, say so.
 ```
 
-Expected: `SPIKE-AGY-CHILD` and `SPIKE-AGY-PARENT`. Record whether the repository's own `AGENTS.md` also produced anything.
+Expected: `# Child instructions`, `# Parent instructions`, `# Spike instructions` and `# AGENTS.md`, so every level up to the checkout root is in context.
 If different: if only the child marker appears, parent walking is off or bounded; record which markers appear. If it reads files to answer, record that instead, because the probe then says nothing about walking.
 
 ### Step 6: Put the hook in deny mode
@@ -282,7 +280,7 @@ If different: stop; the mode file did not change.
 
 ### Step 20: Headless mode with a blocked command
 
-Run this in the terminal from step 3, from `.scratch/agy-spike`.
+Run this in any container terminal, from `.scratch/agy-spike`.
 
 ```
 agy -p "Run echo headless test with your shell tool. Do not ask for approval and do not substitute another command." --output-format json
@@ -293,31 +291,33 @@ If different: if the run fails, record the error; that is also a usable answer.
 
 ## Record the result
 
-**Status (2026-11-21): not run.** Fill the table and commit this file with the result, so a later run can compare. Results contain no secrets either.
+**Status (2026-11-21): run, all twenty steps recorded.** Run by the repository owner in this dev container on `agy` 1.5.14. Results contain no secrets.
 
 | Step | Pass or fail | Output or note |
 |---|---|---|
-| 1 | | |
-| 2 | | |
-| 3 | | |
-| 4 | | |
-| 5 | | |
-| 6 | | |
-| 7 | | |
-| 8 | | |
-| 9 | | |
-| 10 | | |
-| 11 | | |
-| 12 | | |
-| 13 | | |
-| 14 | | |
-| 15 | | |
-| 16 | | |
-| 17 | | |
-| 18 | | |
-| 19 | | |
-| 20 | | |
+| 1 | pass | `status: SUCCESS`, response `OK`, model `gemini-3.8-flash`, 12,200 tokens (12,131 in) |
+| 2 | pass | banner `(Antigravity Starter Quota)`, `Gemini 3.8 Flash (High)`; `/usage` names the account |
+| 3 | pass | Gemini 97.76%, resets in 167h 42m; it read 99.26% before the session started |
+| 4 | pass | `/workspaces/agent-kit-sandbox/AGENTS.md` and `.scratch/agy-spike/AGENTS.md` (`# Spike instructions`), with no command run |
+| 5 | pass | four files: repo `AGENTS.md`, spike `AGENTS.md`, `parent/AGENTS.md` (`# Parent instructions`), `AGENTS.md` (`# Child instructions`) |
+| 6 | pass | mode `deny` |
+| 7 | pass | blocked: `tool call denied by pre-tool hook: spike deny: deny` |
+| 8 | pass | mode `fail` |
+| 9 | pass | blocked: `JSON hook ... failed: command failed: exit status 1`; a crash fails closed |
+| 10 | pass | mode `empty` |
+| 11 | pass | ran: `hook-empty test`, exit 0; a hook that prints nothing **fails open** |
+| 12 | pass | mode `slow` |
+| 13 | pass | blocked: `command failed: signal: killed`; the 30 s timeout fails closed |
+| 14 | pass | mode `allow` |
+| 15 | pass | ran: `hook-allow test` |
+| 16 | pass | keys `artifactDirectoryPath`, `conversationId`, `cwd`, `hookEventName`, `lastUserInput`, `modelName`, `stepIdx`, `toolCall` |
+| 17 | pass | `spike subagent ran`, one subagent spawned |
+| 18 | pass | `spike skill ran`, `Skill used: spike-skill`; it also read `SKILL.md` and ran 4 shell commands |
+| 19 | pass | mode `deny` again, inferred from step 20's message |
+| 20 | pass | `status: SUCCESS`, the response names the denial, exit 0; headless soft-denies |
+
+The one result that changes a design: an empty hook allows the command, while a crash and a timeout both block. A guard adapter must therefore always print an explicit decision and never exit 0 silently.
 
 ## Risk
 
-Only the dummy `proxy-injected` is exported, in one terminal, for the life of that terminal. The real key stays in the proxy container, and no step here reads, prints or writes it; a prompt-injected `env` in the agent's shell would reveal nothing worth having. Every command the agent is asked to run is `echo`, so nothing changes on disk except `.agents/mode` and `.agents/hook-input.json`. The slow step waits about 40 seconds. `hook-input.json` holds the last tool call, which contains no secret, but read it before pasting it into the record. The fixture is scratch and is deleted by `make clean-scratch`. No global setting is edited, so this task does not test `command(...)` permission rules; that is a separate question.
+No credential is involved: the CLI uses the starter quota, so no key is exported, stored or read anywhere in this task. Every command the agent is asked to run is `echo`, so nothing changes on disk except `.agents/mode` and `.agents/hook-input.json`. The slow step waits about 40 seconds. `hook-input.json` holds the last tool call, which contains no secret, but read it before pasting it into the record. The fixture is scratch and is deleted by `make clean-scratch`. No global setting is edited, so this task does not test `command(...)` permission rules; that is a separate question.

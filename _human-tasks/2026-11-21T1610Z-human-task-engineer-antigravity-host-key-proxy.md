@@ -2,7 +2,7 @@
 
 ## Purpose
 
-**Status (2026-11-21): done, all four steps passed.** Give the dev container a way to reach Gemini without the key ever being inside it: a Caddy container joins the dev container's network namespace and adds the `x-goog-api-key` header in flight, so the container is told only a dummy key and `127.0.0.1:8787`. This is the setup step for `2026-11-21T1524Z-human-task-engineer-antigravity-live-checks.md`; run this one first, or that task stops at its step 3. Issue: none.
+**Status (2026-11-21): done, all four steps passed.** Give the dev container a way to reach Gemini without the key ever being inside it: a Caddy container joins the dev container's network namespace and adds the `x-goog-api-key` header in flight, so the container is told only a dummy key and `127.0.0.1:8787`. This was the setup step for the API-key path in `2026-11-21T1524Z-human-task-engineer-antigravity-live-checks.md`; it turned out not to be needed, because the CLI runs on the Antigravity starter quota with no credential at all. It stays as the recorded answer for anyone who does use an API key. Issue: none.
 
 The proxy has to be a container here. This dev container runs under Docker Desktop, so it sits in the Docker Desktop VM (`172.17.0.2`, gateway `172.17.0.1`) and `host.docker.internal` points at Windows (`192.168.65.254`), not at the WSL distro; a process in WSL is in a third network namespace that nothing in the VM can route to. A sibling container is the only place the dev container can reach that does not put the key inside it.
 
