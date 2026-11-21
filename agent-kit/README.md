@@ -43,6 +43,7 @@ No tool-agnostic equivalent of an AI tool's own hooks or permission system exist
 
 **Limits, stated plainly:**
 - Any agent can skip git hooks with `--no-verify`, or set `HUMAN_APPROVED=1` itself. The instructions forbid both, which makes a breach a visible rule violation rather than an accident.
+- The Claude Code git guard blocks the common forms and now fails closed on its own errors, but a command written through a wrapper (`bash -c`, `xargs`, a script) can still get past it. The read-only token, the git hooks and your review remain the boundary.
 - The QA check (`make assert-clean`) detects changes after the fact; it doesn't prevent them.
 - Hooks don't run for commits made on the GitHub website.
 - All roles usually share one GitHub login, so GitHub can't stop one role editing another's comments or closing an issue. The rules forbid it, and GitHub's edit history shows if it happened.

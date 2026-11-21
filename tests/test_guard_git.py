@@ -181,14 +181,95 @@ class GuardGitTest(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(result.stderr, "")
 
-    def test_malformed_json_allowed(self):
+    def test_malformed_json_blocked(self):
         result = self.run_guard('{"tool_name": "Bash", "tool_input": ')
-        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.returncode, 2, result.stderr)
+        self.assertIn("could not check this command", result.stderr)
 
     def test_broad_add_still_blocked(self):
         result = self.run_command("git add .")
         self.assertEqual(result.returncode, 2)
         self.assertIn("Stage explicit paths only", result.stderr)
+
+    def test_broad_add_variants_blocked(self):
+        for command in ("git add -Av", "git add -uA", "git add --al", "git add --update"):
+            with self.subTest(command=command):
+                result = self.run_command(command)
+                self.assertEqual(result.returncode, 2, result.stderr)
+                self.assertIn("Stage explicit paths only", result.stderr)
+
+    def test_commit_all_variants_blocked(self):
+        for command in ("git commit -a", "git commit --all", "git commit --al", "git commit -am x"):
+            with self.subTest(command=command):
+                result = self.run_command(command)
+                self.assertEqual(result.returncode, 2, result.stderr)
+                self.assertIn("git commit -a", result.stderr)
+
+    def test_no_verify_prefixes_blocked(self):
+        for command in ("git commit --no-verify", "git commit --no-ver", "git commit -n", "git commit -nm x"):
+            with self.subTest(command=command):
+                result = self.run_command(command)
+                self.assertEqual(result.returncode, 2, result.stderr)
+                self.assertIn("Never skip git hooks", result.stderr)
+
+    def test_message_values_are_not_read_as_flags(self):
+        for command in ('git commit -m "--no-verify"', 'git commit -m "-a"', 'git commit -m "-n"'):
+            with self.subTest(command=command):
+                result = self.run_command(command)
+                self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_hooks_path_override_blocked(self):
+        for command in (
+            "git -c core.hooksPath=/dev/null commit -m x",
+            "git -c core.hooksPath /dev/null commit -m x",
+            "git -c CORE.HOOKSPATH=/dev/null commit -m x",
+            "git --config-env=core.hooksPath=/dev/null commit -m x",
+        ):
+            with self.subTest(command=command):
+                result = self.run_command(command)
+                self.assertEqual(result.returncode, 2, result.stderr)
+                self.assertIn("core.hooksPath", result.stderr)
+
+    def test_config_reads_are_allowed_and_writes_blocked(self):
+        for command in ("git config core.hooksPath /dev/null",
+                        "git config --unset core.hooksPath"):
+            with self.subTest(command=command):
+                result = self.run_command(command)
+                self.assertEqual(result.returncode, 2, result.stderr)
+                self.assertIn("core.hooksPath", result.stderr)
+        for command in ("git config --get core.hooksPath", "git config --get-all core.hooksPath"):
+            with self.subTest(command=command):
+                self.assertEqual(self.run_command(command).returncode, 0)
+
+    def test_raw_scan_blocks_high_risk_unparseable_commands(self):
+        for command in ('git push "', 'git commit --no-ver "',
+                        'git -c core.hooksPath=/dev/null commit "', 'cat ".env'):
+            with self.subTest(command=command):
+                result = self.run_command(command)
+                self.assertEqual(result.returncode, 2, result.stderr)
+
+    def test_non_bash_tool_allowed(self):
+        payload = json.dumps({"tool_name": "Edit", "tool_input": {"file_path": "x"}})
+        self.assertEqual(self.run_guard(payload).returncode, 0)
+
+    def test_non_dict_payload_blocked(self):
+        result = self.run_guard("[]")
+        self.assertEqual(result.returncode, 2, result.stderr)
+
+    def test_non_string_tool_name_blocked(self):
+        result = self.run_guard(json.dumps({"tool_name": 123, "tool_input": {"command": "ls"}}))
+        self.assertEqual(result.returncode, 2, result.stderr)
+
+    def test_settings_wrap_the_guard_to_fail_closed(self):
+        for path in (REPO / "agent-kit" / "claude-code" / "settings.json",
+                     REPO / ".claude" / "settings.json"):
+            with self.subTest(path=path):
+                settings = json.loads(path.read_text(encoding="utf-8"))
+                commands = [hook["command"]
+                            for entry in settings["hooks"]["PreToolUse"]
+                            for hook in entry["hooks"]]
+                self.assertTrue(any("guard_git.py" in c and c.rstrip().endswith("|| exit 2")
+                                    for c in commands), commands)
 
     # Issue #39: shell commands naming .env files.
 
@@ -237,13 +318,17 @@ class GuardGitTest(unittest.TestCase):
         self.assertEqual(self.run_command("git add .env.local").returncode, 2)
         self.assertEqual(self.run_command("cat .env").returncode, 2)
 
-    def test_env_check_fails_open_on_unparseable_or_missing_input(self):
-        # Unbalanced quote: the parser can't split it, so it is let through, as today.
-        self.assertEqual(self.run_command("cat '.env").returncode, 0)
+    def test_unparseable_env_command_blocked_by_raw_scan(self):
+        self.assertEqual(self.run_command("cat '.env").returncode, 2)
+
+    def test_empty_or_null_payload_allowed(self):
         self.assertEqual(self.run_guard("{}").returncode, 0)
         self.assertEqual(self.run_guard('{"tool_input": null}').returncode, 0)
         self.assertEqual(self.run_guard('{"tool_input": {"command": null}}').returncode, 0)
-        self.assertEqual(self.run_guard("").returncode, 0)
+
+    def test_missing_input_blocked(self):
+        result = self.run_guard("")
+        self.assertEqual(result.returncode, 2, result.stderr)
 
     def test_env_known_gaps_still_pass(self):
         # Documented gaps (decision 1): indirection the parser can't see.

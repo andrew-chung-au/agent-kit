@@ -17,3 +17,15 @@
 - **Closures that wait for the human's approval** (as not planned): issue #142 and issue #26 (when 7b is approved), issue #17 (into 11a), issue #15 (into 09a), issue #9 (superseded by `agent-kit/releasing.md`, or narrowed). See the backlog review, sections C and D.
 - **Related open issues, unlabelled:** issue #188 (push-check uv stub; until fixed, `unset AGENT_PUSH_CHECK_IMAGE` before pushing the kit), issue #191 (usage visibility; later), issue #192 (install-guide wording), issue #193 (tests that share `.scratch/`; all four files, approved scope).
 - **Tool economics** shape the design: Claude Code has a five-hour window and is the only tool with a model step-up (`STEP_UP`); OpenCode runs free models; Kiro has month credits and its auto model is cheaper than a named one.
+
+## CodeBuddy (in progress)
+
+Decided on 2026-11-21, before writing a layer:
+
+- `AGENTS.md` is the single always-loaded core-rules home. CodeBuddy loads it when no `CODEBUDDY.md` exists, so the kit adds no `CODEBUDDY.md`. Project rules, if used, live at `.codebuddy/rules/<name>/RULE.mdc`; use Agent Requested (`alwaysApply: false` plus a description) rather than the undocumented `paths` key.
+- No model swapping in CodeBuddy, as in OpenCode and Kiro: `STEP_UP` stays Claude-only, and a step-up attempt notes that no escalated model is configured (3.5).
+- The status-line script is optional and fail-silent (context percentage and spend only, no quota), and the soft stop stays manual. Issue #191 stays decoupled.
+- `memory.parentDiscovery: false` is the candidate monorepo setting; verify it before adding it to a template.
+- The guard hardening in `agent-kit/claude-code/hooks/guard_git.py` applies to every tool that runs the hook; CodeBuddy will use the same script with `$CODEBUDDY_PROJECT_DIR` and the `|| exit 2` wrapper once the spike confirms hook behaviour.
+
+Blocked on the live spike (`_human-tasks/2026-11-21T1056Z-human-task-engineer-codebuddy-live-checks.md`): permission-rule syntax (space-star vs colon), PreToolUse blocking (exit 2 vs JSON deny), which tool calls trigger the hook, hook crash/timeout behaviour, `PermissionRequest`/`PermissionDenied` payloads, frontmatter `Stop` without `allowUntrustedFrontmatterHooks`, `SubagentStop` agent identification, and the parent-discovery key. Do not write the settings template, create a `CODEBUDDY.md`, enable `allowUntrustedFrontmatterHooks` globally, or add a CodeBuddy layer before those results.

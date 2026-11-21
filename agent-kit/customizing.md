@@ -89,7 +89,7 @@ Most settings aren't in any profile at all: they have one default and are set on
 
 `FIX_CHECK_LOOPS` and `ASK_AT` are not duplicates. They limit different loops: `FIX_CHECK_LOOPS` limits the cheap inner loop (fix, fix check) inside one round, and adds no points. `ASK_AT` acts on the outer loop of QA re-checks, where each failed re-check adds a point. A round looks like this: the Engineer fixes; the fix check runs, up to `FIX_CHECK_LOOPS` times; QA re-checks; if the finding fails again it gains a point; below `ASK_AT` it goes back to the Engineer for another round, and at `ASK_AT` it goes to the human.
 
-**`STEP_UP` applies in Claude Code only.** OpenCode and Kiro ignore it: OpenCode runs free models, so there is no stronger variant to move to, and in Kiro a named model uses more credits than its automatic choice.
+**`STEP_UP` applies in Claude Code only.** OpenCode, Kiro and CodeBuddy ignore it: OpenCode runs free models, so there is no stronger variant to move to; in Kiro a named model uses more credits than its automatic choice; and the kit configures no model swapping in CodeBuddy. When a finding fails twice on a tool without a step up, the orchestrator notes that no escalated model is configured, so the patchwork guard's approach review is the only step up.
 
 **Not settings:**
 - The model for each reasoning level: it is set in the project's role definitions, not here.
