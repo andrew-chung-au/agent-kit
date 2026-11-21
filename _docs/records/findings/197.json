@@ -1,0 +1,123 @@
+{
+  "provisional": "Written by hand on 2026-11-20, before the findings log exists (same form as 196.json). Fields follow the finding format in issue #198 (02); issue #200 (03b) defines the log's file format and takes this file over. All are Low, so none failed #197 (the human's ruling: QA fails only on Medium or Critical) and none gets its own issue.",
+  "issue": 197,
+  "findings": [
+    {
+      "id": "F-197-1",
+      "impact": "L",
+      "effort": "S",
+      "scope": "in",
+      "criterion": "C6",
+      "category": "defect",
+      "group": "ruling-grammar-looseness",
+      "related": "none",
+      "recommendation": "Hold `Ruling:` to the same spacing rule as `Overrides:` and `Waiver:`.",
+      "what": "`Ruling:X=v` (no space after the colon) and extra spaces after the colon are still applied (agent-kit/scripts/settings.py near line 435). Values are fully checked either way.",
+      "how_found": "First QA launch, .scratch/qa-197-probe.py."
+    },
+    {
+      "id": "F-197-2",
+      "impact": "L",
+      "effort": "S",
+      "scope": "in",
+      "criterion": "C6",
+      "category": "defect",
+      "group": "ruling-grammar-looseness",
+      "related": "F-197-1",
+      "recommendation": "Match the first line exactly (`Orchestrator: Ruling`) and check `Human ruled:` is a real date.",
+      "what": "Any first line starting `Orchestrator: Ruling` counts as a ruling, e.g. `Orchestrator: Rulings recap` (settings.py near line 420), as C6 literally says. `Human ruled:` accepts impossible dates such as 2026-99-99 (near line 149).",
+      "how_found": "First QA launch."
+    },
+    {
+      "id": "F-197-3",
+      "impact": "L",
+      "effort": "S",
+      "scope": "in",
+      "criterion": "C9",
+      "category": "debt",
+      "group": "read-rulings-interface",
+      "related": "none",
+      "recommendation": "#218 must pass the WAIVABLE_GATES value from read_settings; or read_rulings also checks each gate against the setting's own allowed list and refuses a plain string.",
+      "what": "read_rulings trusts its `waivable` argument: called with (\"push\",) it accepts `Waiver: push - x`; a plain string is split into single characters (settings.py near line 454). Safe through read_settings today.",
+      "how_found": "First QA launch."
+    },
+    {
+      "id": "F-197-4",
+      "impact": "L",
+      "effort": "S",
+      "scope": "in",
+      "criterion": "C2",
+      "category": "defect",
+      "group": "dump-robustness",
+      "related": "none",
+      "recommendation": "Catch RecursionError in load_issue and refuse with a `settings:` reason.",
+      "what": "An extremely deeply nested dump raises an uncaught RecursionError in load_issue (settings.py near line 487) instead of a `settings:` refusal. Still exit 1 with empty stdout; a real gh dump can't produce it.",
+      "how_found": "First QA launch."
+    },
+    {
+      "id": "F-197-5",
+      "impact": "L",
+      "effort": "S",
+      "scope": "in",
+      "criterion": "C4",
+      "category": "defect",
+      "group": "overrides-line-lookalikes",
+      "related": "none",
+      "recommendation": "Refuse lines that look like an `Overrides:` line but aren't at column 1 (quote, `1)` list, non-breaking-space indent), as bullets already are.",
+      "what": "`> Overrides:`, `1) Overrides:` and a line indented with a non-breaking space are silently ignored: neither applied nor refused. Fails safe.",
+      "how_found": "First QA launch."
+    },
+    {
+      "id": "F-197-6",
+      "impact": "L",
+      "effort": "S",
+      "scope": "in",
+      "criterion": "C2",
+      "category": "defect",
+      "group": "dump-robustness",
+      "related": "F-197-8",
+      "recommendation": "Skip null-author and non-owner comments before checking their fields, so a malformed foreign comment can't block the read.",
+      "what": "A null-author comment missing `body` or `createdAt` is refused rather than skipped (the Engineer's stated choice; fails closed).",
+      "how_found": "First QA launch."
+    },
+    {
+      "id": "F-197-7",
+      "impact": "L",
+      "effort": "S",
+      "scope": "in",
+      "criterion": "C3",
+      "category": "defect",
+      "group": "make-settings-n",
+      "related": "none",
+      "recommendation": "Treat a present-but-blank N as a usage error, as `make issue-hash N=` does.",
+      "what": "`make settings N=` or `make settings \"N= \"` runs without the issue levels and exits 0 (Makefile lines 22-25, agent-kit/templates/Makefile.mk lines 29-32: `$(if $(value N),...)` treats a blank N as no N). A forgotten number at the pre-launch step would miss an issue-level refusal. Matches C3 literally; no bound can be crossed.",
+      "how_found": "Heavy second QA launch, .scratch/qa197b_probe.py."
+    },
+    {
+      "id": "F-197-8",
+      "impact": "L",
+      "effort": "S",
+      "scope": "in",
+      "criterion": "C2",
+      "category": "defect",
+      "group": "dump-robustness",
+      "related": "F-197-6",
+      "recommendation": "As F-197-6.",
+      "what": "One non-owner comment with a malformed field (null body, missing createdAt, author without login) refuses the whole read (settings.py lines 413-419), before the owner filter. Real REST comments can't produce this; fails closed.",
+      "how_found": "Heavy second QA launch."
+    },
+    {
+      "id": "F-197-9",
+      "impact": "L",
+      "effort": "S",
+      "scope": "in",
+      "criterion": "none",
+      "category": "defect",
+      "group": "wording",
+      "related": "none",
+      "recommendation": "Say \"an Overrides: line\".",
+      "what": "A refusal reason reads \"a Overrides: line\" (settings.py line 333).",
+      "how_found": "Heavy second QA launch."
+    }
+  ]
+}
