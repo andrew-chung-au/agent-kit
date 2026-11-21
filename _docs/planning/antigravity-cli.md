@@ -27,6 +27,32 @@ Installed here on 2026-11-21: 1.5.14, from the official installer, SHA512-verifi
 | Headless | `agy -p`, `--output-format text|json|stream-json`, `--json-schema`, `--sandbox`, `--agent`, `--mode`; CLI exit codes 0/1/2. | Usable for QA, but actions that cannot be approved are soft-denied and the run still exits 0. |
 | Auth | API key: `modelProvider: "gemini"` in `~/.gemini/antigravity-cli/settings.json` plus `GEMINI_API_KEY` in the environment (the only source it reads). Personal Google account: browser or, over SSH, a printed URL plus a code. | API-key mode is the headless path and needs no browser. |
 
+## Credential proxy: the request shape, verified
+
+`agy` 1.5.14 sends the key in the `x-goog-api-key` header and appends the version path itself. With `GOOGLE_GEMINI_BASE_URL=http://127.0.0.1:8799` and a dummy `GEMINI_API_KEY`, a local echo server received:
+
+```
+POST /v1beta/models/gemini-3.1-pro-preview:streamGenerateContent?alt=sse
+x-goog-api-key: dummy-key-for-header-test
+```
+
+So a credential-injecting proxy that overwrites `x-goog-api-key` works with this build, and `modelProvider: "gemini"` is still required for the key path. Two consequences: the proxy must stream rather than buffer, which Caddy's `reverse_proxy` already does (its `flush_interval` defaults to `-1`), and a proxy that binds `:port` listens on every interface, so it needs a container-facing bind and a source restriction. A dummy key is enough to start the CLI; the proxy replaces it in flight.
+
+The pattern is a capability boundary, not a data boundary: the agent can still spend quota and can still send repository content to the model through the proxy. If the key's project has billing linked, cap the spend; on the free tier there is nothing to cap, because the quota is the limit and the failure is a 429. Treat the proxy as reachable by anything that can route to it.
+
+### Where the proxy can live in a dev container
+
+Verified in this dev container on 2026-11-21: it runs under Docker Desktop, so it is `172.17.0.2/16` behind `172.17.0.1` inside the Docker Desktop VM; `host.docker.internal` resolves to `192.168.65.254`, the VM's route to Windows; and a Caddy listener on the WSL host's `0.0.0.0:8787` answers at neither address, both refusing in 0 ms. The container, the WSL distro and Windows are three network namespaces here, and nothing in the VM routes to WSL.
+
+So a proxy in WSL is not reachable from this container at all. The workable forms are a proxy container joined to the dev container with `--network container:<name>`, which puts it on the container's own `127.0.0.1` and exposes nothing, or a proxy on the Windows side, which `host.docker.internal` does reach but which has to be configured from PowerShell. The sidecar form is also the shape a layer would ship: it shares the network namespace, so the agent can send requests to it, while its process namespace and the absent Docker socket keep its environment out of the agent's reach.
+
+## Billing and quota: two systems
+
+- **Free-tier API key** (a project with no billing account): hard RPM/TPM/RPD limits, applied per project rather than per key, with RPD resetting at midnight Pacific. Exhaustion is a 429 and nothing can be charged. Some models are "Free: Not supported" on the rate-limits page, so a 429 or 403 on the first call can mean the model rather than the quota; `agy` defaulted to `gemini-3.1-pro-preview` here. Google's terms for the free tier allow prompts to be used to improve its products, so check the current terms before sending repository content.
+- **Google account subscription** (OAuth sign-in): five-hour and weekly usage windows, with optional overage credits. Exhaustion stops the session unless overage is enabled. The credential is a session token in the container, so this route conflicts with keeping credentials out of the container; the proxy pattern injects an API-key header and does not help with an OAuth session.
+
+A second key in the same project does not add quota, because the limits are per project.
+
 ## What a layer would look like
 
 - `AGENTS.md` is the always-loaded rules home, as for CodeBuddy; no pointer file and no `AGENTS.md` copy.
