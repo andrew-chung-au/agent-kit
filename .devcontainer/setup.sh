@@ -16,6 +16,8 @@ case "$(opencode --version 2>/dev/null || true)" in
   *) curl -fsSL https://opencode.ai/v2/install | bash -s -- --version "$opencode_version" ;;
 esac
 command -v claude >/dev/null || curl -fsSL https://claude.ai/install.sh | bash
+command -v codebuddy >/dev/null || curl -fsSL https://www.codebuddy.cn/cli/install.sh | bash
+
 
 git config --global user.name "Andrew Chung"
 git config --global user.email "177896104+andrew-chung-au@users.noreply.github.com"
