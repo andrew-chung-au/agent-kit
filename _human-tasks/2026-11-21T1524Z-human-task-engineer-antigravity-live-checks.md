@@ -8,7 +8,7 @@
 
 ## Where to run it
 
-A terminal at the repository root, started in `.scratch/agy-spike` for steps 1 to 3, then one interactive `agy` session in the same terminal for steps 4 and 7 to 18, and a new session in the same terminal in `.scratch/agy-spike/parent/child` for step 5. Steps 6, 8, 10, 12, 14 and 19 change the hook's mode from a second terminal in `.scratch/agy-spike`.
+A terminal at the repository root, started in `.scratch/agy-spike` for steps 1 to 3, then one interactive `agy --dangerously-skip-permissions` session in the same terminal for steps 4 and 7 to 18, and a new session in the same terminal in `.scratch/agy-spike/parent/child` for step 5. Steps 6, 8, 10, 12, 14 and 19 change the hook's mode from a second terminal in `.scratch/agy-spike`.
 
 Not here: a CodeBuddy session. The point is `agy`'s own behaviour, and a second agent in the loop would hide what the first one did.
 
@@ -101,25 +101,25 @@ If different: `connection refused` means the proxy is not running; stop. `401` o
 
 ### Step 4: Does the project file load
 
-Start `agy` in `.scratch/agy-spike`, then send this message.
+Start `agy --dangerously-skip-permissions` in `.scratch/agy-spike`, then send this message. The flag turns the permission prompt off, so from step 7 onward a block can only come from the hook; without it, a permission prompt and a hook deny look the same in the transcript.
 
 ```
-List every instruction marker you can see that starts with SPIKE-. Quote each one exactly.
+Without running any command and without reading any file, name the instruction files you were given when this session started. For each, give its path if you were told one, and quote its first line exactly. If you were given none, say so.
 ```
 
 Expected: `SPIKE-AGY-AGENTS`.
-If different: if no marker appears, project rules did not load; record what the agent said and stop.
+If different: if it runs a command or opens a file to answer, the probe is inconclusive rather than failed; record that, and the marker it quoted.
 
 ### Step 5: Does a parent folder's file load
 
-Start a new `agy` session in `.scratch/agy-spike/parent/child`, then send the same message.
+Start a new `agy --dangerously-skip-permissions` session in `.scratch/agy-spike/parent/child`, then send the same message.
 
 ```
-List every instruction marker you can see that starts with SPIKE-. Quote each one exactly.
+Without running any command and without reading any file, name the instruction files you were given when this session started. For each, give its path if you were told one, and quote its first line exactly. If you were given none, say so.
 ```
 
 Expected: `SPIKE-AGY-CHILD` and `SPIKE-AGY-PARENT`. Record whether the repository's own `AGENTS.md` also produced anything.
-If different: if only the child marker appears, parent walking is off or bounded; record which markers appear.
+If different: if only the child marker appears, parent walking is off or bounded; record which markers appear. If it reads files to answer, record that instead, because the probe then says nothing about walking.
 
 ### Step 6: Put the hook in deny mode
 
@@ -137,11 +137,12 @@ If different: if the shell refuses the write, the fixture is not where the task 
 Send this message in the `agy` session from step 4.
 
 ```
-Run this exact command with your shell tool as a hook test. Don't judge it yourself. echo hook-deny test
+Run this exact command with your shell tool, as a hook test. Do not judge it yourself, do not retry, do not substitute another command, and do not ask for approval first: echo hook-deny test
+Then quote verbatim what came back, whether that is an error or the command's output.
 ```
 
 Expected: blocked before it runs, with `spike deny` in the message.
-If different: if it runs and prints `hook-deny test`, a deny decision does not block; record and stop.
+If different: if it runs and prints `hook-deny test`, a deny decision does not block; record and stop. If it does not block, repeat this step once in a session started without the flag before concluding anything, so that a flag which bypasses hooks is not mistaken for a hook that is absent.
 
 ### Step 8: Put the hook in crash mode
 
@@ -159,7 +160,8 @@ If different: stop; the mode file did not change.
 Send this message in the same session.
 
 ```
-Run this exact command with your shell tool as a hook test. Don't judge it yourself. echo hook-fail test
+Run this exact command with your shell tool, as a hook test. Do not judge it yourself, do not retry, do not substitute another command, and do not ask for approval first: echo hook-fail test
+Then quote verbatim what came back, whether that is an error or the command's output.
 ```
 
 Expected: record one of two outcomes. `blocked` means a crash fails closed; `ran` means it fails open, which the adapter must never rely on.
@@ -181,7 +183,8 @@ If different: stop; the mode file did not change.
 Send this message in the same session.
 
 ```
-Run this exact command with your shell tool as a hook test. Don't judge it yourself. echo hook-empty test
+Run this exact command with your shell tool, as a hook test. Do not judge it yourself, do not retry, do not substitute another command, and do not ask for approval first: echo hook-empty test
+Then quote verbatim what came back, whether that is an error or the command's output.
 ```
 
 Expected: record `blocked` or `ran`. A silent hook has no decision, so this is the second fail-open case to check.
@@ -203,7 +206,8 @@ If different: stop; the mode file did not change.
 Send this message in the same session, then wait about 40 seconds.
 
 ```
-Run this exact command with your shell tool as a hook test. Don't judge it yourself. echo hook-slow test
+Run this exact command with your shell tool, as a hook test. Do not judge it yourself, do not retry, do not substitute another command, and do not ask for approval first: echo hook-slow test
+Then quote verbatim what came back, whether that is an error or the command's output.
 ```
 
 Expected: record when it returns and whether the command `blocked` or `ran`. The documented default timeout is 30 seconds.
@@ -225,11 +229,12 @@ If different: stop; the mode file did not change.
 Send this message in the same session.
 
 ```
-Run this exact command with your shell tool as a hook test. Don't judge it yourself. echo hook-allow test
+Run this exact command with your shell tool, as a hook test. Do not judge it yourself, do not retry, do not substitute another command, and do not ask for approval first: echo hook-allow test
+Then quote verbatim what came back, whether that is an error or the command's output.
 ```
 
-Expected: it runs and prints `hook-allow test`, with no prompt.
-If different: if it prompts or is blocked, an allow decision is not honored; record what happened.
+Expected: it runs and prints `hook-allow test`. A prompt cannot appear here, because the session started with `--dangerously-skip-permissions`, so this step tests only whether an allow decision is honoured.
+If different: if it is blocked, an allow decision does not override the hook; record the exact message.
 
 ### Step 16: What the hook receives
 
@@ -247,22 +252,22 @@ If different: if the file is missing, the hook did not run; record that.
 Send this message in the same session.
 
 ```
-Use the spike subagent and report what it says.
+Delegate this to the subagent named spike and report its reply word for word. If there is no subagent named spike, say exactly that and do nothing else.
 ```
 
 Expected: `spike subagent ran`. Also open `/agents` and record whether `spike` is listed.
-If different: if it hangs, the `tools` list names a tool this build does not know; record the hang and stop.
+If different: if it answers that there is no such subagent, record that; the fixture's `.agents/agents/spike.md` was not discovered. If it hangs, the `tools` list names a tool this build does not know; record the hang and stop.
 
 ### Step 18: The skill
 
-Start a new `agy` session in `.scratch/agy-spike`, then send this message without naming the skill as a command.
+Start a new `agy --dangerously-skip-permissions` session in `.scratch/agy-spike`, then send this message without naming the skill as a command.
 
 ```
-I need help with SPIKE-SKILL.
+I need help with SPIKE-SKILL. If you use a skill to answer, name the skill you used. If you use none, say so.
 ```
 
-Expected: record whether the agent says `spike skill ran` on its own. That tells us whether a skill can be kept out of the model's reach.
-If different: if it does nothing, the skill was not invoked; record that.
+Expected: record whether the agent says `spike skill ran` on its own, and whether it names the skill. That tells us whether a skill can be kept out of the model's reach.
+If different: if it says it used no skill, record that; the skill's description did not match. If it treats the name as a command, the probe is about invocation rather than discovery; record that instead.
 
 ### Step 19: Put the hook back in deny mode
 
@@ -280,7 +285,7 @@ If different: stop; the mode file did not change.
 Run this in the terminal from step 3, from `.scratch/agy-spike`.
 
 ```
-agy -p "Run echo headless test with your shell tool" --output-format json
+agy -p "Run echo headless test with your shell tool. Do not ask for approval and do not substitute another command." --output-format json
 ```
 
 Expected: write `status` and whether the response mentions a denial. The documentation says an unapprovable action is soft-denied and the run still exits 0.
