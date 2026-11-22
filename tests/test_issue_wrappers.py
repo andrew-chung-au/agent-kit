@@ -944,7 +944,9 @@ class MakeTargetTest(FakeGhMixin, unittest.TestCase):
         self.assertNotIn(MATCH[1][1], done.stderr)
 
     def test_template_and_repo_makefile_define_the_same_targets(self):
-        template = (KIT / "templates" / "Makefile.github.mk").read_text(encoding="utf-8")
+        # #198 moved issue-file-ok into Makefile.mk, where check-format uses it too.
+        template = ((KIT / "templates" / "Makefile.mk").read_text(encoding="utf-8")
+                    + (KIT / "templates" / "Makefile.github.mk").read_text(encoding="utf-8"))
         repo = (REPO / "Makefile").read_text(encoding="utf-8")
 
         def block(text, root):

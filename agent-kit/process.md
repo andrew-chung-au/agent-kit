@@ -61,6 +61,8 @@ Every question to the human, from any role, follows `_docs/agent-kit/procedures/
 
 **Report by reference.** If a result is in a file (session summary, issue comment, `.scratch/` file, task file), a message to the human or a role's return gives the path or link, a one-line size or outcome, and the decisions or exceptions needing them, never its contents. Exceptions, kept in full: a protected-commit approval request (its diff and `git diff --cached --stat`); a security finding (never the secret); a blocking question. `make clean-scratch` deletes untracked `.scratch/`, so post or commit anything lasting; clean up after the human has read it.
 
+**Reading a return.** Every role ends with the role return of `_docs/agent-kit/procedures/formats.md`: ten fixed lines, then any request kept in full. Read its fields, and open `Detail:` only when a field doesn't answer what you need. A message to the human starts with the fields of Message to the human in `_docs/agent-kit/procedures/asking-the-human.md`.
+
 ## When a role's actions are blocked
 
 If the tool blocks a role's action as risky, or blocks several in a row, the orchestrator stops that role before it continues. It shows the human each blocked command and what the role was trying to do, and checks whether anything was changed or deleted, including git-ignored files and Docker volumes.

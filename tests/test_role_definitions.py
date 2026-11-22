@@ -51,5 +51,27 @@ class RoleDefinitionTest(unittest.TestCase):
         self.assertRegex(text, r'"\*": deny\n\s+"\.scratch/\*": allow')
 
 
+# Tool layers with role prompts (#198 ruling). Adding a layer is one line here.
+LAYERS = ("claude-code", "opencode", "codebuddy")
+ROLES = ("pm", "software-engineer", "qa-engineer")
+POINTER = re.compile(r"Read `_docs/agent-kit/team/([a-z-]+\.md)` and follow it\.")
+
+
+class LayersInStepTest(unittest.TestCase):
+    def test_every_layer_points_each_role_at_its_own_team_file(self):
+        for layer in LAYERS:
+            for role in ROLES:
+                with self.subTest(layer=layer, role=role):
+                    text = (AGENTS / layer / "agents" / f"{role}.md").read_text(encoding="utf-8")
+                    self.assertEqual(POINTER.findall(text), [f"{role}.md"])
+
+    def test_the_team_files_name_the_role_return(self):
+        # The return format lives in the team files, so no prompt needs its own line.
+        for role in ROLES:
+            text = " ".join((AGENTS / "team" / f"{role}.md").read_text(encoding="utf-8").split())
+            with self.subTest(role=role):
+                self.assertIn("the role return of `_docs/agent-kit/procedures/formats.md`", text)
+
+
 if __name__ == "__main__":
     unittest.main()
