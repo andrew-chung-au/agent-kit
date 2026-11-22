@@ -75,3 +75,13 @@ On issue #196 the human added `approved` before grooming, so the groomed body ne
 - **Why it's safe:** the confirmation in path 1 comes from the human in the session, never from comment text. The sandbox token can add labels (`environments/local-sandbox/README.md`), so a label alone never approves a body that it was added before.
 - **Meanwhile:** until #203 lands, the PM grooms first and the human labels after (path 2), so each issue needs one approval.
 - **Issue:** #203 (04c), which already rewrites Lifecycle step 2 and the Approved text.
+
+### C. Other tool layers: check each issue's per-tool files (2026-11-22)
+
+New tool layers are joining 1.11 alongside the core changes: CodeBuddy (`agent-kit/codebuddy/`, on main) and Antigravity (#221, handled in another session). They don't change the core, but an issue that edits each tool's own files must say what each layer gets. When grooming, the PM lists every layer in the Files list or states why one is left out.
+
+- **#200 (03b), #206 (07a):** the sweep skill copies (Claude Code, OpenCode, CodeBuddy, and Antigravity once it lands).
+- **#199 (03a), #210 (08c):** `STEP_UP` and reasoning variants stay Claude Code only; CodeBuddy has no model swapping (`_docs/planning/kit-1.11/README.md`, CodeBuddy section).
+- **#211 (09a), #212 (09b):** core rules per tool; CodeBuddy loads `AGENTS.md` and gets no `CODEBUDDY.md` (comments on #211 and #212).
+- **#214 (11a), #215 (11b):** a delivery-lead agent and the channel per tool.
+- **#198 (02):** groomed before CodeBuddy landed; a session ruling (2026-11-22) gives `agent-kit/codebuddy/agents/*.md` the same change as the Claude Code and OpenCode role prompts.
