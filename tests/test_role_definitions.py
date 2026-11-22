@@ -52,7 +52,7 @@ class RoleDefinitionTest(unittest.TestCase):
 
 
 # Tool layers with role prompts (#198 ruling). Adding a layer is one line here.
-LAYERS = ("claude-code", "opencode", "codebuddy")
+LAYERS = ("claude-code", "opencode", "codebuddy", "antigravity")
 ROLES = ("pm", "software-engineer", "qa-engineer")
 POINTER = re.compile(r"Read `_docs/agent-kit/team/([a-z-]+\.md)` and follow it\.")
 

@@ -210,6 +210,22 @@ class ReturnTest(Runner):
                 self.assert_ok("return", swap(RETURN_NONE, old, new))
         self.assert_ok("return", RETURN + "\nDecision needed: which option?\n- Context: x\n")
 
+    def test_a_request_may_keep_its_diff_in_full(self):
+        # F-198-4: a diff's empty context line (one space) or a blank line inside a fence
+        # does not start a new request.
+        diff = "diff --git a/x b/x\n@@ -1,3 +1,3 @@\n context\n{gap}\n-old\n+new\n"
+        for name, gap in (("no empty context line", " same"), ("an empty context line", " "),
+                          ("an empty line", "")):
+            body = diff.format(gap=gap)
+            with self.subTest(case=name, form="fenced"):
+                self.assert_ok("return", RETURN + "\n```diff\n" + body + "```\n")
+            if gap != "":
+                with self.subTest(case=name, form="bare"):
+                    self.assert_ok("return", RETURN + body)
+        self.assert_ok("return", RETURN + "  indented line after the request\n\n    more indented\n")
+        self.assert_refused("return", RETURN + "\nNot a request\n", reason="found 'Not a request'")
+        self.assert_refused("return", RETURN + "\n```\nx\n```\n\n-old\n", reason="found '-old'")
+
     def test_the_role_files_end_with_the_return(self):
         for role in ("pm", "software-engineer", "qa-engineer"):
             text = " ".join((KIT / "team" / f"{role}.md").read_text(encoding="utf-8").split())

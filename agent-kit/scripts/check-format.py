@@ -421,16 +421,29 @@ class Checker:
         if self.line(i) != "" or not (self.line(i + 1) or "").strip(" \t"):
             self.problem(i, "with `Needs the human: yes`, one blank line and then a request must follow")
             return
-        previous_blank = True
+        # A new request starts only at a column-1 line after an empty line, outside a fenced
+        # block. Lines inside a fence, indented lines and whitespace-only lines (a diff's empty
+        # context line is one space) belong to the request before them.
+        previous_empty = True
+        fenced = False
         for index in range(i + 1, len(self.lines)):
             line = self.lines[index]
-            if line.strip(" \t") == "":
-                previous_blank = True
+            if fenced:
+                if line.lstrip(" ").startswith("```"):
+                    fenced = False
+                previous_empty = False
                 continue
-            if previous_blank and not re.match(r"(?:Approval needed|Decision needed): \S", line):
+            if line == "":
+                previous_empty = True
+                continue
+            fence = line.lstrip(" ").startswith("```")
+            starts = previous_empty and line[0] not in " \t" and not fence
+            previous_empty = False
+            if starts and not re.match(r"(?:Approval needed|Decision needed): \S", line):
                 self.problem(index, f"a request must start `Approval needed: ` or `Decision needed: `, "
                                     f"found {echo(line)}")
-            previous_blank = False
+            if fence:
+                fenced = True
 
 
 def check_text(kind: str, text: str, issue: int | None) -> list:
