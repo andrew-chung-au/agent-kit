@@ -72,7 +72,9 @@ class ParseTest(Base):
                     ".claude/agents/qa-engineer.md", ".claude/agents/software-engineer.md",
                     ".claude/skills/sweep/SKILL.md", ".codebuddy/agents/pm.md",
                     ".codebuddy/agents/qa-engineer.md", ".codebuddy/agents/software-engineer.md",
-                    ".codebuddy/skills/sweep/SKILL.md"]))
+                    ".codebuddy/skills/sweep/SKILL.md",
+                    ".agents/agents/pm.md", ".agents/agents/qa-engineer.md",
+                    ".agents/agents/software-engineer.md"]))
         for entry in entries:
             with self.subTest(source=entry.source):
                 self.assertTrue((KIT / entry.source).is_file())

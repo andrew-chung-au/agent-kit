@@ -30,9 +30,10 @@ kit_map = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(kit_map)
 
 LAYERS = {"opencode": "opencode/START.md", "claude-code": "claude-code/START.md",
-          "codebuddy": "codebuddy/START.md"}
-TOOL_DIRS = (".opencode/", ".claude/", ".codebuddy/")
-MERGED = ("opencode.json", ".claude/settings.json", "CLAUDE.md", ".codebuddy/settings.json")
+          "codebuddy": "codebuddy/START.md", "antigravity": "antigravity/START.md"}
+TOOL_DIRS = (".opencode/", ".claude/", ".codebuddy/", ".agents/")
+MERGED = ("opencode.json", ".claude/settings.json", "CLAUDE.md", ".codebuddy/settings.json",
+          ".agents/hooks.json")
 OLD_PLUGIN = "// V1 plugin: OpenCode 2.2.5 refuses to load this one\nexport default { name: 'permission-log' }\n"
 
 
@@ -68,7 +69,7 @@ class MapCoversTheStartFilesTest(unittest.TestCase):
     def test_every_file_a_start_file_says_to_copy_has_a_map_line(self):
         # The two cannot drift apart: a new row in a START table with no map line fails here.
         rows = [row for layer in LAYERS for row in start_rows(layer)]
-        self.assertGreaterEqual(len(rows), 13, rows)  # 3 agents + sweep + plugin, 3 agents + sweep, 3 agents + sweep
+        self.assertGreaterEqual(len(rows), 16, rows)  # 3 agents + sweep + plugin, 3 agents + sweep, 3 agents + sweep, 3 agents
         for source, install in rows:
             with self.subTest(source=source, install=install):
                 self.assertIn((source, install), self.entries, "a START file copies it; the map has no line")
@@ -89,6 +90,9 @@ class MapCoversTheStartFilesTest(unittest.TestCase):
             ("codebuddy/agents/qa-engineer.md", ".codebuddy/agents/qa-engineer.md"),
             ("codebuddy/agents/software-engineer.md", ".codebuddy/agents/software-engineer.md"),
             ("codebuddy/skills/sweep/SKILL.md", ".codebuddy/skills/sweep/SKILL.md"),
+            ("antigravity/agents/pm.md", ".agents/agents/pm.md"),
+            ("antigravity/agents/qa-engineer.md", ".agents/agents/qa-engineer.md"),
+            ("antigravity/agents/software-engineer.md", ".agents/agents/software-engineer.md"),
         ]))
 
     def test_every_tool_layer_map_line_is_a_start_row(self):
@@ -112,7 +116,7 @@ class MapCoversTheStartFilesTest(unittest.TestCase):
                 self.assertNotIn(path, installs)
         sources = [source for source, _ in self.entries]
         for source in ("opencode/opencode.json", "claude-code/settings.json", "claude-code/CLAUDE.md.template",
-                       "codebuddy/settings.json"):
+                       "codebuddy/settings.json", "antigravity/hooks.json"):
             self.assertNotIn(source, sources)
 
     def test_the_existing_lines_are_unchanged(self):
