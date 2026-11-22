@@ -1,0 +1,58 @@
+{
+  "provisional": "Written by hand on 2026-11-22, before the findings log exists (same form as 196.json to 198.json). Fields follow #198's finding format; issue #200 (03b) defines the log's file format and takes this file over. All four are Low, so none failed #199 under its own rule (QA_FAIL_AT=M, QA_SCOPE_STRICT=yes, from make settings N=199).",
+  "issue": 199,
+  "findings": [
+    {
+      "id": "F-199-1",
+      "impact": "L",
+      "effort": "S",
+      "scope": "in",
+      "criterion": "C5",
+      "category": "defect",
+      "group": "route-findings-chains",
+      "related": "none",
+      "recommendation": "Link findings only through ids a finding of this issue holds, or document in customizing.md (Points) that a cross-issue Related id joins chains.",
+      "what": "chains_of in agent-kit/scripts/route-findings.py (lines 57 to 79) treats a Related id from another issue as a link, so two findings of one issue that both name F-198-4 become one chain and the second gets rounds 1 and guard yes on its first failure. It only routes a finding to the human sooner, never later.",
+      "how_found": "First QA launch, .scratch/qa199_probe.py."
+    },
+    {
+      "id": "F-199-2",
+      "impact": "L",
+      "effort": "S",
+      "scope": "in",
+      "criterion": "none",
+      "category": "debt",
+      "group": "route-findings-settings-time",
+      "related": "none",
+      "recommendation": "Add to process.md step 6 that a new QA run clears a QA comment route-findings refuses after a settings ruling.",
+      "what": "A ruling that changes QA_FAIL_AT or QA_SCOPE_STRICT after the latest QA comment makes route-findings refuse that comment (route() lines 102 to 105), because its counts no longer match the settings. Correct under C5, but process.md step 6 doesn't say what clears it.",
+      "how_found": "First QA launch."
+    },
+    {
+      "id": "F-199-3",
+      "impact": "L",
+      "effort": "S",
+      "scope": "in",
+      "criterion": "C6",
+      "category": "debt",
+      "group": "ship-rule-docs",
+      "related": "none",
+      "recommendation": "Add one sentence to customizing.md advising projects to name impact: in a ship rule.",
+      "what": "ship_rule_matches in agent-kit/scripts/route-findings.py (lines 82 to 93) ignores keys the rule doesn't name, so SHIP_RULE=rounds:0 or SHIP_RULE=effort:S ships an in-scope Critical finding at its first FAIL without asking the human. That is what C6 says, but customizing.md doesn't warn about it.",
+      "how_found": "Heavy second QA launch, .scratch/qa-199-2-probe.py."
+    },
+    {
+      "id": "F-199-4",
+      "impact": "L",
+      "effort": "S",
+      "scope": "in",
+      "criterion": "C5",
+      "category": "debt",
+      "group": "route-findings-settings-time",
+      "related": "F-199-2",
+      "recommendation": "Add one sentence to customizing.md (Points) that earlier QA comments are judged under today's settings.",
+      "what": "route() (lines 109 to 123) judges earlier QA comments under today's settings, not those they were posted under; a later ruling raising QA_FAIL_AT can drop a chain's rounds so a finding that failed several re-checks goes back to the Engineer instead of to the human at ASK_AT. Matches C5's wording; undocumented.",
+      "how_found": "Heavy second QA launch."
+    }
+  ]
+}

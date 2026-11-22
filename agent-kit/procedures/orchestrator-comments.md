@@ -20,15 +20,15 @@ Fixed: the claim is released; nothing is merged or closed.
 ## Confirm
 
 Fixed: the human confirmed the new body in this session; the hash re-check ran; the PM must record the hash in a `PM:` comment.
-**Fact:** the new hash, the old hash, what changed.
+**Fact:** the new hash, the old hash, what changed; an amend's criterion id and its finding or review.
 
 ## Ruling
 
-Fixed: first line `Orchestrator: Ruling`, then `Human ruled: <YYYY-MM-DD>`; record only what the human said in this session. Each `Ruling: NAME=value` sets a setting for this issue (`make settings N=<n>` reads it); other `Ruling:` text records a process ruling. `Waiver: <gate> - <reason>` names a QA gate the human waived: `heavy-second-qa` or `qa-recheck`, as `WAIVABLE_GATES` allows (`customizing.md`). A waiver is recorded but no script acts on it yet.
+Fixed: first line `Orchestrator: Ruling`, then `Human ruled: <YYYY-MM-DD>`; record only what the human said in this session. Each `Ruling: NAME=value` sets a setting for this issue (`make settings N=<n>` reads it); other `Ruling:` text records a process ruling, such as a human ship naming the finding. `Waiver: <gate> - <reason>` names a QA gate the human waived: `heavy-second-qa` or `qa-recheck`, as `WAIVABLE_GATES` allows (`customizing.md`). A waiver is recorded but no script acts on it yet.
 **Fact:** the date, each ruling and waiver.
 
 ## Close
 
 Fixed: who built it, what moved or was not done, what is not verified, and these lines, each alone and worded exactly, because `make issue-close` matches them: `QA PASS commit: <7 to 40 hex>` (named in the latest `QA:` PASS; not for Light), `Merge commit: <7 to 40 hex>`, `Verify: <text>`, `Summary: <path>`, and for Light `Human approved diff: yes`.
-**Fact:** every value in those lines.
+**Fact:** every value in those lines; each shipped finding, and how.
 Never close without QA PASS. Post after the last PASS (Light: after `tier-check: PASS`), then `make issue-close N=<n>`. Close as not planned only after the human approved that closure: `Orchestrator: Close as not planned` with `Human approved closure: <YYYY-MM-DD>` and `Backlog review: <path or comment URL>`, then add `REASON=not-planned`.

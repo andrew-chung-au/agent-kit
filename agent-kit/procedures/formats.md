@@ -8,7 +8,7 @@ Every field is `<Label>: <value>` alone on its line from column 1, as in "Lines 
 
 A recommendation is never empty. `none` is allowed only as `none, because <reason>`.
 
-Check a file before you send or post it: `make check-format KIND=<return|finding|qa|message> FILE=.scratch/<name> [N=<issue number>]` (N for `finding` and `qa`). It prints `ok`, or one line per problem. It checks shape, not truth.
+Check a file before you send or post it: `make check-format KIND=<return|finding|qa|message> FILE=.scratch/<name> [N=<issue number>]` (N for `finding` and `qa`). It prints `ok`, or one line per problem. It checks shape, not truth. For `qa` it also reads the issue's settings (`agent-kit.conf` and the dump `.scratch/issue-<n>.json`), so run `make settings N=<n>` first; it then checks that the verdict and the `Findings:` counts follow from the findings (`team/qa-engineer.md`).
 
 ## Role return
 
@@ -56,14 +56,18 @@ One per problem QA or a sweep finds, inside a QA comment and as the text form of
 - `Id:` `F-<issue>-<n>`, n from 1 with no leading zero, unique in the file; a second QA launch continues the numbering
 - `Impact:` `L`, `M` or `C`
 - `Effort:` `S`, `R` or `E`
-- `Scope:` `in` or `out`
+- `Scope:` `in` or `out` (below)
 - `Criterion:` `C<n>` with no leading zero, or `none` for a risk no criterion covers
-- `Category:` `defect`, `debt` or `standard`
+- `Category:` `defect`, `debt`, `standard` or `criterion` (a criterion stricter than the issue's goal needs; it still fails or logs by its impact and scope)
 - `Group:` a slug: lowercase letters and digits in parts joined by single hyphens, at most 40 characters
-- `Related:` another finding's id, or `none`
+- `Related:` another finding's id, or `none` (below)
 - `Recommendation:` the fix you recommend
 - `What:` the problem, with the file and line
 - `How found:` the command, script or reading that showed it
+
+**Scope.** `in` is what the issue asks for (a criterion, a standard it lists) or what its own change caused, the Code review items of `team/qa-engineer.md` included. `out` is everything else: a failure the change didn't cause (such as a **Verify** failure a clean copy of the base also shows), a risk outside the issue, and a finding moved out of scope by a ship (`process.md`, Lifecycle step 6). Whether a finding fails follows from its impact and scope under the settings `QA_FAIL_AT` and `QA_SCOPE_STRICT` (`_docs/agent-kit/customizing.md`).
+
+**Related.** Set it when the finding stems from an earlier finding's fix, or has the same cause. A finding that still fails at a re-check is repeated with its own id; a new problem takes the next id. The value is `none` or an id `F-<issue>-<n>` other than the finding's own. In a QA comment, an id of this issue must be in a finding of the same comment or of an earlier owner `QA:` comment on the issue; an id of another issue is checked for shape only. `make route-findings` follows these links to count a finding's rounds.
 
 Each label maps to the findings-log JSON key of the same field: lower-case it and replace the space with `_` (`How found` is `how_found`). `scripts/check-format.py` holds the keys in order as `FINDING_FIELDS`, and checks the text form and the JSON form with the same function.
 

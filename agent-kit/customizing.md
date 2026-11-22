@@ -4,7 +4,7 @@ Where a project goes to change a kit value. Reader: the human running a project,
 
 Every value the process uses is a **setting** with a kit default. A project changes one with a single line in `agent-kit.conf`, or picks a **profile** that sets a few of them at once, instead of editing the kit's text and carrying a fork. `make settings` prints each setting, its value and where that value comes from. This page also holds the **grade vocabulary** every role uses.
 
-Nothing in the kit acts on the settings yet. Each setting below names the issue that makes it take effect; until that issue lands, a value you write has no effect.
+The QA settings of #199 act now: `QA_FAIL_AT`, `QA_SCOPE_STRICT`, `RECHECK`, `FIX_CHECK_LOOPS`, `ASK_AT`, `SHIP_RULE` and `STEP_UP` (QA's verdict, `make check-format KIND=qa`, `make route-findings` and Lifecycle step 6 of `process.md`). Each other setting below names the issue that makes it take effect; until that issue lands, a value you write has no effect.
 
 ## Grades
 
@@ -75,11 +75,11 @@ Most settings aren't in any profile at all: they have one default and are set on
 | `PROFILE` | `solo` | `solo`, `team`, `fleet` | Selects the profile column above; unset means `solo` | #196 |
 | `DECISION_BUDGET` | `3` | whole number 0 to 99 | Open Continue weight before new work stops; 0 means every decision point stops. Often changed by a session ruling, for example before you go away | #204 |
 | `QA_FAIL_AT` | `M` | `L`, `M`, `C` | Lowest impact that fails | #199 |
-| `QA_SCOPE_STRICT` | `yes` | `yes`, `no` | QA fails only on criteria and listed standards | #199 |
+| `QA_SCOPE_STRICT` | `yes` | `yes`, `no` | `yes`: only a `Scope: in` finding can fail (what the issue asks for, or what its own change caused; `procedures/formats.md`); `no`: an out-of-scope finding fails too | #199 |
 | `RECHECK` | `changed` | `changed`, `full` | `changed` (with its automatic step-ups) or `full` | #199 |
 | `FIX_CHECK_LOOPS` | `2` | whole number 1 to 99 | Inner loop: fix and fix check, within one round | #199 |
 | `ASK_AT` | `4` | whole number 1 to 99 | Outer loop: a failing finding with fewer points goes back to the Engineer; at this many, "ship or fix?" goes to the human | #199 |
-| `SHIP_RULE` | `none` | `none`, or one to three comma-separated `key:value` pairs, no spaces, each key at most once: `impact:` `L`/`M`/`C`, `effort:` `S`/`R`/`E`, `rounds:` whole number 0 to 99 | When a failing finding may ship without asking; its meaning comes with #199 | #199 |
+| `SHIP_RULE` | `none` | `none`, or one to three comma-separated `key:value` pairs, no spaces, each key at most once: `impact:` `L`/`M`/`C`, `effort:` `S`/`R`/`E`, `rounds:` whole number 0 to 99 | When a failing finding ships without asking: it matches when every key it names holds, the finding's impact at or below `impact:`, its effort at or above `effort:`, its rounds at or above `rounds:` (Points, below); `none` means only the human ships | #199 |
 | `STEP_UP` | `ask` | `auto`, `ask`, `off` | Claude Code only: whether a finding's second failure moves the next fix to a stronger variant: `auto`, `ask` or `off` | #199; `auto` acts as `ask` until #210 |
 | `FINDINGS_TO_ISSUE_AT` | `C` | `L`, `M`, `C` | Lowest impact that gets an issue straight away; the rest goes to the findings log | #200 |
 | `FINDINGS_GROUP_AT` | `5` | whole number 1 to 99 | Log entries in one group before the sweep drafts one issue for them | #200 |
@@ -89,7 +89,27 @@ Most settings aren't in any profile at all: they have one default and are set on
 
 `FIX_CHECK_LOOPS` and `ASK_AT` are not duplicates. They limit different loops: `FIX_CHECK_LOOPS` limits the cheap inner loop (fix, fix check) inside one round, and adds no points. `ASK_AT` acts on the outer loop of QA re-checks, where each failed re-check adds a point. A round looks like this: the Engineer fixes; the fix check runs, up to `FIX_CHECK_LOOPS` times; QA re-checks; if the finding fails again it gains a point; below `ASK_AT` it goes back to the Engineer for another round, and at `ASK_AT` it goes to the human.
 
-**`STEP_UP` applies in Claude Code only.** OpenCode, Kiro and CodeBuddy ignore it: OpenCode runs free models, so there is no stronger variant to move to; in Kiro a named model uses more credits than its automatic choice; and the kit configures no model swapping in CodeBuddy. When a finding fails twice on a tool without a step up, the orchestrator notes that no escalated model is configured, so the patchwork guard's approach review is the only step up.
+**`STEP_UP` applies in Claude Code only.** OpenCode, Kiro, CodeBuddy and Antigravity ignore it: OpenCode runs free models, so there is no stronger variant to move to; in Kiro a named model uses more credits than its automatic choice; the kit configures no model swapping in CodeBuddy; and the kit sets no model for Antigravity, and the orchestrator can't switch one (an Antigravity subagent file's own `model:` line is #210's variants question, not a step up). When a finding fails twice on a tool without a step up, the orchestrator notes that no escalated model is configured, so the patchwork guard's approach review is the only step up. In Claude Code, `ask` puts the step up into the next message to the human as a note with a recommendation, `auto` acts as `ask` until #210 defines the variants (the note says no stronger variant is defined), and `off` never steps up.
+
+## Points
+
+`make route-findings N=<n>` routes each failing finding of the latest QA comment by its **points**: its effort as last posted (S = 1, R = 2, E = 3, the Effort points of the grade table) **plus its rounds**, the failed QA re-checks of its chain. A finding's chain is the finding and every finding linked to it by `Related:`, in either direction, across the issue's owner `QA:` comments; the chain's failures are the QA comments in which a finding of the chain fails, and its rounds are its failures minus 1. Impact is not in the points: impact decides whether the finding fails at all; points decide what happens next. Fix checks add no points. Points are computed from the issue's QA comments each time, never stored.
+
+The route, in this order:
+1. **`Category: criterion`:** to the human (fix, ship or amend).
+2. **Ship rule:** a matching `SHIP_RULE` ships it. The default, `none`, means only the human ships a failing finding.
+3. **Ask:** at `ASK_AT` points or above, "ship or fix?" goes to the human.
+4. **Fix:** below `ASK_AT`, the Engineer fixes it without asking.
+
+The **patchwork guard** fires when the chain has two or more failures (`guard yes`), and with it the step up. Every failing finding is in scope (by default) and at least Moderate, so each is worth one fix attempt before the human is asked. With the defaults:
+
+| Effort of the fix | Points at the first FAIL | Asked about | QA runs at most |
+|---|---|---|---|
+| E (3) | 3 | After one failed re-check | 2 |
+| R (2) | 2 | After two failed re-checks | 3 |
+| S (1) | 1 | After three failed re-checks | 4 |
+
+`ASK_AT=3` asks one round sooner for each, and sends extended fixes to the human straight away. An example ship rule a project might set: `SHIP_RULE=impact:M,effort:E,rounds:1` ships a Moderate, extended fix after one failed re-check instead of asking.
 
 **Not settings:**
 - The model for each reasoning level: it is set in the project's role definitions, not here.
@@ -99,7 +119,12 @@ Most settings aren't in any profile at all: they have one default and are set on
 **Defaults that differ from what the kit does today.** The human kept these decided defaults (2026-11-19). The issue that wires each one states the change, and the conf line that keeps today's behaviour, in its changelog entry:
 - `GROOM_AHEAD=2`: today `process.md` (Lifecycle, step 2) grooms only the next issue. Wired by #203.
 - `DECISION_BUDGET=3`: today every decision waits for the decision point at the end of the issue. Wired by #204.
-- `QA_SCOPE_STRICT=yes`: today the Heavy second QA launch fails on any problem (`team/qa-engineer.md`). Wired by #199.
+- `QA_SCOPE_STRICT=yes`: before #199 the Heavy second QA launch failed on any problem; now only a failing finding fails it, and an out-of-scope finding never does (`team/qa-engineer.md`). Wired by #199.
+- `QA_FAIL_AT=M`: before #199 a Low finding against a criterion failed the issue. Wired by #199.
+- `RECHECK=changed`: before #199 a re-check was a full QA launch. Wired by #199.
+- `ASK_AT=4`: before #199 the fix loop had no limit. Wired by #199.
+- `FIX_CHECK_LOOPS=2`: the fix check is new with #199; no value turns it off. Wired by #199.
+- `STEP_UP=ask`: the step-up note to the human is new with #199. Wired by #199.
 - `HEAVY_SECOND_QA=off` has no effect yet; a follow-up issue makes it work.
 
 ## One issue: overrides and session rulings

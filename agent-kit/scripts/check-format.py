@@ -17,22 +17,34 @@ The line rule (procedures/orchestrator-comments.md, "Lines scripts read"): every
 included), one space after the colon, and a one-line value that is not empty. A line
 ending in CRLF reads as LF; a file starting with a UTF-8 byte order mark is refused.
 
+`qa` also checks the verdict against the issue's settings (issue #199): it reads
+agent-kit.conf and the dump .scratch/issue-<N>.json (written by `make settings N=<N>`)
+through settings.read_settings at the issue level, then checks that the comment is
+`QA: FAIL` exactly when a finding block fails (finding_fails below), that the `Findings:`
+counts match the failing and logged blocks, and that a `Related:` id of this issue is in a
+block of the same comment or of an earlier owner `QA:` comment in the dump.
+
 Output: `ok` and exit 0, or one line per problem on standard error,
     check-format: <FILE> line <l>: <reason>
-(or `check-format: <FILE>: <reason>` when the file can't be read) and exit 1. A usage
-error prints the usage and exits 2 without reading anything. File text in a reason goes
-through settings.py's clip()/echo(). The script reads only FILE, as data, and starts no
-process.
+(or `check-format: <FILE>: <reason>` when the file or, for `qa`, the dump or the settings
+can't be read) and exit 1. A usage error prints the usage and exits 2 without reading
+anything. File text in a reason goes through settings.py's clip()/echo(). The script reads
+FILE, and for `qa` the conf and the dump, as data, and starts no process.
 
 Interface for other kit scripts: FINDING_FIELDS (the eleven findings-log JSON keys in
 order) and check_finding(finding, issue), which checks a finding given as a dict of key to
 value and returns a list of (key, reason); the text form goes through the same function.
-Standard library only, plus settings.py, loaded by path from this folder so that it works
-under `python3 -I`.
+read_qa(text, issue, values, known) parses a QA comment into (problems, verdict, findings);
+finding_fails(finding, values) says whether one finding fails under the settings;
+owner_qa_comments(issue) lists the owner `QA:` comment bodies of a dump, oldest first; and
+load_issue_settings(number) reads the conf and the dump (CheckError on a refusal).
+scripts/route-findings.py uses them. Standard library only, plus settings.py, loaded by
+path from this folder so that it works under `python3 -I`.
 """
 from __future__ import annotations
 
 import importlib.util
+import json
 import os
 import re
 import sys
@@ -96,7 +108,7 @@ FINDING_KINDS = {
     "effort": SRE,
     "scope": ("choice", ("in", "out")),
     "criterion": ("pattern", rf"C{POSITIVE}|none", "`C<n>` with no leading zero, or `none`"),
-    "category": ("choice", ("defect", "debt", "standard")),
+    "category": ("choice", ("defect", "debt", "standard", "criterion")),
     "group": ("slug", 40),
     "related": ("related",),
     "recommendation": ("recommendation",),
@@ -127,6 +139,7 @@ SHIP_OR_FIX_BLOCK = (
     ("Ship-or-fix", ("pattern", FINDING_ID, "`F-<issue>-<n>`")),
     ("Impact", LMC),
     ("Effort", SRE),
+    ("Points", ("pattern", r"[1-9][0-9]{0,5}", "a whole number from 1, no leading zero")),
     ("Recommended", ("recommendation",)),
 )
 
@@ -152,6 +165,12 @@ FORMATS = {
                 "counts": "Needs you", "tail": (("Status", ("text",)),), "after": "detail"},
 }
 NEEDS_N = ("finding", "qa")
+
+
+def verdict_of(first_line: str):
+    """`PASS` or `FAIL` from a QA comment's first line, or None when it is not the verdict line."""
+    match = FORMATS["qa"]["first"][0].fullmatch(first_line)
+    return match.group(1) if match else None
 REQUEST_LABELS = ("Approval needed", "Decision needed")
 REQUEST_HEADER = re.compile(r"(?:Approval needed|Decision needed): \S")
 ALL_LABELS = sorted({label for row in FORMATS.values()
@@ -252,12 +271,37 @@ def check_finding(finding, issue: int) -> list:
     return problems
 
 
+def setting(values: dict, name: str) -> str:
+    """A setting's value from read_settings' dict (name -> (value, source)) or a plain dict."""
+    value = values[name]
+    return value[0] if isinstance(value, tuple) else value
+
+
+def finding_fails(finding: dict, values: dict) -> bool:
+    """True when a finding fails (customizing.md, team/qa-engineer.md): its impact is at or
+    above QA_FAIL_AT, and it is `Scope: in` or QA_SCOPE_STRICT is `no`. `finding` holds at
+    least the impact and scope keys, with allowed values; `values` is read_settings' result.
+    The impact order is the grade table's (L, M, C), not a policy value."""
+    order = LMC[1]
+    high_enough = order.index(finding["impact"]) >= order.index(setting(values, "QA_FAIL_AT"))
+    return high_enough and (finding["scope"] == "in" or setting(values, "QA_SCOPE_STRICT") == "no")
+
+
+def gradable(finding: dict) -> bool:
+    """True when the fields finding_fails and the router read have allowed values."""
+    return (finding.get("impact") in LMC[1] and finding.get("effort") in SRE[1]
+            and finding.get("scope") in ("in", "out"))
+
+
 class Checker:
-    def __init__(self, lines: list, issue: int | None):
+    def __init__(self, lines: list, issue: int | None, values: dict | None = None, known=None):
         self.lines = lines
         self.issue = issue
+        self.values = values  # read_settings' result, for the verdict checks of `qa`
+        self.known = known  # finding ids of earlier owner QA: comments, for `Related:` in `qa`
         self.problems = []  # (line number, reason)
         self.ids = {}
+        self.findings = []  # (dict of key -> value, dict of key -> line index) per finding block
 
     def problem(self, index: int, reason: str) -> None:
         self.problems.append((index + 1, reason))
@@ -328,6 +372,20 @@ class Checker:
                 self.problem(index, f"finding id {echo(value)} is used twice (first at line {self.ids[value] + 1})")
             else:
                 self.ids[value] = index
+        self.findings.append((as_dict, index_of))
+
+    def check_related(self) -> None:
+        """`qa` with known ids: a Related: id of this issue must be in a block of this comment
+        or of an earlier owner QA: comment. An id of another issue is checked for shape only."""
+        if self.known is None:
+            return
+        own = re.compile(rf"F-{self.issue}-{POSITIVE}")
+        for finding, index_of in self.findings:
+            value = finding.get("related", "none")
+            if own.fullmatch(value) and value != finding.get("id") and value not in self.ids \
+                    and value not in self.known:
+                self.problem(index_of["related"],f"Related names {echo(value)}, which no finding of this comment or of an "
+                                    f"earlier owner QA: comment on issue #{self.issue} holds")
 
     def block_start(self, i: int, blocks: dict):
         """The block label when line i is blank and line i+1 starts a block, else None."""
@@ -362,6 +420,7 @@ class Checker:
             counts[label] += 1
         if row["counts"] and row["counts"] in head:
             self.check_counts(row, head[row["counts"]], counts)
+        self.check_related()
         if row["tail"]:
             if self.line(i) != "":
                 self.problem(i, f"expected a blank line, then the {row['tail'][0][0]}: line")
@@ -381,9 +440,13 @@ class Checker:
             fail, log = numbers
             if fail + log != counts["Id"]:
                 self.problem(index, f"Findings counts {fail} + {log} do not match the {counts['Id']} finding block(s)")
-            verdict = (self.line(0) or "").startswith("QA: PASS")
-            if verdict and fail > 0:
-                self.problem(index, f"QA: PASS with {fail} fail finding(s); a fail finding means QA: FAIL")
+                return
+            if self.values is None:
+                passed = (self.line(0) or "").startswith("QA: PASS")
+                if passed and fail > 0:
+                    self.problem(index, f"QA: PASS with {fail} fail finding(s); a fail finding means QA: FAIL")
+                return
+            self.check_verdict(index, fail, log)
         else:
             decisions, ships = numbers
             if decisions != counts["Decision"]:
@@ -392,6 +455,25 @@ class Checker:
             if ships != counts["Ship-or-fix"]:
                 self.problem(index, f"Needs you counts {ships} ship-or-fix but there are "
                                     f"{counts['Ship-or-fix']} Ship-or-fix block(s)")
+
+    def check_verdict(self, index: int, fail: int, log: int) -> None:
+        """`qa` with settings: the counts and line 1 follow from finding_fails."""
+        findings = [finding for finding, _ in self.findings]
+        if not all(gradable(finding) for finding in findings):
+            return  # a block's Impact, Effort or Scope was already refused
+        failing = sum(1 for finding in findings if finding_fails(finding, self.values))
+        rule = (f"QA_FAIL_AT={setting(self.values, 'QA_FAIL_AT')}, "
+                f"QA_SCOPE_STRICT={setting(self.values, 'QA_SCOPE_STRICT')}")
+        if fail != failing or log != len(findings) - failing:
+            self.problem(index, f"Findings counts {fail} fail / {log} log, but under the settings ({rule}) "
+                                f"{failing} block(s) fail and {len(findings) - failing} log")
+        verdict = verdict_of(self.line(0) or "")
+        if verdict == "PASS" and failing > 0:
+            self.problem(0, f"QA: PASS with {failing} fail finding(s) under the settings ({rule}); "
+                            "a fail finding means QA: FAIL")
+        elif verdict == "FAIL" and failing == 0:
+            self.problem(0, f"QA: FAIL with no fail finding under the settings ({rule}); "
+                            "QA fails only on a finding that fails")
 
     def check_after(self, row: dict, i: int, head: dict) -> None:
         rest = self.lines[i:]
@@ -451,10 +533,10 @@ class Checker:
                 fence = marker
 
 
-def check_text(kind: str, text: str, issue: int | None) -> list:
-    """(line number, reason) for each problem in a file's text."""
+def run_checker(kind: str, text: str, issue: int | None, values=None, known=None):
+    """The problems of a file's text, and the Checker that read it (None after a BOM)."""
     if text.startswith(BOM):
-        return [(1, "starts with a UTF-8 byte order mark; save the file without one")]
+        return [(1, "starts with a UTF-8 byte order mark; save the file without one")], None
     lines = lines_of(text)
     while lines and lines[-1] == "":
         lines.pop()  # the final newline, and blank lines at the end
@@ -465,10 +547,83 @@ def check_text(kind: str, text: str, issue: int | None) -> list:
         checker.run(row)
         if not checker.ids and not checker.problems:
             checker.problem(1, "no finding block; a finding starts with an Id: line")
-        return [(max(n - 1, 1), reason) for n, reason in checker.problems]
-    checker = Checker(lines, issue)
+        return [(max(n - 1, 1), reason) for n, reason in checker.problems], checker
+    checker = Checker(lines, issue, values, known)
     checker.run(row)
-    return checker.problems
+    return checker.problems, checker
+
+
+def check_text(kind: str, text: str, issue: int | None, values=None, known=None) -> list:
+    """(line number, reason) for each problem in a file's text. For `qa`, `values` (read_settings'
+    result) turns on the verdict checks and `known` (ids of earlier owner QA: comments) the
+    Related: check."""
+    return run_checker(kind, text, issue, values, known)[0]
+
+
+def read_qa(text: str, issue: int, values=None, known=None):
+    """Parse a QA comment with the `qa` row: (problems, verdict, findings). verdict is `PASS`,
+    `FAIL` or None; findings is one dict of key -> value per finding block, in order, holding
+    the keys whose lines were read. With values and known, problems include the verdict and
+    Related: checks, as `make check-format KIND=qa` prints them."""
+    problems, checker = run_checker("qa", text, issue, values, known)
+    if checker is None:
+        return problems, None, []
+    return problems, verdict_of(checker.line(0) or ""), [dict(f) for f, _ in checker.findings]
+
+
+class CheckError(Exception):
+    """A refusal before the text is checked: the place (a file name) and the reason."""
+
+    def __init__(self, place: str, reason: str):
+        super().__init__(f"{place}: {reason}")
+        self.place, self.reason = place, reason
+
+
+def owner_qa_comments(issue: dict) -> list:
+    """The bodies of the owner `QA:` comments of a dump read by settings.load_issue, oldest
+    first (createdAt, ties by list order). A comment counts when its author is the repository
+    owner's account and its first line starts `QA:`; a deleted author is skipped."""
+    owner = issue["repositoryOwner"]["login"]
+    found = []
+    for index, item in enumerate(issue["comments"]):
+        author = item.get("author") if isinstance(item, dict) else None
+        body = item.get("body") if isinstance(item, dict) else None
+        if not isinstance(author, dict) or author.get("login") != owner or not isinstance(body, str):
+            continue
+        if lines_of(body)[0].startswith("QA:"):
+            found.append((str(item.get("createdAt", "")), index, body))
+    found.sort(key=lambda c: (c[0], c[1]))
+    return [body for _, _, body in found]
+
+
+def load_issue_settings(number: int):
+    """(values, issue) for issue `number`: read_settings over agent-kit.conf and the dump
+    .scratch/issue-<number>.json, and the dump itself. CheckError on a missing or unreadable
+    dump (run `make settings N=<n>` first) and on a settings refusal (the reader's reason)."""
+    dump = Path(settings.DUMP_FOLDER) / f"issue-{number}.json"
+    first = f"run `make settings N={number}` first"
+    try:
+        if symlink_on_path(str(dump)) or not dump.is_file():
+            raise CheckError(str(dump), f"missing or not a regular file; {first}")
+        json.loads(dump.read_bytes().decode("utf-8"))
+    except OSError as error:
+        raise CheckError(str(dump), f"cannot be opened ({error.strerror or type(error).__name__}); {first}")
+    except ValueError:
+        raise CheckError(str(dump), f"cannot be read as JSON; {first}")
+    try:
+        values = settings.read_settings(settings.CONF, dump)
+        issue = settings.load_issue(dump)
+    except settings.SettingsError as error:
+        raise CheckError("settings", str(error))
+    return values, issue
+
+
+def finding_ids(bodies, issue: int) -> set:
+    """The finding ids in the finding blocks of the given QA comment bodies (problems ignored)."""
+    ids = set()
+    for body in bodies:
+        ids.update(f["id"] for f in read_qa(body, issue)[2] if "id" in f)
+    return ids
 
 
 USAGE = ("Usage: make check-format KIND=<return|finding|qa|message> FILE=.scratch/<name> [N=<issue number>] "
@@ -521,7 +676,15 @@ def main(argv=None) -> int:
     except ValueError:
         print(f"{PROG}: {name}: cannot be read as UTF-8 text", file=sys.stderr)
         return 1
-    problems = check_text(kind, text, issue)
+    values = known = None
+    if kind == "qa":
+        try:
+            values, dumped = load_issue_settings(issue)
+        except CheckError as error:
+            print(f"{PROG}: {error.place}: {error.reason}", file=sys.stderr)
+            return 1
+        known = finding_ids(owner_qa_comments(dumped), issue)
+    problems = check_text(kind, text, issue, values, known)
     if not problems:
         print("ok")
         return 0

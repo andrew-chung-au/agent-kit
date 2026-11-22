@@ -238,7 +238,9 @@ class DocTest(unittest.TestCase):
     def test_required_statements(self):
         for needle in (
             "`FIX_CHECK_LOOPS` and `ASK_AT` are not duplicates. They limit different loops",
-            "**`STEP_UP` applies in Claude Code only.** OpenCode, Kiro and CodeBuddy ignore it",
+            # Issue #199 C13: Antigravity joins the tools that ignore STEP_UP.
+            "**`STEP_UP` applies in Claude Code only.** OpenCode, Kiro, CodeBuddy and Antigravity ignore it",
+            "the kit sets no model for Antigravity, and the orchestrator can't switch one",
             "The model for each reasoning level: it is set in the project's role definitions",
             "`LIGHT_ALLOWED` (the path rule level) and `LIGHT_MAX_LINES` stay as they are. "
             "`scripts/check-tier.sh` reads them, not `scripts/settings.py`",
@@ -258,8 +260,18 @@ class DocTest(unittest.TestCase):
         self.assertEqual([bare(r[0]) for r in rows], ["solo", "team", "fleet"])
         self.assertTrue(all(r[1] and r[2] for r in rows))
 
-    def test_points_routing_and_bounds_are_left_to_later_issues(self):
-        self.assertNotIn("Points at the first FAIL", self.text)
+    def test_points_routing_and_bounds_are_documented(self):
+        # Issue #199 C5 and C15: the points table is present now (it was left to #199 before).
+        rows = table_after(self.text, "## Points")
+        self.assertEqual([r[:4] for r in rows], [
+            ["E (3)", "3", "After one failed re-check", "2"],
+            ["R (2)", "2", "After two failed re-checks", "3"],
+            ["S (1)", "1", "After three failed re-checks", "4"]])
+        self.assertIn("Points at the first FAIL", self.text)
+        self.assertNotIn("Nothing in the kit acts on the settings yet", self.text)
+        for line in ("`QA_FAIL_AT=M`", "`RECHECK=changed`", "`ASK_AT=4`", "`FIX_CHECK_LOOPS=2`", "`STEP_UP=ask`",
+                     "`QA_SCOPE_STRICT=yes`"):
+            self.assertIn(line, self.text[self.text.index("**Defaults that differ"):])
         # Issue #197 C10 and C11: the bounds are documented now.
         self.assertIn("## Bounds no level can cross", self.text)
 

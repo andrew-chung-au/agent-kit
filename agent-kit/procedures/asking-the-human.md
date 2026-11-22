@@ -107,9 +107,16 @@ Keep requests short: one line per field. Several decisions at once go in one mes
 The orchestrator's message to the human starts with fixed fields, in the line rule of `_docs/agent-kit/procedures/formats.md`. Line 1 is `Needs you: <n> decision points, <n> ship-or-fix`. Then one block per item, each after one blank line:
 
 - a decision: `Decision: D-<issue>-<n>`, `Question:`, `Impact:` (`L`, `M`, `C`), `Recommended:`
-- a ship-or-fix: `Ship-or-fix: F-<issue>-<n>`, `Impact:`, `Effort:` (`S`, `R`, `E`), `Recommended:`
+- a ship-or-fix: `Ship-or-fix: F-<issue>-<n>`, `Impact:`, `Effort:` (`S`, `R`, `E`), `Points:` (the finding's points from `make route-findings N=<n>`, a whole number from 1), `Recommended:`
 
 The counts match the blocks. Then a blank line and `Status: <text>`. Anything after that is detail, such as the approval requests and decision questions above in full. `Recommended:` is never empty; `none` only as `none, because <reason>`. Check the message with `make check-format KIND=message FILE=<file>`.
+
+**Ship or fix has three answers.** Every ship-or-fix question offers them, and its `Recommended:` names one:
+- **fix:** the code is wrong; the Engineer fixes it.
+- **ship:** the criterion is right, but finishing it now isn't worth it; the finding leaves the issue's scope and a follow-up issue takes it (`process.md`, Lifecycle step 6).
+- **amend:** the criterion is wrong, not the code; the human changes the criterion through the approved-text steps (`process.md`, Approved text).
+
+Only the human chooses ship (unless a `SHIP_RULE` ships it) or amend. Answering is a stop point: a finding routed to the human gets no fix until answered.
 
 ```
 Needs you: 1 decision points, 1 ship-or-fix
@@ -120,11 +127,12 @@ Impact: L
 Recommended: No; drop the log line in #14.
 
 Ship-or-fix: F-12-2
-Impact: L
+Impact: M
 Effort: S
+Points: 4
 Recommended: Ship; fix it with #14.
 
-Status: #12 passed QA at 1a2b3c4 and waits for your diff approval.
+Status: #12 failed QA at 1a2b3c4; F-12-2 has failed three re-checks and waits for fix, ship or amend.
 ```
 
 ## Spec note
