@@ -225,6 +225,24 @@ class ReturnTest(Runner):
         self.assert_ok("return", RETURN + "  indented line after the request\n\n    more indented\n")
         self.assert_refused("return", RETURN + "\nNot a request\n", reason="found 'Not a request'")
         self.assert_refused("return", RETURN + "\n```\nx\n```\n\n-old\n", reason="found '-old'")
+        # F-198-8: a tilde fence is a fence too.
+        self.assert_ok("return", RETURN + "\n~~~diff\n" + diff.format(gap="") + "~~~\n")
+
+    def test_the_first_line_after_the_blank_is_always_a_request_header(self):
+        # F-198-7: with `Needs the human: yes`, a fence or an indented line right after the
+        # blank is not a request.
+        yes = RETURN.split("\n\n", 1)[0] + "\n\n"
+        request = RETURN.split("\n\n", 1)[1]
+        cases = {
+            "only a fence": yes + "```\nsome text\n```\n",
+            "an indented sentence": yes + "  Please approve the commit.\n",
+            "a tab-indented sentence": yes + "\tPlease approve the commit.\n",
+            "a fence before the request": yes + "```\nx\n```\n" + request,
+            "a tilde fence": yes + "~~~\nx\n~~~\n",
+        }
+        for name, text in cases.items():
+            with self.subTest(case=name):
+                self.assert_refused("return", text, reason="must start at column 1 with `Approval needed: `")
 
     def test_the_role_files_end_with_the_return(self):
         for role in ("pm", "software-engineer", "qa-engineer"):

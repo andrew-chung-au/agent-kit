@@ -153,6 +153,7 @@ FORMATS = {
 }
 NEEDS_N = ("finding", "qa")
 REQUEST_LABELS = ("Approval needed", "Decision needed")
+REQUEST_HEADER = re.compile(r"(?:Approval needed|Decision needed): \S")
 ALL_LABELS = sorted({label for row in FORMATS.values()
                      for fields in [row["head"], row["tail"], *row["blocks"].values()]
                      for label, _ in fields}, key=len, reverse=True)
@@ -421,29 +422,33 @@ class Checker:
         if self.line(i) != "" or not (self.line(i + 1) or "").strip(" \t"):
             self.problem(i, "with `Needs the human: yes`, one blank line and then a request must follow")
             return
-        # A new request starts only at a column-1 line after an empty line, outside a fenced
-        # block. Lines inside a fence, indented lines and whitespace-only lines (a diff's empty
-        # context line is one space) belong to the request before them.
-        previous_empty = True
-        fenced = False
-        for index in range(i + 1, len(self.lines)):
+        # The tail is a list of requests. Each is a header line at column 1 starting
+        # `Approval needed: ` or `Decision needed: `, then its body. The first line after the
+        # blank is always a header, whatever it looks like. A later header starts only at a
+        # column-1 line after an empty line, outside a fenced block (``` or ~~~); lines inside
+        # a fence, fence lines, indented lines and whitespace-only lines (a diff's empty
+        # context line is one space) are body lines of the request before them.
+        first = i + 1
+        previous_empty = False
+        fence = None  # the marker of the open fence, if any
+        for index in range(first, len(self.lines)):
             line = self.lines[index]
-            if fenced:
-                if line.lstrip(" ").startswith("```"):
-                    fenced = False
+            marker = next((m for m in ("```", "~~~") if line.lstrip(" ").startswith(m)), None)
+            if fence is not None:
+                if marker == fence:
+                    fence = None
                 previous_empty = False
                 continue
             if line == "":
                 previous_empty = True
                 continue
-            fence = line.lstrip(" ").startswith("```")
-            starts = previous_empty and line[0] not in " \t" and not fence
+            header = index == first or (previous_empty and line[0] not in " \t" and marker is None)
             previous_empty = False
-            if starts and not re.match(r"(?:Approval needed|Decision needed): \S", line):
-                self.problem(index, f"a request must start `Approval needed: ` or `Decision needed: `, "
-                                    f"found {echo(line)}")
-            if fence:
-                fenced = True
+            if header and not REQUEST_HEADER.match(line):
+                self.problem(index, f"a request must start at column 1 with `Approval needed: ` or "
+                                    f"`Decision needed: `, found {echo(line)}")
+            if marker is not None:
+                fence = marker
 
 
 def check_text(kind: str, text: str, issue: int | None) -> list:
