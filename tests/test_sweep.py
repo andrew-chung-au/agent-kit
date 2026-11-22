@@ -351,7 +351,8 @@ class PhraseTest(unittest.TestCase):
 
 class WrapperTest(unittest.TestCase):
     PATHS = {"claude": KIT / "claude-code" / "skills" / "sweep" / "SKILL.md",
-             "opencode": KIT / "opencode" / "skills" / "sweep" / "SKILL.md"}
+             "opencode": KIT / "opencode" / "skills" / "sweep" / "SKILL.md",
+             "codebuddy": KIT / "codebuddy" / "skills" / "sweep" / "SKILL.md"}
 
     def frontmatter(self, path):
         text = path.read_text()
@@ -382,6 +383,9 @@ class WrapperTest(unittest.TestCase):
         opencode = (KIT / "opencode" / "START.md").read_text()
         self.assertIn("`.opencode/skills/sweep/SKILL.md`", opencode)
         self.assertIn("into `.opencode/skills/sweep/`", opencode)
+        codebuddy = (KIT / "codebuddy" / "START.md").read_text()
+        self.assertIn("`.codebuddy/skills/sweep/SKILL.md`", codebuddy)
+        self.assertIn("into `.codebuddy/skills/sweep/`", codebuddy)
 
     def test_process_has_one_sweep_line(self):
         lines = [l for l in (KIT / "process.md").read_text().splitlines() if "sweep" in l]

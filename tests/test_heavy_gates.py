@@ -109,7 +109,7 @@ class OtherFilesTest(unittest.TestCase):
         self.assertIn("every `tier:heavy` issue (its ADR; one row per ADR in the docs index)", text)
 
     def test_no_new_role_file(self):
-        for folder in ("team", "claude-code/agents", "opencode/agents"):
+        for folder in ("team", "claude-code/agents", "opencode/agents", "codebuddy/agents"):
             names = sorted(p.name for p in (KIT / folder).glob("*.md"))
             with self.subTest(folder=folder):
                 self.assertFalse(any(n.startswith(("architect", "reviewer")) for n in names), names)

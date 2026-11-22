@@ -53,7 +53,7 @@ from pathlib import Path
 
 KIT_PREFIXES = (
     "templates/", "procedures/", "scripts/", "team/", "githooks/", "environments/",
-    "claude-code/", "opencode/", "agents/", "hooks/", "agent-kit/", "_docs/agent-kit/",
+    "claude-code/", "opencode/", "codebuddy/", "agents/", "hooks/", "agent-kit/", "_docs/agent-kit/",
 )
 ROOT_PREFIXES = ("_docs/agent-kit/", "agent-kit/")
 PATH_SKIP = ("<", ">", "*", "$", "~", "...", "=", "://")
@@ -63,7 +63,7 @@ MAKE_OPTS_WITH_VALUE = {
 }
 KIT_DOCS = {"README.md", "blueprints.md", "environments.md", "install-and-upgrade.md", "CHANGELOG.md",
             "releasing.md", "setup.md", "process.md", "customizing.md"}
-MODULE_DIRS = ("templates", "scripts", "githooks", "claude-code", "opencode",
+MODULE_DIRS = ("templates", "scripts", "githooks", "claude-code", "opencode", "codebuddy",
                "environments", "procedures", "team")
 IGNORED_NAMES = {"__pycache__"}
 FENCE = re.compile(r"^\s*(`{3,}|~{3,})")

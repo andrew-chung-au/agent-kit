@@ -15,12 +15,13 @@ templates/ci-verify.yml.template | .github/workflows/verify.yml | repo | none
 environments/local-sandbox/pre-push | ~/.agent-hooks/pre-push | human-machine | none
 environments/local-sandbox/pre-push | .git/hooks/pre-push | human-machine | none
 #
-# The tool layers (opencode/START.md and claude-code/START.md): the files a project copies as
-# they are. A project may use one tool, both or neither, and the permission log is optional,
-# so each line is `optional`: not installed is reported as such, but an installed copy that
-# differs (an old plugin, a stale role definition) is `drift`. Files that are merged rather
-# than copied (opencode.json, .claude/settings.json, CLAUDE.md) are not listed: they differ
-# by project, so `make kit-check` cannot compare them byte for byte; review them at an import.
+# The tool layers (opencode/START.md, claude-code/START.md and codebuddy/START.md): the files a
+# project copies as they are. A project may use one tool, several or none, and the permission
+# log is optional, so each line is `optional`: not installed is reported as such, but an
+# installed copy that differs (an old plugin, a stale role definition) is `drift`.
+# Files that are merged rather than copied (opencode.json, .claude/settings.json, CLAUDE.md and
+# .codebuddy/settings.json) are not listed: they differ by project, so `make kit-check` cannot
+# compare them byte for byte; review them at an import.
 opencode/agents/pm.md | .opencode/agents/pm.md | repo | optional
 opencode/agents/qa-engineer.md | .opencode/agents/qa-engineer.md | repo | optional
 opencode/agents/software-engineer.md | .opencode/agents/software-engineer.md | repo | optional
@@ -30,3 +31,7 @@ claude-code/agents/pm.md | .claude/agents/pm.md | repo | optional
 claude-code/agents/qa-engineer.md | .claude/agents/qa-engineer.md | repo | optional
 claude-code/agents/software-engineer.md | .claude/agents/software-engineer.md | repo | optional
 claude-code/skills/sweep/SKILL.md | .claude/skills/sweep/SKILL.md | repo | optional
+codebuddy/agents/pm.md | .codebuddy/agents/pm.md | repo | optional
+codebuddy/agents/qa-engineer.md | .codebuddy/agents/qa-engineer.md | repo | optional
+codebuddy/agents/software-engineer.md | .codebuddy/agents/software-engineer.md | repo | optional
+codebuddy/skills/sweep/SKILL.md | .codebuddy/skills/sweep/SKILL.md | repo | optional

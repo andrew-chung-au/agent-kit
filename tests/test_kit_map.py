@@ -70,7 +70,9 @@ class ParseTest(Base):
                     ".opencode/agents/software-engineer.md", ".opencode/skills/sweep/SKILL.md",
                     ".opencode/plugins/permission-log.js", ".claude/agents/pm.md",
                     ".claude/agents/qa-engineer.md", ".claude/agents/software-engineer.md",
-                    ".claude/skills/sweep/SKILL.md"]))
+                    ".claude/skills/sweep/SKILL.md", ".codebuddy/agents/pm.md",
+                    ".codebuddy/agents/qa-engineer.md", ".codebuddy/agents/software-engineer.md",
+                    ".codebuddy/skills/sweep/SKILL.md"]))
         for entry in entries:
             with self.subTest(source=entry.source):
                 self.assertTrue((KIT / entry.source).is_file())

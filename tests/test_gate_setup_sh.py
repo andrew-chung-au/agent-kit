@@ -1,9 +1,10 @@
 """Behaviour tests for agent-kit/environments/local-sandbox/setup.sh (issue #95).
 
 Run in a throwaway repo with a throwaway HOME and GIT_CONFIG_GLOBAL under
-.scratch/. Stub sudo, apt-get, curl, pipx and corepack sit first on PATH: in
-the refusal cases any call fails the test; in the allowed case they succeed
-without installing anything. Nothing here installs a tool or runs Docker.
+.scratch/. Stubs for sudo, apt-get, curl, pipx, corepack, uv, opencode and claude
+sit first on PATH: in the refusal cases any call fails the test; in the allowed
+case they succeed without installing anything. Nothing here installs a tool,
+reaches the network or runs Docker.
 """
 from __future__ import annotations
 
@@ -13,7 +14,12 @@ import unittest
 from kit_repo import KIT, KitTestCase
 
 SETUP = KIT / "environments" / "local-sandbox" / "setup.sh"
-STUBBED = ("sudo", "apt-get", "curl", "pipx", "corepack")
+STUBBED = ("sudo", "apt-get", "curl", "pipx", "corepack", "uv", "opencode", "claude")
+# What a stub prints when setup.sh asks for a version. The defaults take the install
+# branches: a uv version other than the pin, and opencode's pinned version. Tests set
+# these per case, including "" to print nothing and fail the command.
+VERSIONS = {"uv": "uv 0.0.0", "opencode": "opencode v2.2.5"}
+PINNED_UV = "pipx install --force uv==0.13.6"
 NAME_LINE = 'git config --global user.name "<Your Name>"'
 
 
@@ -29,10 +35,22 @@ class SetupCase(KitTestCase):
         self.commit_all()
         self.called = self.work / "stub-called"
 
-    def stub_commands(self, succeed):
+    def stub_commands(self, succeed, versions=None, failing=()):
+        """Write the stubs first on PATH.
+
+        `succeed` sets every stub's exit status; `versions` overrides, per command,
+        the line it prints ("" prints nothing); `failing` names commands that exit
+        non-zero even when the rest succeed.
+        """
+        printed = dict(VERSIONS)
+        printed.update(versions or {})
+        failing = set(failing)
         stubs = self.work / "stubs"
         for name in STUBBED:
-            body = '#!/bin/sh\necho "%s $*" >> "%s"\n%s' % (name, self.called, "exit 0\n" if succeed else "exit 97\n")
+            body = '#!/bin/sh\necho "%s $*" >> "%s"\n' % (name, self.called)
+            if printed.get(name):
+                body += 'echo "%s"\n' % printed[name]
+            body += "exit %d\n" % (0 if succeed and name not in failing else 97)
             p = stubs / name
             p.write_text(body, encoding="utf-8")
             p.chmod(0o755)
@@ -42,6 +60,9 @@ class SetupCase(KitTestCase):
 
     def calls(self):
         return self.called.read_text(encoding="utf-8").splitlines() if self.called.exists() else []
+
+    def pinned_uv_installs(self):
+        return [c for c in self.calls() if c == PINNED_UV]
 
     def global_config(self):
         return (self.work / "empty.gitconfig").read_text(encoding="utf-8")
@@ -111,6 +132,50 @@ class AllowedTest(SetupCase):
         bare.mkdir()
         r = self.run_cmd(["bash", str(SETUP)], cwd=bare)
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+
+
+class UvTest(SetupCase):
+    """Both branches of setup.sh's uv version check, and its failure edges."""
+
+    def assert_setup_complete(self, r):
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("Setup complete", r.stdout)
+
+    def test_a_different_uv_version_installs_the_pin_once(self):
+        self.stub_commands(succeed=True, versions={"uv": "uv 0.0.0"})
+        r = self.run_setup()
+        self.assert_setup_complete(r)
+        calls = self.calls()
+        self.assertIn("uv --version", calls)
+        self.assertEqual(self.pinned_uv_installs(), [PINNED_UV], calls)
+        self.assertLess(calls.index("uv --version"), calls.index(PINNED_UV))
+        self.assertLess(calls.index(PINNED_UV), calls.index("corepack disable"))
+        # opencode and claude are stubbed at their pins here, so neither installer is fetched.
+        self.assertIn("opencode --version", calls)
+        self.assertEqual([c for c in calls if c.startswith("curl")], [], calls)
+
+    def test_the_pinned_uv_version_does_not_install_again(self):
+        self.stub_commands(succeed=True, versions={"uv": "uv 0.13.6"})
+        r = self.run_setup()
+        self.assert_setup_complete(r)
+        calls = self.calls()
+        self.assertIn("uv --version", calls)
+        self.assertEqual([c for c in calls if c.startswith("pipx")], [], calls)
+        self.assertIn("corepack disable", calls)
+        self.assertLess(calls.index("uv --version"), calls.index("corepack disable"))
+
+    def test_an_unreadable_uv_version_still_installs_the_pin(self):
+        self.stub_commands(succeed=True, versions={"uv": ""}, failing=("uv",))
+        r = self.run_setup()
+        self.assert_setup_complete(r)
+        self.assertEqual(self.pinned_uv_installs(), [PINNED_UV], self.calls())
+
+    def test_a_failed_uv_install_is_not_masked(self):
+        self.stub_commands(succeed=True, versions={"uv": "uv 0.0.0"}, failing=("pipx",))
+        r = self.run_setup()
+        self.assertNotEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertNotIn("Setup complete", r.stdout)
+        self.assertEqual(self.pinned_uv_installs(), [PINNED_UV], self.calls())
 
 
 class OrderTest(unittest.TestCase):

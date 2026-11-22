@@ -2,10 +2,12 @@
 set -euo pipefail
 export PATH="$HOME/.local/bin:$HOME/.opencode/bin:$PATH"
 
-# The Claude volume starts out owned by root; hand it to the container user
-if [ -d "$HOME/.claude" ]; then
-  sudo chown -R "$(id -u):$(id -g)" "$HOME/.claude"
-fi
+# Mounted volumes start out owned by root; hand them to the container user
+for dir in "$HOME/.claude" "$HOME/.codebuddy"; do
+  if [ -d "$dir" ]; then
+    sudo chown -R "$(id -u):$(id -g)" "$dir"
+  fi
+done
 
 if ! command -v make >/dev/null; then
   sudo apt-get update && sudo apt-get install -y make
@@ -16,6 +18,7 @@ case "$(opencode --version 2>/dev/null || true)" in
   *) curl -fsSL https://opencode.ai/v2/install | bash -s -- --version "$opencode_version" ;;
 esac
 command -v claude >/dev/null || curl -fsSL https://claude.ai/install.sh | bash
+command -v codebuddy >/dev/null || curl -fsSL https://www.codebuddy.cn/cli/install.sh | bash
 
 git config --global user.name "Andrew Chung"
 git config --global user.email "177896104+andrew-chung-au@users.noreply.github.com"

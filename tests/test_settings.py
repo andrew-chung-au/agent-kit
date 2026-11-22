@@ -238,7 +238,7 @@ class DocTest(unittest.TestCase):
     def test_required_statements(self):
         for needle in (
             "`FIX_CHECK_LOOPS` and `ASK_AT` are not duplicates. They limit different loops",
-            "**`STEP_UP` applies in Claude Code only.** OpenCode and Kiro ignore it",
+            "**`STEP_UP` applies in Claude Code only.** OpenCode, Kiro and CodeBuddy ignore it",
             "The model for each reasoning level: it is set in the project's role definitions",
             "`LIGHT_ALLOWED` (the path rule level) and `LIGHT_MAX_LINES` stay as they are. "
             "`scripts/check-tier.sh` reads them, not `scripts/settings.py`",

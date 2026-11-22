@@ -35,7 +35,7 @@ What a project using this kit should have, when each piece applies, and how to c
 | Kit hash manifest `MANIFEST.sha256` | A kit release; never generated in a project | The kit folder, shipped in the release | `scripts/kit-manifest.py <kit folder> <version>`, a release step (#9). The kit's own repo ships none between releases, so it isn't expected to pass `make kit-check` |
 | `tier-check` target | The project's tasks are GitHub issues and it uses the tiers | Project `Makefile` | `templates/Makefile.mk`, running `scripts/check-tier.sh` |
 | Tier labels `tier:light`, `tier:standard`, `tier:heavy` | The project's tasks are GitHub issues and it uses the tiers | The repository's labels; the human creates them, agents never do | `process.md`, Tiers |
-| Sweep procedure and skill | The project wants periodic reflection and measures | `procedures/sweep.md`; the skill in `.claude/skills/sweep/` or `.opencode/skills/sweep/` | `procedures/sweep.md`, `claude-code/skills/`, `opencode/skills/` |
+| Sweep procedure and skill | The project wants periodic reflection and measures | `procedures/sweep.md`; the skill in `.claude/skills/sweep/`, `.opencode/skills/sweep/` or `.codebuddy/skills/sweep/` | `procedures/sweep.md`, `claude-code/skills/`, `opencode/skills/`, `codebuddy/skills/` |
 | Sweep entries | The first sweep | The folder the index names for records, listed in `_docs/index.md` | `procedures/sweep.md`, `templates/measurement.md` |
 | Long-running process procedure | The project has a long-running process that agents start and stop (see the start and stop targets) | Read through the "Read when" trigger in `AGENTS.md` | `procedures/processes.md` |
 | Orchestrator comment layouts | The project's tasks are GitHub issues and an orchestrator writes claim, release, confirm and close comments | Read through the "Read when" trigger in `AGENTS.md` | `procedures/orchestrator-comments.md` |
@@ -62,6 +62,7 @@ What a project using this kit should have, when each piece applies, and how to c
 | Local sandbox files | The human uses the local sandbox profile | `.devcontainer/` at the repo root; the push check in `~/.agent-hooks/` | `environments/local-sandbox/`, copied by the human from a clean clone |
 | Claude Code layer | The human uses Claude Code | `CLAUDE.md` and `.claude/` in the project folder | `claude-code/START.md`, with `claude-code/agents/` and `claude-code/hooks/` |
 | OpenCode layer | The human uses OpenCode | `opencode.json` and `.opencode/` in the project folder | `opencode/START.md`, with `opencode/agents/` |
+| CodeBuddy layer | The human uses CodeBuddy | `AGENTS.md` and `.codebuddy/` in the project folder | `codebuddy/START.md`, with `codebuddy/agents/` and `codebuddy/skills/` |
 | Permission log (Claude Code) | The human uses Claude Code and wants a record of what it asked to approve | The `PermissionRequest` entry of `.claude/settings.json`; the log in `.agent-kit/logs/permissions/`, git-ignored | `claude-code/hooks/log_permission.py` and `scripts/permission_log_lib.py`, registered by `claude-code/settings.json`; the record format in `procedures/permission-log.md`; it reads `scripts/secret-patterns.txt` |
 | `permission-report` and `permission-logs-prune` targets | The project keeps the permission log | Project `Makefile` | `templates/Makefile.mk`, running `scripts/permission-report.py` and `scripts/permission-logs-prune.py`; the human runs prune |
 | Permission log (OpenCode) | The human uses OpenCode and wants a record of what it asked to approve | `.opencode/plugins/permission-log.js`; the log in `.agent-kit/logs/permissions/`, git-ignored | `opencode/plugins/permission-log.js`; the record format in `procedures/permission-log.md`; it reads `scripts/secret-patterns.txt` |
@@ -124,6 +125,7 @@ Many AI coding tools read `AGENTS.md` directly. For a tool that reads its own fi
 
 - **Claude Code** reads `CLAUDE.md`, which can import other files. The Claude Code layer installs it from `claude-code/CLAUDE.md.template`: `@AGENTS.md`, then a line pointing temporary files at `.scratch/`, because Claude Code's default scratchpad is outside the project folder and triggers approval prompts.
 - **OpenCode** reads `AGENTS.md` directly, so it needs no pointer file.
+- **CodeBuddy** reads `AGENTS.md` when the folder has no `CODEBUDDY.md`, so it needs no pointer file; the kit adds no `CODEBUDDY.md`.
 - **Other tools:** a pointer file that says "Follow the instructions in AGENTS.md", if the tool can't import files.
 
 Create pointer files only for tools the human actually uses.
@@ -142,7 +144,7 @@ In a monorepo, tools that restrict reads to the project folder will ask each tim
 
 Some tools let a project define named subagents. The orchestrator can then launch "the QA engineer" instead of a general-purpose agent that has to be told, in each launch message, to read the project's instructions. Each definition is a short pointer, so the role files in `_docs/agent-kit/team/` stay the single source of truth.
 
-For Claude Code and OpenCode, the layers provide all three: see `claude-code/START.md` and `opencode/START.md`. For another tool, write the same short pointer in that tool's format: "Read `AGENTS.md`, then `_docs/agent-kit/team/<role>.md`, and follow both. If something needs the human's approval, return the request to the orchestrator instead of running it." Protect the definitions in `agent-kit.conf`, because they decide what each role is told, and create them only for tools the human uses.
+For Claude Code, OpenCode and CodeBuddy, the layers provide all three: see `claude-code/START.md`, `opencode/START.md` and `codebuddy/START.md`. For another tool, write the same short pointer in that tool's format: "Read `AGENTS.md`, then `_docs/agent-kit/team/<role>.md`, and follow both. If something needs the human's approval, return the request to the orchestrator instead of running it." Protect the definitions in `agent-kit.conf`, because they decide what each role is told, and create them only for tools the human uses.
 
 ## Commit attribution
 

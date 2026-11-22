@@ -54,7 +54,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR\"/agent-kit/claude-code/hooks/guard_git.py"
+            "command": "python3 \"$CLAUDE_PROJECT_DIR\"/agent-kit/claude-code/hooks/guard_git.py || exit 2"
           }
         ]
       }
