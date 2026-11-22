@@ -58,16 +58,44 @@ def swap(text: str, old: str, new: str) -> str:
     return text.replace(old, new, 1)
 
 
+OWNER = "owner-account"
+# Issue numbers the tests check, each given a dump with no comments (the defaults fixture).
+DEFAULT_DUMPS = (12, 196, 197, 198, 199)
+
+
+def write_dump(project: Path, number: int, body: str = "", labels=(), comments=()) -> None:
+    """An issue as `make settings N=<n>` writes it, under the project's .scratch/ (#197 C2)."""
+    data = {"number": number, "title": "T", "body": body, "state": "OPEN",
+            "labels": [{"name": name} for name in labels], "author": {"login": OWNER},
+            "comments": list(comments), "repositoryOwner": {"login": OWNER}}
+    (project / ".scratch" / f"issue-{number}.json").write_text(json.dumps(data), encoding="utf-8")
+
+
+def comment(body: str, author: str = OWNER, stamp: str = "2026-11-22T10:00:00Z") -> dict:
+    return {"author": {"login": author}, "body": body, "createdAt": stamp}
+
+
 class Runner(unittest.TestCase):
+    """Each class gets a throwaway project folder under .scratch/: an agent-kit.conf with no
+    setting lines, a dump per issue in DEFAULT_DUMPS, and the files checked in its .scratch/.
+    The script runs there, as `make check-format` runs it from a project folder (#199 C3)."""
+
     @classmethod
     def setUpClass(cls):
         SCRATCH.mkdir(exist_ok=True)
-        cls.folder = Path(tempfile.mkdtemp(prefix="test-check-format-", dir=SCRATCH))
+        cls.project = Path(tempfile.mkdtemp(prefix="test-check-format-", dir=SCRATCH))
+        (cls.project / ".scratch").mkdir()
+        (cls.project / "agent-kit.conf").write_text("\n", encoding="utf-8")
+        (cls.project / "agent-kit").symlink_to(KIT)  # for make, whose recipe names agent-kit/scripts/
+        for number in DEFAULT_DUMPS:
+            write_dump(cls.project, number)
+        cls.folder = cls.project / ".scratch" / "cases"
+        cls.folder.mkdir()
         cls.count = 0
 
     @classmethod
     def tearDownClass(cls):
-        shutil.rmtree(cls.folder, ignore_errors=True)
+        shutil.rmtree(cls.project, ignore_errors=True)
 
     def put(self, data) -> str:
         type(self).count += 1
@@ -76,10 +104,10 @@ class Runner(unittest.TestCase):
             path.write_text(data, encoding="utf-8", newline="")
         else:
             path.write_bytes(data)
-        return str(path.relative_to(REPO))
+        return str(path.relative_to(self.project))
 
     def run_script(self, *args):
-        return subprocess.run([sys.executable, "-I", "-B", str(SCRIPT), *args], cwd=REPO,
+        return subprocess.run([sys.executable, "-I", "-B", str(SCRIPT), *args], cwd=self.project,
                               capture_output=True, text=True, timeout=60)
 
     def check(self, kind: str, text, n: str | None = None):
@@ -302,7 +330,7 @@ class FindingTest(Runner):
         self.assert_ok("finding", FINDING + "\n" + swap(second, "Id: F-198-1", "Id: F-198-2"), FINDING_N)
 
     def test_the_logged_findings_pass_the_dict_check(self):
-        for number in (196, 197):
+        for number in (196, 197, 198):  # #199 C9: 198.json too
             data = json.loads((FINDINGS / f"{number}.json").read_text(encoding="utf-8"))
             for finding in data["findings"]:
                 with self.subTest(finding=finding["id"]):
@@ -324,7 +352,8 @@ class FindingTest(Runner):
         self.assertNotEqual(check_format.check_finding(dict(good, impact=1), 198), [])
 
 
-def qa_comment(ids, verdict="FAIL", counts=None):
+def qa_comment(ids, verdict="PASS", counts=None):
+    # The blocks are the formats example's L/in finding, which logs under the kit defaults.
     blocks = []
     for number, finding_id in enumerate(ids):
         blocks.append(swap(FINDING, "Id: F-198-1", f"Id: {finding_id}"))
@@ -383,6 +412,131 @@ class QaCommentTest(Runner):
         self.assertIn("a finding with `Criterion: none`", text)
 
 
+def block(fid, impact="M", effort="S", scope="in", category="defect", related="none") -> str:
+    """One finding block, in the formats layout."""
+    return (f"Id: {fid}\nImpact: {impact}\nEffort: {effort}\nScope: {scope}\nCriterion: C1\n"
+            f"Category: {category}\nGroup: g\nRelated: {related}\nRecommendation: Fix it.\n"
+            "What: x (a.py line 1).\nHow found: Read the diff.\n")
+
+
+def qa_text(verdict: str, counts: str, *blocks: str) -> str:
+    """A QA comment holding the given finding blocks."""
+    return (f"QA: {verdict}\nCommit: 1a2b3c4\nFindings: {counts}\n\n" + "".join(b + "\n" for b in blocks)
+            + "Criteria\n- [x] C1. x - PASS\n")
+
+
+def ruling_comment(*lines: str) -> dict:
+    return comment("Orchestrator: Ruling\nHuman ruled: 2026-11-22\n" + "\n".join(lines))
+
+
+class VerdictTest(Runner):
+    """#199 C1 and C3: the verdict and counts follow from the findings under the settings."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        write_dump(cls.project, 301, comments=[ruling_comment("Ruling: QA_SCOPE_STRICT=no")])
+        write_dump(cls.project, 302, comments=[ruling_comment("Ruling: QA_FAIL_AT=L")])
+        write_dump(cls.project, 303, body="Overrides: QA_FAIL_AT=L\n")
+
+    def test_kit_defaults(self):
+        self.assert_ok("qa", qa_text("PASS", "0 fail / 1 log", block("F-199-1", "L", scope="in")), "199")
+        self.assert_ok("qa", qa_text("FAIL", "1 fail / 0 log", block("F-199-1", "M", scope="in")), "199")
+        self.assert_ok("qa", qa_text("PASS", "0 fail / 1 log", block("F-199-1", "C", scope="out")), "199")
+        self.assert_refused("qa", qa_text("FAIL", "1 fail / 0 log", block("F-199-1", "C", scope="out")), "199",
+                            "QA: FAIL with no fail finding")
+
+    def test_a_ruling_applies(self):
+        self.assert_ok("qa", qa_text("FAIL", "1 fail / 0 log", block("F-301-1", "C", scope="out")), "301")
+        self.assert_refused("qa", qa_text("PASS", "0 fail / 1 log", block("F-301-1", "C", scope="out")), "301",
+                            "QA: PASS with 1 fail")
+        self.assert_ok("qa", qa_text("FAIL", "1 fail / 0 log", block("F-302-1", "L", scope="in")), "302")
+        self.assert_refused("qa", qa_text("PASS", "0 fail / 1 log", block("F-302-1", "L", scope="in")), "302",
+                            "QA_FAIL_AT=L")
+
+    def test_refused_verdicts_and_counts(self):
+        low = qa_text("FAIL", "0 fail / 2 log", block("F-199-1", "L"), block("F-199-2", "L", scope="out"))
+        self.assert_refused("qa", low, "199", "QA: FAIL with no fail finding")
+        self.assert_refused("qa", qa_text("PASS", "0 fail / 1 log", block("F-199-1", "M")), "199",
+                            "QA: PASS with 1 fail")
+        mixed = qa_text("FAIL", "0 fail / 2 log", block("F-199-1", "M"), block("F-199-2", "L"))
+        self.assert_refused("qa", mixed, "199", "Findings counts 0 fail / 2 log, but under the settings")
+        self.assert_ok("qa", swap(mixed, "0 fail / 2 log", "1 fail / 1 log"), "199")
+
+    def test_a_missing_dump_and_a_settings_refusal(self):
+        done = self.check("qa", QA, "998")
+        self.assertEqual((done.returncode, done.stdout), (1, ""))
+        self.assertEqual(done.stderr, "check-format: .scratch/issue-998.json: missing or not a regular file; "
+                                      "run `make settings N=998` first\n")
+        done = self.check("qa", qa_text("PASS", "0 fail / 0 log"), "303")
+        self.assertEqual((done.returncode, done.stdout), (1, ""))
+        self.assertTrue(done.stderr.startswith("check-format: settings: issue #303 body line 1: "), done.stderr)
+        self.assertIn("overrides", done.stderr)
+        self.assertEqual(len(done.stderr.splitlines()), 1)
+
+    def test_a_dump_that_is_not_json(self):
+        (self.project / ".scratch" / "issue-997.json").write_text("{", encoding="utf-8")
+        done = self.check("qa", QA, "997")
+        self.assertEqual(done.returncode, 1)
+        self.assertIn("cannot be read as JSON; run `make settings N=997` first", done.stderr)
+
+    def test_the_interface_function(self):
+        defaults = {"QA_FAIL_AT": ("M", "kit default"), "QA_SCOPE_STRICT": ("yes", "kit default")}
+        cases = [("L", "in", defaults, False), ("M", "in", defaults, True), ("C", "out", defaults, False),
+                 ("C", "out", dict(defaults, QA_SCOPE_STRICT="no"), True),
+                 ("L", "in", dict(defaults, QA_FAIL_AT="L"), True),
+                 ("M", "in", dict(defaults, QA_FAIL_AT="C"), False)]
+        for impact, scope, values, fails in cases:
+            with self.subTest(impact=impact, scope=scope, values=values):
+                self.assertIs(check_format.finding_fails({"impact": impact, "scope": scope}, values), fails)
+
+    def test_the_example_counts_follow_from_the_defaults(self):
+        self.assert_ok("qa", QA, QA_N)
+
+
+class RelatedTest(Runner):
+    """#199 C4: Related: ids of this issue must exist in this or an earlier owner QA: comment."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        earlier = qa_text("FAIL", "1 fail / 0 log", block("F-304-1"))
+        write_dump(cls.project, 304, comments=[comment(earlier)])
+        write_dump(cls.project, 305, comments=[comment(earlier.replace("F-304-1", "F-305-1"), author="someone")])
+
+    def test_refused(self):
+        for value, reason in (("F-199-x", "Related has"), ("4", "Related has"),
+                              ("F-199-9", "Related names 'F-199-9', which no finding")):
+            with self.subTest(value=value):
+                text = qa_text("FAIL", "1 fail / 0 log", block("F-199-1", related=value))
+                self.assert_refused("qa", text, "199", reason)
+
+    def test_accepted(self):
+        self.assert_ok("qa", qa_text("FAIL", "1 fail / 0 log", block("F-199-1", related="F-198-4")), "199")
+        both = qa_text("FAIL", "2 fail / 0 log", block("F-199-1", related="F-199-2"),
+                       block("F-199-2", related="F-199-1"))
+        self.assert_ok("qa", both, "199")
+        repeated = qa_text("FAIL", "2 fail / 0 log", block("F-304-1"), block("F-304-2", related="F-304-1"))
+        self.assert_ok("qa", repeated, "304")
+        self.assert_ok("qa", qa_text("FAIL", "1 fail / 0 log", block("F-304-2", related="F-304-1")), "304")
+
+    def test_a_non_owner_comment_holds_no_ids(self):
+        text = qa_text("FAIL", "1 fail / 0 log", block("F-305-2", related="F-305-1"))
+        self.assert_refused("qa", text, "305", "Related names 'F-305-1'")
+
+
+class CategoryTest(Runner):
+    """#199 C9: the criterion category."""
+
+    def test_criterion_is_accepted_in_both_forms(self):
+        self.assert_ok("finding", swap(FINDING, "Category: defect", "Category: criterion"), FINDING_N)
+        good = {key: value for key, value in zip(check_format.FINDING_FIELDS,
+                                                 [line.split(": ", 1)[1] for line in FINDING.splitlines()])}
+        self.assertEqual(check_format.check_finding(dict(good, category="criterion"), 198), [])
+        self.assertNotEqual(check_format.check_finding(dict(good, category="style"), 198), [])
+        self.assert_refused("finding", swap(FINDING, "Category: defect", "Category: style"), FINDING_N, "Category has")
+
+
 class MessageTest(Runner):
     """C6: the message to the human."""
 
@@ -403,6 +557,10 @@ class MessageTest(Runner):
             "Effort: L": (swap(MESSAGE, "Effort: S", "Effort: L"), "Effort has"),
             "decision id": (swap(MESSAGE, "Decision: D-12-1", "Decision: D12"), "Decision has"),
             "ship-or-fix id": (swap(MESSAGE, "Ship-or-fix: F-12-2", "Ship-or-fix: L2"), "Ship-or-fix has"),
+            # #199 C7: Points: after Effort:.
+            "ship-or-fix without Points": (swap(MESSAGE, "Points: 4\n", ""), "missing the Points: line"),
+            "Points: x": (swap(MESSAGE, "Points: 4", "Points: x"), "Points has 'x'"),
+            "Points: 0": (swap(MESSAGE, "Points: 4", "Points: 0"), "Points has"),
         }
         for name, (text, reason) in cases.items():
             with self.subTest(case=name):
@@ -442,8 +600,8 @@ class CommandTest(Runner):
     """C8: the command, its usage errors and its output."""
 
     def make(self, *args):
-        return subprocess.run(["make", "-s", "--no-print-directory", "check-format", *args], cwd=REPO,
-                              capture_output=True, text=True, timeout=60)
+        return subprocess.run(["make", "-s", "--no-print-directory", "-f", str(REPO / "Makefile"), "check-format",
+                               *args], cwd=self.project, capture_output=True, text=True, timeout=60)
 
     def test_make_prints_ok_for_each_doc_example(self):
         for kind, text, n in (("return", RETURN, None), ("finding", FINDING, FINDING_N),
@@ -479,6 +637,7 @@ class CommandTest(Runner):
                 self.assertIn("Usage: make check-format", done.stderr)
                 self.assertEqual(done.stdout, "")
         self.assertFalse((SCRATCH / "pwned").exists())
+        self.assertFalse((self.project / ".scratch" / "pwned").exists())
 
     def test_the_script_refuses_bad_arguments_with_2(self):
         file = self.put(RETURN)
@@ -493,7 +652,7 @@ class CommandTest(Runner):
         cases = {
             "missing": (".scratch/no-such-file-198.md", "not found"),
             "non-UTF-8": (self.put(b"Status: \xff\n"), "cannot be read as UTF-8 text"),
-            "a folder": (str(self.folder.relative_to(REPO)), "not a regular file"),
+            "a folder": (str(self.folder.relative_to(self.project)), "not a regular file"),
         }
         for name, (file, reason) in cases.items():
             with self.subTest(case=name):
@@ -504,7 +663,7 @@ class CommandTest(Runner):
     def test_a_symlink_is_not_followed(self):
         link = self.folder / "link.md"
         link.symlink_to(REPO / "README.md")
-        done = self.run_script("return", str(link.relative_to(REPO)))
+        done = self.run_script("return", str(link.relative_to(self.project)))
         self.assertEqual(done.returncode, 1)
         self.assertIn("symbolic link", done.stderr)
 

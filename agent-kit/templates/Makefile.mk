@@ -64,14 +64,25 @@ issue-hash: ## Print an issue body's sha256, author and owner check: make issue-
 	@python3 -B _docs/agent-kit/scripts/issue-hash.py "$$N"
 
 # check-format checks the fixed fields of a role return, a finding, a QA comment or a
-# message to the human (procedures/formats.md). It reads only FILE, as data. KIND is one
-# word from the list; N, the issue number, is required for finding and qa and not passed
-# for the others.
+# message to the human (procedures/formats.md). It reads FILE as data; for qa it also reads
+# agent-kit.conf and the dump .scratch/issue-<N>.json, so run `make settings N=<n>` first.
+# KIND is one word from the list; N, the issue number, is required for finding and qa and
+# not passed for the others.
 check-format: ## Check a report's fixed fields (see _docs/agent-kit/procedures/formats.md): make check-format KIND=<return|finding|qa|message> FILE=.scratch/<name> [N=<issue number>]
 	$(if $(and $(filter 1,$(words $(value KIND))),$(filter return finding qa message,$(value KIND))),,$(error Usage: make check-format KIND=<return|finding|qa|message> FILE=.scratch/<name> [N=<issue number>]))
 	$(if $(filter finding qa,$(value KIND)),$(if $(call issue-number-ok,$(value N)),,$(error Usage: make check-format KIND=<finding|qa> N=<issue number> FILE=.scratch/<name> - N is required for finding and qa)))
 	$(if $(call issue-file-ok,$(value FILE)),,$(error Usage: make check-format KIND=<return|finding|qa|message> FILE=.scratch/<name> [N=<issue number>] - FILE: one word under .scratch/ with letters digits . _ / - only))
 	@python3 -B _docs/agent-kit/scripts/check-format.py "$$KIND" "$$FILE" $(if $(filter finding qa,$(value KIND)),"$$N")
+
+# route-findings is read-only. It checks N as issue-hash does, writes the issue's dump as
+# settings does (needs gh), then prints one line per failing finding of the latest owner
+# QA: comment: its points, rounds, route (engineer, human or ship) and patchwork guard.
+# The rules: customizing.md (points) and process.md (Lifecycle, step 6) in the kit folder.
+route-findings: ## Print points, rounds, route and guard for each failing finding of an issue's latest QA comment (see _docs/agent-kit/customizing.md): make route-findings N=<issue number>
+	$(if $(call issue-number-ok,$(value N)),,$(error Usage: make route-findings N=<issue number>))
+	@mkdir -p .scratch
+	@if python3 -B _docs/agent-kit/scripts/github_api.py dump "$(N)" > ".scratch/issue-$(N).json.tmp" 2>/dev/null && python3 -B -m json.tool ".scratch/issue-$(N).json.tmp" > /dev/null 2>&1; then mv ".scratch/issue-$(N).json.tmp" ".scratch/issue-$(N).json"; else rm -f ".scratch/issue-$(N).json.tmp"; echo "route-findings: gh could not return valid JSON for issue $(N)" >&2; exit 1; fi
+	@python3 -B _docs/agent-kit/scripts/route-findings.py "$$N"
 
 issue-dump: ## Write an issue as JSON to .scratch/issue-<N>.json: make issue-dump N=<issue number>
 	$(if $(call issue-number-ok,$(value N)),,$(error Usage: make issue-dump N=<issue number>))
