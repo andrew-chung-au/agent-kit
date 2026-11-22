@@ -4,7 +4,7 @@ Where a project goes to change a kit value. Reader: the human running a project,
 
 Every value the process uses is a **setting** with a kit default. A project changes one with a single line in `agent-kit.conf`, or picks a **profile** that sets a few of them at once, instead of editing the kit's text and carrying a fork. `make settings` prints each setting, its value and where that value comes from. This page also holds the **grade vocabulary** every role uses.
 
-The QA settings of #199 act now: `QA_FAIL_AT`, `QA_SCOPE_STRICT`, `RECHECK`, `FIX_CHECK_LOOPS`, `ASK_AT`, `SHIP_RULE` and `STEP_UP` (QA's verdict, `make check-format KIND=qa`, `make route-findings` and Lifecycle step 6 of `process.md`). Each other setting below names the issue that makes it take effect; until that issue lands, a value you write has no effect.
+The QA settings of #199 act now: `QA_FAIL_AT`, `QA_SCOPE_STRICT`, `RECHECK`, `FIX_CHECK_LOOPS`, `ASK_AT`, `SHIP_RULE` and `STEP_UP` (QA's verdict, `make check-format KIND=qa`, `make route-findings` and Lifecycle step 6 of `process.md`). The findings settings of #200 act now too: `FINDINGS_TO_ISSUE_AT`, `FINDINGS_GROUP_AT` and `FINDINGS_KEEP_SWEEPS` (where an unfixed finding goes, `make findings`, and the sweep's step 3; see Findings log in `procedures/formats.md`). Each other setting below names the issue that makes it take effect; until that issue lands, a value you write has no effect.
 
 ## Grades
 

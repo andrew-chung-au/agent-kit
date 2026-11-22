@@ -314,6 +314,25 @@ class PhraseTest(unittest.TestCase):
                 self.assertIn(phrase, text)
         self.assertNotIn("## Inputs", SWEEP_MD.read_text())
 
+    def test_findings_step_phrases(self):
+        # #200: the step that reads the findings log and counts amended criteria.
+        text = self.text()
+        for phrase in (
+            "3. Read the findings log: run `make findings`.",
+            "For each group flagged `draft one issue`, draft one issue into the entry as a proposal",
+            "a title, evidence from the entries' `what` text, and the entry ids",
+            "List each entry flagged `keep or drop` for the human",
+            "count amended criteria per issue, from the `Orchestrator: Confirm` comments that name an amend",
+            "propose a grooming change for any issue with more than one",
+            "the orchestrator files the drafts unlabelled and appends one line per ruling to "
+            "`_docs/records/findings-rulings.jsonl`",
+            "the PM files nothing",
+        ):
+            with self.subTest(phrase=phrase[:40]):
+                self.assertIn(phrase, text)
+        steps = re.findall(r"(?m)^(\d+)\. ", SWEEP_MD.read_text().split("## Steps")[1].split("## Safeguards")[0])
+        self.assertEqual(steps, ["1", "2", "3", "4", "5", "6"])
+
     def test_the_lookup_command_finds_both_naming_forms(self):
         # #32: the command in step 2 lists timestamped and old-form summaries alike.
         # Runs the command exactly as sweep.md writes it, in a throwaway repository, so the result

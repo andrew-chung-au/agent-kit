@@ -1,6 +1,6 @@
 {
-  "provisional": "Written by hand on 2026-11-20, before the findings log exists (same form as 196.json). Fields follow the finding format in issue #198 (02); issue #200 (03b) defines the log's file format and takes this file over. All are Low, so none failed #197 (the human's ruling: QA fails only on Medium or Critical) and none gets its own issue.",
   "issue": 197,
+  "logged": "2026-11-20T00:00Z",
   "findings": [
     {
       "id": "F-197-1",
