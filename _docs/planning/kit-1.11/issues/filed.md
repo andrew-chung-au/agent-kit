@@ -99,3 +99,18 @@ Every groomed issue carries Effort, Reasoning and Impact, but in prose and as on
 - **What the kit sets up per tool** (the human, 2026-11-22; the tool situation in general, as the human described it, not researched fact, and likely to change with plans): the grades are useful with any tool and stay tool-neutral. Today only Claude Code is set up to choose a subagent's model level per task. Elsewhere the kit doesn't select levels: OpenCode, Antigravity and CodeBuddy run on free models with little or no stronger choice (CodeBuddy's effort setting can be set), and Kiro can switch models but its auto selection is much cheaper. So in Claude Code an issue can stay whole with subagents at different levels; elsewhere the issue runs at one level, set by its hardest part, or the PM splits it at grooming. A tool's own option may be used where the human chooses to.
 - **Splitting.** The PM proposes a split at grooming when one criterion is D and the rest are B and the project's tools can't mix levels. The delivery lead (#214) assigns issues, or separately graded criteria in Claude Code; it never splits an issue itself.
 - **Issues:** #209 (08b): the `Effort:`/`Reasoning:` lines become template fields, the max/total rule, optional criterion grades and the Effort-is-size note. #210 (08c): level chosen per launch from task and role, set up for Claude Code only; the other tools are documented as not selecting levels, without fixed claims about their models. Which tools select levels is a project setting, not kit text (the human, 2026-11-22): a new setting in #196's table (working name `LEVEL_SELECT_TOOLS`), a comma-separated list of tool layers or `none`, default `claude-code`, project line only. The models each level maps to stay in the role definitions (#210 C1). `STEP_UP` then acts for exactly the tools in that setting, replacing #199's "Claude Code only" wording, so a plan change is one `agent-kit.conf` line. #214 (11a): the lead assigns issues or graded criteria; splitting stays with the PM.
+
+### E. Logged findings in messages to the human: grade heading, then a short explainer each (2026-11-23)
+
+When the orchestrator reports findings that were logged (below `QA_FAIL_AT`, or out of scope), restating the routing rule wastes words and a bare one-line label doesn't say what the problem is. The human asked for this layout instead:
+
+- A heading naming the grade and the outcome, for example `Findings (Low: logged)` or `Findings (Medium, out of scope: logged)`. The kit user knows the rules; the heading is enough.
+- Under it, one bullet per finding: the id, then one or two plain sentences on what happens and when it matters (the effect, not the code location). No restating of why it didn't fail.
+- Findings that fail or come to the human keep the ship-or-fix block (#198, #199); this layout is only for logged ones.
+
+Example (from #199):
+
+    Findings (Low: logged)
+    - F-199-3: a ship rule that doesn't name impact: (for example SHIP_RULE=rounds:0) ships even a Critical finding automatically; customizing.md doesn't warn about it.
+
+- **Issue:** #200 (03b), which owns the findings log and `make findings`: add the layout to `procedures/asking-the-human.md` (message to the human) and, if it fits, to `make findings` output. Check whether `check-format KIND=message` should accept or check the heading form.
