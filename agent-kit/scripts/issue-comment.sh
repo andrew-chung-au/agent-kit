@@ -24,6 +24,16 @@
 # to the scanner and to gh on standard input, never to a shell. The bytes scanned are
 # the bytes posted.
 #
+# When gh fails, this script's one-line reason is printed first, then gh's own
+# standard error, each line prefixed `issue-comment: gh: `, so the cause is not lost.
+# The text is redacted with the lines of scripts/secret-patterns.txt (the one copy,
+# read next to this script): every match becomes `[redacted]`. At most 20 lines and
+# 4000 bytes of it are printed. If the redaction cannot run (the patterns file is
+# missing, empty or unreadable, or gh's standard error is not valid UTF-8), gh's text
+# is withheld and one line says so. The same applies to the reason github_api.py gives
+# when one of the two reads fails. A successful post prints the URL alone; gh's
+# standard error is discarded then, as it always was.
+#
 # Exit codes: 0 posted; 1 gh failed or printed no URL after the target check (no
 # retry); 2 bad N, FILE or prefix (no gh command ran); 3 the secret scan refused
 # (no gh command ran); 4 the target issue is not allowed or could not be checked.
@@ -34,6 +44,52 @@ export LC_ALL=C
 here=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd) || exit 2
 die() {
   echo "issue-comment: $2" >&2
+  exit "$1"
+}
+# show_gh_text FILE: print FILE's text, redacted and capped, one `issue-comment: gh: `
+# line each. The patterns are the lines of secret-patterns.txt next to this script. If
+# the redaction cannot run, print one notice and no text at all (fail closed).
+show_gh_text() {
+  local file="$1" text code line
+  text=$(python3 -B -c '
+import re, sys
+MAX_LINES = 20
+MAX_BYTES = 4000
+try:
+    data = sys.stdin.buffer.read().decode("utf-8")
+except UnicodeDecodeError:
+    sys.exit(2)
+try:
+    with open(sys.argv[1], "r", encoding="utf-8") as fh:
+        patterns = [p.rstrip("\r") for p in fh.read().split("\n")]
+    patterns = [p for p in patterns if p != ""]
+    if not patterns:
+        sys.exit(2)
+    regexes = [re.compile(p, re.MULTILINE) for p in patterns]
+except (OSError, UnicodeDecodeError, re.error):
+    sys.exit(2)
+if any(regex.search("") for regex in regexes):
+    sys.exit(2)
+for regex in regexes:
+    data = regex.sub("[redacted]", data)
+text = "\n".join(data.splitlines()[:MAX_LINES])
+out = text.encode("utf-8")[:MAX_BYTES].decode("utf-8", "ignore").encode("utf-8")
+sys.stdout.buffer.write(out)
+' "$here/secret-patterns.txt" < "$file")
+  code=$?
+  if [ "$code" -ne 0 ]; then
+    printf '%s\n' "issue-comment: withheld gh's error text because the redaction could not run" >&2
+    return 0
+  fi
+  [ -n "$text" ] || return 0
+  while IFS= read -r line; do
+    printf '%s\n' "issue-comment: gh: $line" >&2
+  done <<< "$text"
+}
+# die_gh CODE REASON FILE: the one-line reason first, then FILE's gh text, then exit.
+die_gh() {
+  echo "issue-comment: $2" >&2
+  show_gh_text "$3"
   exit "$1"
 }
 # shellcheck source=issue-text-lib.sh
@@ -56,8 +112,10 @@ scan_content "$file"
 # Target-issue rule. Every failure to find out is a refusal.
 command -v gh > /dev/null 2>&1 || die 4 "cannot check issue $number: gh was not found; nothing was posted"
 github_repo || die 4 "cannot check issue $number: no valid GITHUB_REPO=\"<owner>/<name>\" line in agent-kit.conf; nothing was posted"
-issue_json=$(python3 -B "$here/github_api.py" head "$REPO" "$number" 2> /dev/null) || die 4 "cannot read issue $number with gh; nothing was posted"
-repo_json=$(python3 -B "$here/github_api.py" owner "$REPO" 2> /dev/null) || die 4 "cannot read the repository owner with gh; nothing was posted"
+errfile=$(mktemp "${TMPDIR:-/tmp}/issue-comment.XXXXXX") || die 4 "cannot check issue $number: cannot create a temporary file; nothing was posted"
+trap 'rm -f -- "$errfile"' EXIT
+issue_json=$(python3 -B "$here/github_api.py" head "$REPO" "$number" 2> "$errfile") || die_gh 4 "cannot read issue $number with gh; nothing was posted" "$errfile"
+repo_json=$(python3 -B "$here/github_api.py" owner "$REPO" 2> "$errfile") || die_gh 4 "cannot read the repository owner with gh; nothing was posted" "$errfile"
 python3 -B -c '
 import json, sys
 # Exit 0: the issue is "approved" or owner-authored. 1: readable but neither. 2: unreadable.
@@ -82,7 +140,7 @@ case "$?" in
   *) die 4 "cannot tell whether issue $number is approved or owner-authored; nothing was posted" ;;
 esac
 
-out=$(gh api "repos/$REPO/issues/$number/comments" --method POST -F body=@- 2> /dev/null < <(printf '%s' "$CONTENT"))
+out=$(gh api "repos/$REPO/issues/$number/comments" --method POST -F body=@- 2> "$errfile" < <(printf '%s' "$CONTENT"))
 code=$?
-[ "$code" -eq 0 ] || die 1 "gh issue comment failed (exit $code); nothing was retried, so check GitHub before posting again"
+[ "$code" -eq 0 ] || die_gh 1 "gh issue comment failed (exit $code); nothing was retried, so check GitHub before posting again" "$errfile"
 print_url "$out"

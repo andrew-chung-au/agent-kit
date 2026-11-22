@@ -69,6 +69,10 @@ if kind == "comments" and "list" in entry:
     sys.stdout.write(json.dumps(entry["list"][(page - 1) * size:page * size]))
 else:
     sys.stdout.write(entry.get("stdout", "[]" if kind == "comments" else ""))
+if "stderr" in entry:
+    sys.stderr.write(entry["stderr"])
+if "stderr_hex" in entry:
+    sys.stderr.buffer.write(bytes.fromhex(entry["stderr_hex"]))
 sys.exit(entry.get("exit", 0))
 """
 
@@ -520,6 +524,32 @@ class TargetIssueTest(ScriptBase):
         done = self.posts(issue_view={"stdout": self.issue([], "the-owner")}, repo_view={"stdout": "{}"})
         self.assert_not_posted(done)
 
+    # #187 C6: a failed read prints github_api.py's reason instead of discarding it.
+    def test_a_failed_issue_read_shows_the_github_api_reason(self):
+        done = self.posts(issue_view={"exit": 1})
+        self.assert_not_posted(done)
+        lines = done.stderr.decode().splitlines()
+        self.assertEqual(lines[0], "issue-comment: cannot read issue 5 with gh; nothing was posted")
+        self.assertIn("gh api failed (exit 1)", self.shown(done))
+
+    def test_a_failed_repository_read_shows_the_github_api_reason(self):
+        done = self.posts(repo_view={"exit": 1})
+        self.assert_not_posted(done)
+        lines = done.stderr.decode().splitlines()
+        self.assertEqual(lines[0], "issue-comment: cannot read the repository owner with gh; nothing was posted")
+        self.assertIn("gh api failed (exit 1)", self.shown(done))
+
+    # #187 C4: a read failure with no patterns to redact with fails closed, exit 4.
+    def test_a_failed_read_with_no_patterns_withholds_the_reason(self):
+        self.spy_scanner()
+        (self.scripts / "secret-patterns.txt").unlink()
+        done = self.posts(issue_view={"exit": 1})
+        self.assert_not_posted(done)
+        self.assertEqual(done.stderr.decode().splitlines()[0],
+                         "issue-comment: cannot read issue 5 with gh; nothing was posted")
+        self.assertIn("withheld gh's error text", self.shown(done))
+        self.assertNotIn("gh api failed", self.shown(done))
+
     def test_gh_missing_refuses_the_comment(self):
         env = dict(self.env)
         env["PATH"] = self.no_gh_path()
@@ -671,9 +701,10 @@ class FailingGhTest(ScriptBase):
     def assert_failed(self, done, kind):
         self.assertEqual(done.returncode, 1, self.shown(done))
         self.assertEqual(done.stdout, b"", "success text was printed")
-        reason = done.stderr.decode().strip()
-        self.assertTrue(reason)
-        self.assertNotIn("\n", reason, "the reason must be one line")
+        lines = done.stderr.decode().splitlines()
+        self.assertTrue(lines, "a failure needs a reason")
+        reason = lines[0]
+        self.assertTrue(reason.startswith(("issue-create: ", "issue-comment: ")), reason)
         self.assertNotIn(BODY_TOKEN, self.shown(done))
         self.assertNotIn("Title", reason)
         self.assertLessEqual(len([c for c in self.calls() if write_kind(c) == kind]), 1, "gh was retried")
@@ -735,6 +766,117 @@ class FailingGhTest(ScriptBase):
         for done in (self.create(self.create_file()), self.comment("5", self.comment_file())):
             self.assertNotIn(BODY_TOKEN, self.shown(done))
 
+    # #187: the comment wrapper shows gh's own reason after its one-line reason.
+
+    GH_403 = "gh: Resource not accessible by integration (HTTP 403)"
+
+    def test_comment_failure_shows_the_script_reason_then_gh_reason(self):
+        for code in (1, 2, 127):
+            with self.subTest(code=code):
+                (self.ghdir / "calls.log").unlink(missing_ok=True)
+                self.config(comment={"exit": code, "stderr": self.GH_403 + "\n"})
+                done = self.comment("5", self.comment_file())
+                self.assertEqual(done.returncode, 1, self.shown(done))
+                self.assertEqual(done.stdout, b"")
+                lines = done.stderr.decode().splitlines()
+                self.assertEqual(
+                    lines[0],
+                    f"issue-comment: gh issue comment failed (exit {code}); "
+                    "nothing was retried, so check GitHub before posting again")
+                self.assertGreater(len(lines), 1)
+                self.assertIn(self.GH_403, lines[1])
+                self.assertEqual(len(self.writes()), 1)
+
+    def test_comment_success_with_a_warning_prints_only_the_url(self):
+        self.config(comment={"stdout": json.dumps({"html_url": URL + "#issuecomment-1"}),
+                             "stderr": "warning: something happened\n"})
+        done = self.comment("5", self.comment_file())
+        self.assertEqual((done.returncode, done.stdout, done.stderr),
+                         (0, (URL + "#issuecomment-1\n").encode(), b""), self.shown(done))
+
+    def test_comment_failure_without_stderr_prints_the_reason_alone(self):
+        self.config(comment={"exit": 1})
+        done = self.comment("5", self.comment_file())
+        self.assertEqual(done.returncode, 1, self.shown(done))
+        self.assertEqual(done.stdout, b"")
+        self.assertEqual(done.stderr.decode().splitlines(),
+                         ["issue-comment: gh issue comment failed (exit 1); "
+                          "nothing was retried, so check GitHub before posting again"])
+
+    def test_comment_failure_redacts_each_secret_fixture(self):
+        # #187 C3: the one pattern file, applied to gh's standard error before printing.
+        for name, text, number, secret in MATCH:
+            with self.subTest(name=name):
+                (self.ghdir / "calls.log").unlink(missing_ok=True)
+                self.config(comment={"exit": 1, "stderr": f"gh: failed: {text}\n"})
+                done = self.comment("5", self.comment_file())
+                self.assertEqual(done.returncode, 1, self.shown(done))
+                shown = self.shown(done)
+                self.assertIn("[redacted]", shown)
+                self.assertNotIn(secret, shown)
+
+    def test_comment_failure_with_missing_patterns_withholds_gh_text(self):
+        self.spy_scanner()
+        (self.scripts / "secret-patterns.txt").unlink()
+        self.config(comment={"exit": 1, "stderr": self.GH_403 + "\n"})
+        done = self.comment("5", self.comment_file())
+        self.assertEqual(done.returncode, 1, self.shown(done))
+        self.assertEqual(done.stdout, b"")
+        lines = done.stderr.decode().splitlines()
+        self.assertEqual(lines[0], "issue-comment: gh issue comment failed (exit 1); "
+                                   "nothing was retried, so check GitHub before posting again")
+        self.assertIn("withheld gh's error text", self.shown(done))
+        self.assertNotIn("Resource not accessible", self.shown(done))
+
+    def test_comment_failure_with_empty_patterns_withholds_gh_text(self):
+        self.spy_scanner()
+        (self.scripts / "secret-patterns.txt").write_text("", encoding="utf-8")
+        self.config(comment={"exit": 1, "stderr": self.GH_403 + "\n"})
+        done = self.comment("5", self.comment_file())
+        self.assertEqual(done.returncode, 1, self.shown(done))
+        self.assertIn("withheld gh's error text", self.shown(done))
+        self.assertNotIn("Resource not accessible", self.shown(done))
+
+    def test_comment_failure_with_unreadable_patterns_withholds_gh_text(self):
+        self.spy_scanner()
+        (self.scripts / "secret-patterns.txt").unlink()
+        (self.scripts / "secret-patterns.txt").mkdir()
+        self.config(comment={"exit": 1, "stderr": self.GH_403 + "\n"})
+        done = self.comment("5", self.comment_file())
+        self.assertEqual(done.returncode, 1, self.shown(done))
+        self.assertIn("withheld gh's error text", self.shown(done))
+        self.assertNotIn("Resource not accessible", self.shown(done))
+
+    def test_comment_failure_with_invalid_utf8_stderr_withholds_gh_text(self):
+        self.config(comment={"exit": 1, "stderr_hex": "ff0a"})
+        done = self.comment("5", self.comment_file())
+        self.assertEqual(done.returncode, 1, self.shown(done))
+        self.assertEqual(done.stdout, b"")
+        self.assertNotIn(b"\xff", done.stderr)
+        self.assertIn("withheld gh's error text", self.shown(done))
+        self.assertEqual(done.stderr.decode().splitlines()[0],
+                         "issue-comment: gh issue comment failed (exit 1); "
+                         "nothing was retried, so check GitHub before posting again")
+
+    def test_comment_failure_caps_gh_text_at_twenty_lines_and_4000_bytes(self):
+        prefix = "issue-comment: gh: "
+        cases = {
+            "1000 lines and 200000 bytes": ("x" * 199 + "\n") * 1000,
+            "30 lines and 9000 bytes": ("y" * 299 + "\n") * 30,
+        }
+        for name, stderr in cases.items():
+            with self.subTest(name=name):
+                self.assertEqual(len(stderr.encode()), 200000 if name.startswith("1000") else 9000)
+                self.config(comment={"exit": 1, "stderr": stderr})
+                done = self.comment("5", self.comment_file())
+                self.assertEqual(done.returncode, 1, self.shown(done))
+                lines = done.stderr.decode().splitlines()
+                self.assertEqual(lines[0], "issue-comment: gh issue comment failed (exit 1); "
+                                           "nothing was retried, so check GitHub before posting again")
+                gh_lines = [line[len(prefix):] for line in lines[1:] if line.startswith(prefix)]
+                self.assertLessEqual(len(gh_lines), 20)
+                self.assertLessEqual(len("\n".join(gh_lines).encode()), 4000)
+
 
 class StaticTest(unittest.TestCase):
     SCRIPTS = ("issue-create.sh", "issue-comment.sh", "scan-issue-body.sh", "issue-text-lib.sh")
@@ -759,7 +901,7 @@ class StaticTest(unittest.TestCase):
         for name in self.SCRIPTS:
             found = []
             for line in self.code(name):
-                line = re.sub(r'die [0-9] "[^"]*"', "", line)
+                line = re.sub(r'die(?:_gh)? [0-9] "[^"]*"', "", line)
                 for match in re.finditer(r"\bgh (issue|repo|api|label|pr|auth|run)\b[^)>|]*", line):
                     found.append(re.sub(r"\s+2\s*$", "", match.group(0).strip()))
             expected = shapes.get(name, [])
