@@ -7,7 +7,7 @@ The kit's rules are the same wherever agents run. What changes is:
 - what checks a push before it reaches GitHub.
 
 There are two separate choices:
-- **Which agent tool:** the core kit works with any tool that reads `AGENTS.md`. A tool layer adds that tool's own enforcement: `claude-code/`, `opencode/` or `codebuddy/`. CodeBuddy reads `AGENTS.md` when no `CODEBUDDY.md` exists, so it needs no pointer file; the `codebuddy/` layer adds its permission rules, role definitions, manual sweep skill and the shared guard.
+- **Which agent tool:** the core kit works with any tool that reads `AGENTS.md`. A tool layer adds that tool's own enforcement: `claude-code/`, `opencode/`, `codebuddy/` or `antigravity/`. CodeBuddy reads `AGENTS.md` when no `CODEBUDDY.md` exists, so it needs no pointer file; the `codebuddy/` layer adds its permission rules, role definitions, manual sweep skill and the shared guard. Antigravity reads `AGENTS.md` directly and walks ancestor folders, so it needs no pointer file; the `antigravity/` layer adds its role definitions, the shared git guard hook adapter, and documented global permission settings.
 - **Where it runs:** one of the three profiles below. Record it in the **Environment** setting in `AGENTS.md`, so agents know what's available to them.
 
 | | Codespaces | Local sandbox | Local, no sandbox |

@@ -38,3 +38,20 @@ Live spike results (2026-11-21, CodeBuddy 2.185.0; steps and observations in `_h
 - **Not covered:** model selection and the status line.
 
 The layer is written from these results: `codebuddy/START.md`, `codebuddy/settings.json`, the three agent files and the sweep skill. Keep `AGENTS.md` as the single core-rules home and add no `CODEBUDDY.md`; use the colon permission form, the guard with `|| exit 2`, and `memory.parentDiscovery: false` for monorepos. Do not enable `allowUntrustedFrontmatterHooks` globally. `memory.parentDiscovery` ships commented out, because the default suits every project that is not a monorepo and the setting only narrows what loads.
+
+## Antigravity
+
+Decided on 2026-11-21; the live spike ran the same day on Antigravity CLI 1.5.14, and the layer was written from those results under issue #221.
+
+- `AGENTS.md` is cumulative and walks up to the checkout root, so there is nothing to install for rules: no pointer file and no copy.
+- No permissions file ships in the repository: Antigravity reads permissions only from the global file `~/.gemini/antigravity-cli/settings.json`, which is a documented human step and cannot be byte-compared.
+- The sweep skill is omitted: skills are model-invocable and lack a `disable-model-invocation` setting; in the spike an uninvoked skill read its own `SKILL.md` and ran shell commands on its own, breaking the sweep rule.
+- The PreToolUse hook adapter on `run_command` translates Antigravity's payload into the shared git guard's input and emits an explicit decision JSON on every path (`{"decision": "deny", ...}` or `{"decision": "allow"}`), never exiting 0 silently (a hook exiting 0 with no output fails open; exit 1, timeouts and malformed JSON fail closed).
+- Headless `-p` soft-denies blocked commands and still exits 0, so scripts inspect the response body rather than the process exit code.
+- `--dangerously-skip-permissions` does not bypass hooks.
+
+Live spike results (2026-11-21, agy 1.5.14; steps and observations in `_human-tasks/2026-11-21T1524Z-human-task-engineer-antigravity-live-checks.md`):
+- **Hook blocking:** JSON deny blocks; exit 1 blocks; timeout at 30 s blocks; malformed JSON blocks; exit 0 with no output allows.
+- **Parent walking:** every `AGENTS.md` up to the repository root is loaded into context.
+- **Subagents:** subagents in `.agents/agents/` are discovered and invoked.
+- **Headless mode:** blocked commands produce `status: SUCCESS` with the denial explained in the response, exiting 0.

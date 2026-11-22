@@ -1,6 +1,6 @@
 # Antigravity CLI: research notes
 
-Status: research only, 2026-11-21. No layer, no container change. The live test (does `agy` run here, does an API key authenticate, what a hook does on failure) has not been done yet; the questions are at the end.
+Status: the layer is written under issue #221 (`agent-kit/antigravity/`), from the 2026-11-21 spike. No container change. The questions that remain are at the end.
 
 Sources: `antigravity.google/docs/{rules,hooks,permissions,settings,subagents,skills,cli/headless,install}`, read on 2026-11-21. The vendor summary that prompted this note claims settings, permissions, skills, hooks and MCP sync bidirectionally; the docs contradict that in two places, marked below.
 
@@ -87,7 +87,9 @@ Answered on 2026-11-21 and moved into the section above: hook deny, crash, silen
 
 1. What is the starter quota tied to, and does it survive a container rebuild? `/usage` names the signed-in account, so it is per person rather than per install; whether the stored session is in a mounted volume decides whether `setup.sh` can provision anything at all.
 2. Do `command(...)` rules in the global settings apply to `run_command` arguments, and does a `command(git push)` deny stop a push?
-3. Does malformed JSON from a hook block or allow? Silence allows, so the guess is that a parse failure does too, and that would make the adapter's output format a security boundary.
+3. ~~Does malformed JSON from a hook block or allow?~~ Answered 2026-11-21: malformed JSON blocks with `failed to unmarshal result from hook ... via protojson: invalid json text`. Silence allows, but a parse failure does not. The adapter's output format is therefore not the last line of defence, but the adapter still emits valid JSON on every path to avoid relying on this.
+4. What working directory does a hook command run in? The hooks page documents no environment variable for the project folder and does not say where `command` is resolved; its own examples use `./scripts/...`. The layer's `hooks.json` therefore uses a path relative to the project folder, and the install check is what proves it. The adapter itself does not depend on the answer: it finds the kit from its own file and the payload's `workspacePaths`, `Cwd` and `cwd`.
+5. Do the deny rules protect dotenv files in practice? The permissions page states that denying `read_file` on a path also denies `write_file` there, which is why the layer ships three `read_file` entries and no `write_file` ones. That is documentation, not a measurement: the human step that applies the rules has not been run against a live `agy` yet.
 
 ## Recommendation
 

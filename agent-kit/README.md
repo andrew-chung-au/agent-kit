@@ -28,7 +28,7 @@ Each doc opens with what it is for; the Reader column says who reads it. H is th
 | Change a kit value for my project (a setting or a profile), or look up the grades | `customizing.md` | H, A |
 | Review a newer kit against my kit | `procedures/kit-import.md` | A |
 | Use one step of the process (verify, ask the human, plan, sweep) | `procedures/` | A |
-| Use Claude Code, OpenCode or CodeBuddy with the kit | `claude-code/START.md`, `opencode/START.md`, `codebuddy/START.md` | H, A |
+| Use Claude Code, OpenCode, CodeBuddy or Antigravity with the kit | `claude-code/START.md`, `opencode/START.md`, `codebuddy/START.md`, `antigravity/START.md` | H, A |
 
 ## How the controls work
 
@@ -71,10 +71,11 @@ _docs/agent-kit/
   claude-code/       optional Claude Code layer: START.md, role definitions, sweep skill, hooks, settings
   opencode/          optional OpenCode layer: START.md, role definitions, sweep skill, permission settings, permission log plugin
   codebuddy/         optional CodeBuddy layer: START.md, role definitions, sweep skill, permission settings (runs the shared git guard)
+  antigravity/       optional Antigravity CLI layer: START.md, role definitions, hooks.json, guard adapter
 ```
 
 **Two choices per project.** The core kit is the same everywhere; two things vary:
-- **Which agent tool.** A tool layer adds that tool's own enforcement on top of the core kit. `claude-code/START.md` adds role definitions, a hook that blocks forbidden git commands before they run, a hook that won't let the Engineer finish while `make verify` fails, and permission rules. `opencode/START.md` adds role definitions and permission rules. `codebuddy/START.md` adds role definitions, a manual sweep skill, permission rules and the same git guard as Claude Code. Setup installs the layer for the tool you use.
+- **Which agent tool.** A tool layer adds that tool's own enforcement on top of the core kit. `claude-code/START.md` adds role definitions, a hook that blocks forbidden git commands before they run, a hook that won't let the Engineer finish while `make verify` fails, and permission rules. `opencode/START.md` adds role definitions and permission rules. `codebuddy/START.md` adds role definitions, a manual sweep skill, permission rules and the same git guard as Claude Code. `antigravity/START.md` adds role definitions, the shared git guard through a PreToolUse hook adapter, and documented global permission rules. Setup installs the layer for the tool you use.
 - **Where agents run.** `environments.md` describes the three profiles: where the agent works, where the kit's hooks are active, where you review and push, and what checks a push. Read it before setting up a local sandbox.
 
 ## Installing and upgrading
