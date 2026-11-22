@@ -1,6 +1,6 @@
 # Report formats
 
-The fixed fields every role writes, so whoever needs one fact reads one line. This page holds the role return and the finding. The QA comment is in `_docs/agent-kit/team/qa-engineer.md` and the message to the human in `_docs/agent-kit/procedures/asking-the-human.md`; each format is defined once.
+The fixed fields every role writes, so whoever needs one fact reads one line. This page holds the role return, the finding and the findings log. The QA comment is in `_docs/agent-kit/team/qa-engineer.md` and the message to the human in `_docs/agent-kit/procedures/asking-the-human.md`; each format is defined once.
 
 ## The line rule
 
@@ -84,3 +84,28 @@ Recommendation: Name the allowed kinds in the usage line.
 What: make check-format KIND=bogus prints a usage line that does not list the kinds (Makefile line 40).
 How found: .scratch/qa-198-probe.py, case 3.
 ```
+
+## Findings log
+
+Where an unfixed finding goes (`process.md`, Lifecycle step 9): at or above `FINDINGS_TO_ISSUE_AT` (default `C`), an unlabelled draft issue; below it, one entry in `_docs/records/findings/<issue>.json`. A finding the human shipped gets its follow-up issue and is not logged; a fixed finding is not logged. Debt is a finding with `Category: debt`. `Group:` names one problem: QA runs `make findings` first and reuses a listed slug that fits.
+
+The orchestrator writes the file once, at close, after the last QA PASS, from the QA comments' finding blocks, and never edits it. The `group` is QA's, copied unchanged.
+
+```
+{"issue": 199, "logged": "2026-11-22T21:40Z", "findings": [{"id": "F-199-2", "impact": "L", ... "how_found": "First QA launch."}]}
+```
+
+Each entry has the eleven keys of `FINDING_FIELDS`, in order, as the finding above. `logged` is a UTC time. A file's name is `<issue>.json` and matches `issue`.
+
+The sweep's rulings go in `_docs/records/findings-rulings.jsonl`, append-only, one line each, `at` being a sweep entry's name time (`YYYY-MM-DDTHHMMZ`):
+
+```
+{"id": "F-199-1", "ruling": "issued", "at": "2026-12-01T0900Z", "issue": 230}
+{"id": "F-199-3", "ruling": "dropped", "at": "2026-12-01T0900Z"}
+{"id": "F-199-4", "ruling": "kept", "at": "2026-12-01T0900Z"}
+{"id": "F-199-2", "ruling": "regroup", "at": "2026-12-01T0900Z", "group": "route-findings-docs"}
+```
+
+`issued` and `dropped` close an entry; `kept` restarts its age at `at`; `regroup` replaces its group. An entry's age is the number of sweep entries named later than its `logged` time (or its last `kept`).
+
+`make findings` lists the open entries by group, largest first, with age in sweeps and debt counts. It flags a group of `FINDINGS_GROUP_AT` open entries `draft one issue` and an entry of `FINDINGS_KEEP_SWEEPS` sweeps `keep or drop`, prints `none` when nothing is open, and refuses a bad file or line by name (`scripts/findings.py`, which uses `check_finding`).

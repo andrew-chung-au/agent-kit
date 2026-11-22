@@ -118,6 +118,16 @@ The counts match the blocks. Then a blank line and `Status: <text>`. Anything af
 
 Only the human chooses ship (unless a `SHIP_RULE` ships it) or amend. Answering is a stop point: a finding routed to the human gets no fix until answered.
 
+**Logged findings.** A finding that is logged and fails nothing (`procedures/formats.md`, Findings log) is reported under a heading that names its grade and outcome, then one bullet per finding: its id (the one `make findings` prints), then one or two plain sentences on what happens and when it matters. Findings that fail or come to the human keep the ship-or-fix block. `check-format KIND=message` does not check this layout; it is for the Close comment and chat.
+
+```
+Findings (Low: logged)
+- F-12-2: the signup handler logs each username. Harmless until #14 adds log levels.
+
+Findings (Medium, out of scope: logged)
+- F-12-3: the lint run is red on the base commit too. Every issue sees it until it is fixed.
+```
+
 ```
 Needs you: 1 decision points, 1 ship-or-fix
 

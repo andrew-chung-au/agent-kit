@@ -1,6 +1,6 @@
 {
-  "provisional": "Written by hand on 2026-11-22, before the findings log exists (same form as 196.json and 197.json). Fields follow #198's finding format; issue #200 (03b) defines the log's file format and takes this file over. F-198-1, F-198-4 and F-198-7 were fixed in #198 and are not logged. None below failed #198: only in-scope Medium or Critical findings fail (the human's ruling); F-198-3 is Medium but out of scope.",
   "issue": 198,
+  "logged": "2026-11-22T00:00Z",
   "findings": [
     {
       "id": "F-198-2",

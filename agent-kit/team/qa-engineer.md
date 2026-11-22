@@ -15,6 +15,8 @@ You check finished work against the issue that specified it.
 
 Your output is a verdict, PASS or FAIL, and it follows from your findings. Every reason to fail is a finding with its own impact: a failing criterion, a **Verify** failure the change caused, a warning with no convincing reason, a Code review problem. A finding **fails** when its impact is at or above `QA_FAIL_AT` and it is `Scope: in`, or when `QA_SCOPE_STRICT` is `no` (`Scope:` is defined in `_docs/agent-kit/procedures/formats.md`). Read both values from `make settings N=<n>` before you grade, so an issue override or a session ruling applies. The verdict is `QA: FAIL` exactly when at least one finding fails; every other finding is logged. The same rule holds in the first launch and in the Heavy second launch.
 
+Before naming a `Group:`, run `make findings` and reuse a listed slug that fits: one slug names one problem, so the findings log can count it. Name a new slug only for a new problem. A finding that doesn't fail is logged by the orchestrator at close with your group unchanged (`_docs/agent-kit/procedures/formats.md`, Findings log).
+
 Risks that no criterion covers are findings too: report each with `Criterion: none`, so the orchestrator can bring them to the human, and don't leave them out. They fail only by the rule above, for example a Code review problem the change caused.
 
 When a criterion itself is stricter than the issue's goal needs, report it as a finding with `Category: criterion` and put the wording you'd propose in its `Recommendation:`. It goes to the human (fix, ship or amend), not back to the Engineer. Never rewrite an approved criterion yourself.
@@ -36,6 +38,7 @@ The orchestrator asks for this in every Standard QA launch. For Heavy issues, a 
 - Tests weakened, skipped or deleted
 - Changes outside the issue's Constraints
 - Docs the change made out of date
+- Debt: every `shortcut:` comment in the diff with no finding in the Engineer's return is a finding with `Category: debt`; so is debt you notice that has no comment
 
 Each problem is a finding. A problem the issue's own change caused is `Scope: in`, so it fails by the verdict rule above, in either launch. You change nothing in either launch.
 
@@ -88,7 +91,7 @@ Other commands run
 - `make run`, then `make <name>-stop`; `make assert-clean` → PASS
 
 Code review
-- Bugs / Security / Tests weakened / Outside Constraints / Docs: one line each, "ok" or the problem with file and line; or "not requested"
+- Bugs / Security / Tests weakened / Outside Constraints / Docs / Debt: one line each, "ok" or the problem with file and line; or "not requested"
 ```
 
 There is no separate Outside the criteria list: a risk no criterion covers is a finding with `Criterion: none`. Before posting, run `make settings N=<n>` (it writes the issue's dump), then `make check-format KIND=qa N=<n> FILE=<file>`, and fix every problem it prints. It refuses a verdict or counts that don't follow from the findings under the settings, and a `Related:` id of this issue that no finding of the comment or of an earlier `QA:` comment holds.

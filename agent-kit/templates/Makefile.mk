@@ -84,6 +84,12 @@ route-findings: ## Print points, rounds, route and guard for each failing findin
 	@if python3 -B _docs/agent-kit/scripts/github_api.py dump "$(N)" > ".scratch/issue-$(N).json.tmp" 2>/dev/null && python3 -B -m json.tool ".scratch/issue-$(N).json.tmp" > /dev/null 2>&1; then mv ".scratch/issue-$(N).json.tmp" ".scratch/issue-$(N).json"; else rm -f ".scratch/issue-$(N).json.tmp"; echo "route-findings: gh could not return valid JSON for issue $(N)" >&2; exit 1; fi
 	@python3 -B _docs/agent-kit/scripts/route-findings.py "$$N"
 
+# findings is read-only and takes no arguments. It reads agent-kit.conf, the findings files
+# in _docs/records/findings/, the rulings file _docs/records/findings-rulings.jsonl and the
+# sweep entries in _docs/records/, and lists the open entries by group (procedures/formats.md).
+findings: ## List the open entries of the findings log by group, with age and debt, and refuse a bad file (see _docs/agent-kit/procedures/formats.md)
+	@python3 -B _docs/agent-kit/scripts/findings.py
+
 issue-dump: ## Write an issue as JSON to .scratch/issue-<N>.json: make issue-dump N=<issue number>
 	$(if $(call issue-number-ok,$(value N)),,$(error Usage: make issue-dump N=<issue number>))
 	@mkdir -p .scratch

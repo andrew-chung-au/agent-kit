@@ -1,6 +1,6 @@
 {
-  "provisional": "Written by hand on 2026-11-22, before the findings log exists (same form as 196.json to 198.json). Fields follow #198's finding format; issue #200 (03b) defines the log's file format and takes this file over. All four are Low, so none failed #199 under its own rule (QA_FAIL_AT=M, QA_SCOPE_STRICT=yes, from make settings N=199).",
   "issue": 199,
+  "logged": "2026-11-22T00:00Z",
   "findings": [
     {
       "id": "F-199-1",
