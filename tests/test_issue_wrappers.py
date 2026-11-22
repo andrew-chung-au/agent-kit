@@ -877,6 +877,21 @@ class FailingGhTest(ScriptBase):
                 self.assertLessEqual(len(gh_lines), 20)
                 self.assertLessEqual(len("\n".join(gh_lines).encode()), 4000)
 
+    def test_comment_failure_with_a_nul_byte_withholds_gh_text(self):
+        # F-187-1: a NUL splits a token past the redactor, and bash drops the NUL from a
+        # command substitution, which would print the reassembled token. So a NUL means
+        # the redaction cannot run.
+        text, secret = MATCH[1][1], MATCH[1][3]
+        split = text[:4] + "\x00" + text[4:]
+        self.config(comment={"exit": 1, "stderr_hex": f"gh: {split}\n".encode().hex()})
+        done = self.comment("5", self.comment_file())
+        self.assertEqual(done.returncode, 1, self.shown(done))
+        self.assertEqual(done.stdout, b"")
+        shown = self.shown(done)
+        self.assertIn("withheld gh's error text", shown)
+        self.assertNotIn(secret, shown)
+        self.assertNotIn(b"\x00", done.stderr)
+
 
 class StaticTest(unittest.TestCase):
     SCRIPTS = ("issue-create.sh", "issue-comment.sh", "scan-issue-body.sh", "issue-text-lib.sh")

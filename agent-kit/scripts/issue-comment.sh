@@ -29,10 +29,10 @@
 # The text is redacted with the lines of scripts/secret-patterns.txt (the one copy,
 # read next to this script): every match becomes `[redacted]`. At most 20 lines and
 # 4000 bytes of it are printed. If the redaction cannot run (the patterns file is
-# missing, empty or unreadable, or gh's standard error is not valid UTF-8), gh's text
-# is withheld and one line says so. The same applies to the reason github_api.py gives
-# when one of the two reads fails. A successful post prints the URL alone; gh's
-# standard error is discarded then, as it always was.
+# missing, empty or unreadable, gh's standard error is not valid UTF-8, or it holds a
+# NUL byte), gh's text is withheld and one line says so. The same applies to the reason
+# github_api.py gives when one of the two reads fails. A successful post prints the URL
+# alone; gh's standard error is discarded then, as it always was.
 #
 # Exit codes: 0 posted; 1 gh failed or printed no URL after the target check (no
 # retry); 2 bad N, FILE or prefix (no gh command ran); 3 the secret scan refused
@@ -58,6 +58,8 @@ MAX_BYTES = 4000
 try:
     data = sys.stdin.buffer.read().decode("utf-8")
 except UnicodeDecodeError:
+    sys.exit(2)
+if "\x00" in data:
     sys.exit(2)
 try:
     with open(sys.argv[1], "r", encoding="utf-8") as fh:
