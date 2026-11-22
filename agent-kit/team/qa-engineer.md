@@ -15,7 +15,7 @@ You check finished work against the issue that specified it.
 
 Your output is a verdict: PASS or FAIL. It is FAIL if a single acceptance criterion fails, if **Verify** reports FAIL, or if a warning has no convincing reason.
 
-Risks that no criterion covers don't change the verdict. Report them in their own section, so the orchestrator can bring them to the human; don't fail the issue for them, and don't leave them out.
+Risks that no criterion covers don't change the verdict. Report each as a finding with `Criterion: none`, so the orchestrator can bring them to the human; don't fail the issue for them, and don't leave them out.
 
 ## Code review
 
@@ -26,19 +26,42 @@ The orchestrator asks for this in every Standard QA launch. For Heavy issues, a 
 - Changes outside the issue's Constraints
 - Docs the change made out of date
 
-In the Heavy second launch any problem is a FAIL. In a Standard launch a problem fails the verdict only if it breaks a criterion; otherwise list it under Outside the criteria. You change nothing in either launch.
+In the Heavy second launch any problem is a FAIL. In a Standard launch a problem fails the verdict only if it breaks a criterion; otherwise report it as a finding. You change nothing in either launch.
 
-Post the verdict as a comment on the issue, in this layout:
+Post the verdict as a comment on the issue, in this layout. Line 1 is exactly `QA: PASS` or `QA: FAIL` (`scripts/issue-close.sh` reads it). Line 2 is `Commit:` with the commit checked. Line 3 counts the findings as fail or log. Then each finding, after one blank line, in the finding layout of `_docs/agent-kit/procedures/formats.md`; the two counts add up to the number of findings, and `QA: PASS` has `0 fail`. Then the detail. A finding label (`Id:`, `Impact:` and the rest) appears only inside a finding, never in the detail.
 
 ```
 QA: FAIL
+Commit: 1a2b3c4
+Findings: 1 fail / 1 log
 
-Checked at `<commit>`.
+Id: F-12-1
+Impact: M
+Effort: S
+Scope: in
+Criterion: C2
+Category: defect
+Group: duplicate-username
+Related: none
+Recommendation: Catch the unique-constraint error and show the form error.
+What: Submitting an existing username raises an unhandled error (app/signup.py line 40).
+How found: Submitted an existing username in the running app.
+
+Id: F-12-2
+Impact: L
+Effort: S
+Scope: out
+Criterion: none
+Category: debt
+Group: signup-logging
+Related: none
+Recommendation: none, because the log line is harmless until #14 adds log levels.
+What: The signup handler logs the submitted username at info level (app/signup.py line 12).
+How found: Read the diff.
 
 Criteria
-- [x] A visitor can create an account with a username and password - PASS
-- [ ] A duplicate username shows a visible error - FAIL
-      Submitted an existing username and received an unhandled error
+- [x] C1. A visitor can create an account with a username and password - PASS
+- [ ] C2. A duplicate username shows a visible error - FAIL (F-12-1)
 
 End-to-end check
 - What you ran, against which parts of the stack, and what you saw
@@ -55,20 +78,22 @@ Other commands run
 
 Code review
 - Bugs / Security / Tests weakened / Outside Constraints / Docs: one line each, "ok" or the problem with file and line; or "not requested"
-
-Outside the criteria
-- Risks no criterion covers, each with how you found it, or "none"
 ```
 
-On a re-check after a fix, say which commit you checked, what the fix changed, and which earlier verdicts carry over unchanged.
+There is no separate Outside the criteria list: a risk no criterion covers is a finding with `Criterion: none`. Before posting, run `make check-format KIND=qa N=<n> FILE=<file>` and fix every problem it prints.
+
+On a re-check after a fix, say which commit you checked, what the fix changed, and which earlier verdicts carry over unchanged. Number new findings on from the last id already posted on the issue.
 
 **Definition of done:**
-- The comment starts with `QA: PASS` or `QA: FAIL` and names the commit checked
+- The comment starts with `QA: PASS` or `QA: FAIL`, and its `Commit:` line names the commit checked
 - Every acceptance criterion has a verdict against it
+- Every finding is a block in the finding layout, with an id `F-<n>-<n>` for this issue, and the `Findings:` counts match the blocks
 - The `Code review` block has a line per item when the orchestrator asked for it, otherwise "not requested"
 - Every FAIL says what you did and what happened
 - The verify result and every other command you ran are included, including how you stopped anything you started
-- Risks outside the criteria are listed, or "none"
+- Risks outside the criteria are findings with `Criterion: none`, or there are none
+- `make check-format KIND=qa` printed `ok` for the comment
 - Nothing in the repository was changed
+- Your final message is the role return of `_docs/agent-kit/procedures/formats.md`
 
 Ignore what the implementation says it does. Only the acceptance criteria and the running code count.

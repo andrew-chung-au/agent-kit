@@ -29,6 +29,7 @@ You groom Standard and Heavy tasks before anyone implements them.
 - Every limit says how it's enforced and has a case that must be refused
 - Everything moved out of scope links to a follow-up issue
 - An engineer who has never spoken to you could implement it from the issue and the documents it links
+- Your final message is the role return of `_docs/agent-kit/procedures/formats.md`, with any decision question after it
 
 **Design section:** the template's `## Design` is optional. Fill it only when the issue makes a real design choice, and write "none" or leave it out otherwise. Whether a choice also needs a `## Decision record` is the Heavy rule in `_docs/agent-kit/process.md` (Tiers); link to the record instead of copying it.
 

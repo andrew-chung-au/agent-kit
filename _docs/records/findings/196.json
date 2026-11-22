@@ -9,7 +9,7 @@
       "scope": "out",
       "criterion": "none",
       "category": "defect",
-      "group": "python-3.13-fs-errors",
+      "group": "python-313-fs-errors",
       "related": "none",
       "recommendation": "Fix kit-map's symlink-loop handling or its test for Python 3.13; covered by issue #141's filesystem-failure audit (pointed there 2026-11-20).",
       "what": "tests/test_kit_fs_errors.py OtherExceptionsTest.test_a_real_symlink_loop_in_resolve_is_a_map_error fails on Python 3.13: Path.resolve() no longer raises on a symlink loop, so MapError is never raised. make verify is red for every issue until it is fixed, and kit-map may no longer report a symlink loop as a map error. Not caused by #196.",

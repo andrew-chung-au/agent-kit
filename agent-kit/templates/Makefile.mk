@@ -53,9 +53,25 @@ tool-versions:: ## Print each tool's version, or "<tool>: missing"
 
 issue-number-ok = $(and $(filter 1,$(words $(1))),$(if $(subst 0,,$(subst 1,,$(subst 2,,$(subst 3,,$(subst 4,,$(subst 5,,$(subst 6,,$(subst 7,,$(subst 8,,$(subst 9,,$(1))))))))))),,ok),$(if $(subst x$(strip $(1))x,,x$(1)x),,ok),$(if $(filter 0%,$(1)),,ok),$(if $(word 10,$(subst 0,x ,$(subst 1,x ,$(subst 2,x ,$(subst 3,x ,$(subst 4,x ,$(subst 5,x ,$(subst 6,x ,$(subst 7,x ,$(subst 8,x ,$(subst 9,x ,$(1)))))))))))),,ok))
 
+# FILE: one word, letters digits . _ / - only, under .scratch/, no "..". Used by
+# check-format below and by issue-create and issue-comment in templates/Makefile.github.mk.
+issue-file-chars := a b c d e f g h i j k l m n o p q r s t u v w x y z A B C D E F G H I J K L M N O P Q R S T U V W X Y Z 0 1 2 3 4 5 6 7 8 9 . _ / -
+issue-strip-chars = $(if $(2),$(call issue-strip-chars,$(subst $(firstword $(2)),,$(1)),$(wordlist 2,$(words $(2)),$(2))),$(1))
+issue-file-ok = $(and $(filter 1,$(words $(1))),$(if $(call issue-strip-chars,$(1),$(issue-file-chars)),,ok),$(if $(subst x$(strip $(1))x,,x$(1)x),,ok),$(filter .scratch/%,$(1)),$(if $(findstring ..,$(1)),,ok))
+
 issue-hash: ## Print an issue body's sha256, author and owner check: make issue-hash N=<issue number>
 	$(if $(call issue-number-ok,$(value N)),,$(error Usage: make issue-hash N=<issue number>))
 	@python3 -B _docs/agent-kit/scripts/issue-hash.py "$$N"
+
+# check-format checks the fixed fields of a role return, a finding, a QA comment or a
+# message to the human (procedures/formats.md). It reads only FILE, as data. KIND is one
+# word from the list; N, the issue number, is required for finding and qa and not passed
+# for the others.
+check-format: ## Check a report's fixed fields (see _docs/agent-kit/procedures/formats.md): make check-format KIND=<return|finding|qa|message> FILE=.scratch/<name> [N=<issue number>]
+	$(if $(and $(filter 1,$(words $(value KIND))),$(filter return finding qa message,$(value KIND))),,$(error Usage: make check-format KIND=<return|finding|qa|message> FILE=.scratch/<name> [N=<issue number>]))
+	$(if $(filter finding qa,$(value KIND)),$(if $(call issue-number-ok,$(value N)),,$(error Usage: make check-format KIND=<finding|qa> N=<issue number> FILE=.scratch/<name> - N is required for finding and qa)))
+	$(if $(call issue-file-ok,$(value FILE)),,$(error Usage: make check-format KIND=<return|finding|qa|message> FILE=.scratch/<name> [N=<issue number>] - FILE: one word under .scratch/ with letters digits . _ / - only))
+	@python3 -B _docs/agent-kit/scripts/check-format.py "$$KIND" "$$FILE" $(if $(filter finding qa,$(value KIND)),"$$N")
 
 issue-dump: ## Write an issue as JSON to .scratch/issue-<N>.json: make issue-dump N=<issue number>
 	$(if $(call issue-number-ok,$(value N)),,$(error Usage: make issue-dump N=<issue number>))

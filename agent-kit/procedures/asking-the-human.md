@@ -102,6 +102,31 @@ If your tool offers multiple-choice questions, use the same content: the context
 
 Keep requests short: one line per field. Several decisions at once go in one message, each in this layout, as at the decision point in `process.md`.
 
+## Message to the human
+
+The orchestrator's message to the human starts with fixed fields, in the line rule of `_docs/agent-kit/procedures/formats.md`. Line 1 is `Needs you: <n> decision points, <n> ship-or-fix`. Then one block per item, each after one blank line:
+
+- a decision: `Decision: D-<issue>-<n>`, `Question:`, `Impact:` (`L`, `M`, `C`), `Recommended:`
+- a ship-or-fix: `Ship-or-fix: F-<issue>-<n>`, `Impact:`, `Effort:` (`S`, `R`, `E`), `Recommended:`
+
+The counts match the blocks. Then a blank line and `Status: <text>`. Anything after that is detail, such as the approval requests and decision questions above in full. `Recommended:` is never empty; `none` only as `none, because <reason>`. Check the message with `make check-format KIND=message FILE=<file>`.
+
+```
+Needs you: 1 decision points, 1 ship-or-fix
+
+Decision: D-12-1
+Question: Should signup log usernames at all?
+Impact: L
+Recommended: No; drop the log line in #14.
+
+Ship-or-fix: F-12-2
+Impact: L
+Effort: S
+Recommended: Ship; fix it with #14.
+
+Status: #12 passed QA at 1a2b3c4 and waits for your diff approval.
+```
+
 ## Spec note
 
 For spec text that looks wrong or incomplete. Roles raise it; the human decides, and only then is `_docs/specs.md` changed.

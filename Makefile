@@ -39,6 +39,12 @@ issue-file-chars := a b c d e f g h i j k l m n o p q r s t u v w x y z A B C D 
 issue-strip-chars = $(if $(2),$(call issue-strip-chars,$(subst $(firstword $(2)),,$(1)),$(wordlist 2,$(words $(2)),$(2))),$(1))
 issue-file-ok = $(and $(filter 1,$(words $(1))),$(if $(call issue-strip-chars,$(1),$(issue-file-chars)),,ok),$(if $(subst x$(strip $(1))x,,x$(1)x),,ok),$(filter .scratch/%,$(1)),$(if $(findstring ..,$(1)),,ok))
 
+check-format: ## Check a report's fixed fields (see agent-kit/procedures/formats.md): make check-format KIND=<return|finding|qa|message> FILE=.scratch/<name> [N=<issue number>]
+	$(if $(and $(filter 1,$(words $(value KIND))),$(filter return finding qa message,$(value KIND))),,$(error Usage: make check-format KIND=<return|finding|qa|message> FILE=.scratch/<name> [N=<issue number>]))
+	$(if $(filter finding qa,$(value KIND)),$(if $(call issue-number-ok,$(value N)),,$(error Usage: make check-format KIND=<finding|qa> N=<issue number> FILE=.scratch/<name> - N is required for finding and qa)))
+	$(if $(call issue-file-ok,$(value FILE)),,$(error Usage: make check-format KIND=<return|finding|qa|message> FILE=.scratch/<name> [N=<issue number>] - FILE: one word under .scratch/ with letters digits . _ / - only))
+	@python3 -B agent-kit/scripts/check-format.py "$$KIND" "$$FILE" $(if $(filter finding qa,$(value KIND)),"$$N")
+
 issue-create: ## File one issue from a file under .scratch/ (first line Title: <text>, blank line, body): make issue-create FILE=.scratch/<name>.md
 	$(if $(call issue-file-ok,$(value FILE)),,$(error Usage: make issue-create FILE=.scratch/<name>.md - one word under .scratch/ with letters digits . _ / - only))
 	@bash agent-kit/scripts/issue-create.sh "$(FILE)"
