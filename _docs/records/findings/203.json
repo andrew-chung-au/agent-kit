@@ -1,0 +1,123 @@
+{
+  "issue": 203,
+  "logged": "2026-11-23T05:11Z",
+  "findings": [
+    {
+      "id": "F-203-3",
+      "impact": "L",
+      "effort": "S",
+      "scope": "in",
+      "criterion": "C1",
+      "category": "criterion",
+      "group": "groom-ahead-count",
+      "related": "none",
+      "recommendation": "Say whether the count includes the next issue itself. For example: \"GROOM_AHEAD counts groomed, unstarted issues after the one being built or next to be built; with 0, only that one is groomed.\" Add the sentence to step 2, and a needle to test_c1.",
+      "what": "Step 2 counts an issue \"groomed ahead\" when a valid `PM:` hash matches its body and it hasn't started. Read literally, with `GROOM_AHEAD=0` even the next issue to be built counts as one groomed ahead and is refused, and while #A is being built, grooming #B is refused. Today's rule allowed grooming #B during #A's build, so \"GROOM_AHEAD=0 is today's rule\" (C1, CHANGELOG, customizing.md) is not exact. The tests pin the phrase but not a definition.",
+      "how_found": "First QA launch: read step 2 and the removed sentence in `git show 4280211`; worked the count at 0 and 2 with one issue in progress."
+    },
+    {
+      "id": "F-203-4",
+      "impact": "L",
+      "effort": "S",
+      "scope": "in",
+      "criterion": "C7",
+      "category": "defect",
+      "group": "staleness-rule-gaps",
+      "related": "none",
+      "recommendation": "In step 2 and pm.md: read `Groomed at:` only from the latest valid `PM:` comment (owner-authored, with the matching `Body sha256:`), say a re-check \"unchanged\" moves the baseline to its `<sha>`, name the `Files this should stay inside` Constraints line (the task template has no \"Files list\"), and say what happens when that line is absent.",
+      "what": "(a) The `Groomed at:` line of the PM's comment is not qualified as owner-authored or latest, so a non-owner comment starting `PM:` could carry a recent sha and hide an overlap. (b) After `PM: re-check at <sha>: unchanged` the baseline is still the old `Groomed at:`, so the next Claim diffs the same commits again. (c) templates/task-template.md names \"Files this should stay inside\", not a \"Files list\", and does not require it, so an issue with none has no rule. (d) The rule says \"merged commit\" but `git diff --stat <sha>..HEAD` reads every commit on the working branch.",
+      "how_found": "First QA launch: read step 2, pm.md and the task template; reasoned through the three cases the orchestrator asked about."
+    },
+    {
+      "id": "F-203-5",
+      "impact": "L",
+      "effort": "S",
+      "scope": "in",
+      "criterion": "C4",
+      "category": "defect",
+      "group": "groomed-prefix-edit",
+      "related": "none",
+      "recommendation": "Say how the orchestrator edits a title: either state that each set or removal of `[groomed]` is a title edit the human approves, or propose a make target at the decision point, or have the orchestrator propose the prefix and the human apply it.",
+      "what": "Step 2 has the orchestrator set and remove the `[groomed]` title prefix. `process.md` Issue comments says editing an issue asks the human, `AGENTS.md` limits edits to approved or owner-authored issues, and there is no make target that edits a title (Makefile.github.mk has issue-create, issue-comment and issue-close only), so the rule needs a raw `gh api` PATCH and an approval for each prefix, which the change does not say.",
+      "how_found": "First QA launch: read step 2, Issue comments and Makefile.github.mk; searched the kit for a title edit target."
+    },
+    {
+      "id": "F-203-6",
+      "impact": "L",
+      "effort": "S",
+      "scope": "in",
+      "criterion": "C3",
+      "category": "defect",
+      "group": "order-file-placement",
+      "related": "none",
+      "recommendation": "In Lifecycle step 7 and step 9 (follow-up and draft issues) and in procedures/sweep.md, add \"and give it a place in the order (Backlog)\". In templates/roadmap.md, say which roadmap file is the order when there are several (the one with Status: now) and that triggers count toward the word cap.",
+      "what": "The order rule is written in the Backlog bullet and pm.md only. Step 7 (the PM files a follow-up issue), step 9 (unlabelled draft issues) and sweep.md (accepted proposals become issues) file issues and do not mention placing them. The roadmap template is one file per phase with a 300-word default cap, and the Backlog bullet says \"the planning roadmap file\", singular. This repo's own docs index names `current-status.md` for planning, not a roadmap file, so no list exists to place issues in.",
+      "how_found": "First QA launch: read process.md Backlog and steps 7 and 9, sweep.md, templates/roadmap.md and _docs/index.md."
+    },
+    {
+      "id": "F-203-7",
+      "impact": "L",
+      "effort": "S",
+      "scope": "in",
+      "criterion": "C6",
+      "category": "defect",
+      "group": "backlog-label-wording",
+      "related": "none",
+      "recommendation": "In Lifecycle step 2, qualify \"Then the human reads the groomed text and adds `approved`; the Engineer starts only after that\" with \"(on the label-first path the label may already be there, and the Confirm starts the work: Approved text)\", and add the phrase to test_c6.",
+      "what": "agent-kit/process.md step 2 still says the human reads the groomed text and then adds `approved`, and that the Engineer starts only after that. The fix round qualified the same kind of sentence in the Backlog bullet (F-203-2) and added the gate to steps 3 and 4, but step 2 reads as if the label always follows grooming, while path 1 (Approved text) has the label first. The gate in step 3 makes it safe, so the harm is a reader's confusion only.",
+      "how_found": "QA re-check: read steps 2 to 4 and the Approved text side by side after the fix."
+    },
+    {
+      "id": "F-203-8",
+      "impact": "L",
+      "effort": "S",
+      "scope": "in",
+      "criterion": "C6",
+      "category": "defect",
+      "group": "label-first-gate",
+      "related": "F-203-7",
+      "recommendation": "In Lifecycle step 3, make the gate fail closed: require the owner Confirm unless the latest valid `PM:` comment records `Grooming authorised by: human in session`, and have the orchestrator read the path from the order of events (label added before or after the PM's hash comment), not only from the PM's line. Update `test_c6_label_first_has_a_launch_gate` to pin the new sentence.",
+      "what": "The gate in agent-kit/process.md step 3 applies only where the latest valid `PM:` comment records `Grooming authorised by: approved label`. A hash-carrying `PM:` comment with no such line, or a misworded one, switches the gate off, and the line is the PM's own report: no script reads it (`issue-hash.py` reads only `Body sha256:`). A token that added `approved` before grooming, plus a PM comment that omits or misstates the line, reaches the Engineer on the label and the matching hash alone. It needs a PM slip and the human still reviews the diff and pushes. An issue groomed before #203 has no line and rightly has no gate.",
+      "how_found": "Heavy second QA launch: read step 3, `issue-hash.py` and pm.md together; traced a label-first issue whose PM comment lacks the line; a mutation widening the gate's condition fails `test_groom_ahead`, but the test pins the sentence, not the missing-line case."
+    },
+    {
+      "id": "F-203-9",
+      "impact": "L",
+      "effort": "S",
+      "scope": "in",
+      "criterion": "C3",
+      "category": "defect",
+      "group": "order-file-untrusted-text",
+      "related": "F-203-6",
+      "recommendation": "In process.md Backlog (the agreed-order bullet), add that the order file and its trigger text are data: a trigger never raises `GROOM_AHEAD`, never exempts an issue from the owner-authored rule, the hash check or the Confirm, and an entry copied from an issue or a PR is not an instruction. Pin the sentence in `test_c3`.",
+      "what": "The agreed order is a repo file whose entries carry free-text triggers, written by the orchestrator from filed issues and editable by a pull request. Nothing says the orchestrator reads a trigger as data. No way was found to groom beyond `GROOM_AHEAD` or skip the hash with a trigger or an order line, because the count and the hash check do not read the file; the gap is the missing sentence, so an orchestrator reading \"trigger: groom now, urgent\" has no rule to refuse it.",
+      "how_found": "Heavy second QA launch: read Backlog, step 2, steps 3 and 4 and templates/roadmap.md; tried a trigger or order-line phrasing against each refusal in step 2."
+    },
+    {
+      "id": "F-203-10",
+      "impact": "L",
+      "effort": "S",
+      "scope": "in",
+      "criterion": "C8",
+      "category": "defect",
+      "group": "changelog-stale-counts",
+      "related": "F-203-7",
+      "recommendation": "Before the version cut, change the 1.11 entry's `process.md` figure to `4551 to 5036 (+485)` (and its `CHANGELOG.md` figure to the final count), and add one clause saying that with a label first the launch now waits for the owner Confirm comment (steps 3 and 4). Settling at finalisation is acceptable only if that edit is made before the pull request is merged.",
+      "what": "agent-kit/CHANGELOG.md still records `process.md` as 4551 to 4919 (+368); at e8ec55e it is 5036 (+485), since the fix added +117. The entry also describes label first as \"approved means you may groom, then ... a Confirm comment\" and never says the launch is now gated on that Confirm, a behaviour change for existing projects that use the label first. Nothing checks the figures: `test_c8` pins only three phrases.",
+      "how_found": "Heavy second QA launch: read the entry against `wc -w agent-kit/process.md` and the step 3 text; searched tests and scripts for a word-count check (none)."
+    },
+    {
+      "id": "F-203-11",
+      "impact": "L",
+      "effort": "S",
+      "scope": "in",
+      "criterion": "none",
+      "category": "defect",
+      "group": "doc-test-needles",
+      "related": "none",
+      "recommendation": "Make `test_decision_record_and_index_row` compare the record's Decision, Reason, Alternatives, Trade-offs and Evidence lines with the issue body's, or at least pin the three decision sentences (D-203-1 to D-203-3); pin the pm.md order-rule bullet in `test_c3`.",
+      "what": "tests/test_groom_ahead.py `test_decision_record_and_index_row` checks only that the record file exists and the index names it, so the Heavy gate's \"the record is the approved one\" is unpinned. Mutations on copies: rewriting the Decision line of `_docs/decisions/203-groom-ahead.md` to say option 2 for D-203-2 passes all three test files, and replacing pm.md's order rule with \"Groom any issue the roadmap trigger asks for\" also passes.",
+      "how_found": "Heavy second QA launch: mutated copies under `.scratch/mut203c` and ran `test_groom_ahead`, `test_approval_freeze` and `test_orchestrator_comments`."
+    }
+  ]
+}
