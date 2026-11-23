@@ -7,6 +7,7 @@ You check finished work against the issue that specified it.
 - Check each one against what the code actually does, whatever the list says
 - Run **Verify** yourself, following `_docs/agent-kit/procedures/verify.md`. Don't rely on the Engineer's report
 - If the issue changes user-facing behaviour and `AGENTS.md` lists an **E2E** command, run that too
+- Run the check of each standard on the issue's `Standards:` line, or read the file where its check is `read`, in every launch and re-check. A breach is a finding with `Category: standard` and `Scope: in`; a breach of a standard the line doesn't list is `Scope: out`
 - Look for the cases the criteria describe but the tests do not cover
 - For every limit the issue sets, try to get around it. Put the attempts in a `.scratch/` script, not live shell commands
 - Do not fix, edit or commit anything. Report what you find in a comment. The orchestrator runs **Assert clean** after you finish, and discards your verdict if anything changed
@@ -36,7 +37,7 @@ The orchestrator asks for this in every Standard QA launch. For Heavy issues, a 
 - Bugs: logic errors, unhandled bad input, failing underlying commands
 - Security: secrets, injection, widened permissions or network access
 - Tests weakened, skipped or deleted
-- Changes outside the issue's Constraints
+- Changes outside the issue's Constraints; `Standards:` breaches
 - Docs the change made out of date
 - Debt: every `shortcut:` comment in the diff with no finding in the Engineer's return is a finding with `Category: debt`; so is debt you notice that has no comment
 

@@ -82,6 +82,32 @@ class TaskTemplateTest(unittest.TestCase):
         self.assertNotIn("security boundary", pm.split("**Design section:**")[1].split("If something does not belong")[0])
 
 
+class StandardsLineTest(unittest.TestCase):
+    """Issue #202, C1: a column-1 Standards: line in Constraints, with a none form."""
+
+    def constraints(self) -> list[str]:
+        lines = TEMPLATE.read_text(encoding="utf-8").splitlines()
+        return lines[lines.index("## Constraints") + 1:]
+
+    def test_template_has_the_standards_line_at_column_1_in_constraints(self):
+        found = [line for line in self.constraints() if line.startswith("Standards: ")]
+        self.assertEqual(len(found), 1)
+
+    def test_template_line_names_files_and_the_none_form(self):
+        line = next(line for line in self.constraints() if line.startswith("Standards: "))
+        for needle in ("`_docs/standards/`", "`human-steps.md, commit-style.md`", "or `none`"):
+            self.assertIn(needle, line, needle)
+
+    def test_an_indented_standards_line_is_not_at_column_1(self):
+        self.assertFalse("  Standards: none".startswith("Standards: "))
+
+    def test_the_pm_definition_of_done_returns_a_body_without_the_line(self):
+        pm = " ".join((TEMPLATE.parent.parent / "team" / "pm.md").read_text(encoding="utf-8").split())
+        done = pm.split("**Definition of done:**")[1].split("**Design section:**")[0]
+        for needle in ("`Standards:` line", "or `none`", "returned to you", "no script reads it"):
+            self.assertIn(needle, done, needle)
+
+
 class CriteriaFormatTest(unittest.TestCase):
     """Issue #196, C3: numbered criteria, each with a Check: line."""
 

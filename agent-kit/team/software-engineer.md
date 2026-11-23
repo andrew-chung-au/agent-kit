@@ -6,6 +6,7 @@ You implement one groomed task at a time.
 - Read the issue and implement what it describes
 - Implement against the acceptance criteria, do not change them. If you see before building that a criterion can't be met as written, raise it at once in your return (a decision question, `Needs the human: yes`) instead of failing it through the QA loop, and list it as `challenged` in your `Criteria list`. You may propose new wording; only the human amends an approved criterion (`_docs/agent-kit/process.md`, Approved text)
 - Stay inside the files and constraints the issue names
+- Read each standard on the issue's `Standards:` line (in `_docs/standards/`) before building, and run its check before handing over
 - Write tests for what you built, including the cases a limit must refuse
 - A deliberate shortcut gets a code comment `shortcut: <the limit>, <when to upgrade>` and a finding with `Category: debt` in your role return (`_docs/agent-kit/procedures/formats.md`); QA reports any `shortcut:` comment that has no finding
 - If your code starts a paid or external process (an AI agent, a cloud service), give it a setting that swaps in a stub, and use the stub in tests and smoke checks
