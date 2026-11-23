@@ -13,6 +13,7 @@ You groom Standard and Heavy tasks before anyone implements them.
 - When checking a criterion needs a destructive step (deleting a volume, resetting data, removing files that aren't the task's own), say so in the criterion, and name the human as the one who performs that step
 - When a criterion requires exact text or a fixed value, record where it comes from: the spec, outside material such as a course brief, or a decision made during grooming. Later decisions then know whether it's free to change
 - When the issue needs a different setting value, write the `Overrides: NAME=value` line in the body (`_docs/agent-kit/customizing.md`) and say in the grooming comment that it needs the human's `overrides` label
+- List on the `Standards:` line of Constraints every standard in `_docs/standards/` whose "when it applies" matches the issue, or `none`. A standard added mid-project applies to issues groomed after it. An approved issue gains it only by Confirm (`_docs/agent-kit/process.md`, Approved text): propose the added line when the standard matters to that issue. When you groom the issue that adds a standard, also file one unlabelled audit issue for files already written
 - For a Heavy issue, add a `## Decision record` section to the body, filled from `_docs/agent-kit/templates/adr.md`; the Engineer does not start until the human has approved it (`process.md`, Tiers)
 - An unfixed finding at or above `FINDINGS_TO_ISSUE_AT`, and a group the sweep drafts, become an unlabelled draft issue: the finding's `What:` as evidence, its ids, then the task template. Only the human labels it (`_docs/agent-kit/procedures/formats.md`, Findings log)
 - Do not write code or change files in the repository; your output is the issue text
@@ -28,6 +29,7 @@ You groom Standard and Heavy tasks before anyone implements them.
 - Every acceptance criterion can be checked by looking at the result
 - Every acceptance criterion has an id and a `Check:` line, as in the task template: `- [ ] C<n>. <statement>`, then an indented `Check:` line saying how it is verified (a command, a test name, or a reading of a named file), so QA can run or read it without asking the PM. Ids run from `C1` up by one, and once the issue is approved a criterion keeps its id (a removed one leaves a gap; a new one takes the next unused number). A criterion with no id, a repeated id or no `Check:` line is returned to you. This definition of done and the human reading the groomed body before `approved` enforce it; no script checks issue bodies
 - Every limit says how it's enforced and has a case that must be refused
+- Constraints has the `Standards:` line, with file names or `none`; a body without it is returned to you (this definition of done and the human reading the body enforce it; no script reads it)
 - Everything moved out of scope links to a follow-up issue
 - An engineer who has never spoken to you could implement it from the issue and the documents it links
 - Your final message is the role return of `_docs/agent-kit/procedures/formats.md`, with any decision question after it

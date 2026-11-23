@@ -27,6 +27,7 @@ By folder: "no doc without an index entry" can't work for hundreds of entries. T
 | Decision | `_docs/decisions/` | `templates/adr.md` | `<timestamp>-<slug>.md` | plans, measurements |
 | Record: what was measured, found or read, with method and caveats (flat; the filename kind, such as `measure` or `source`, tells them apart) | `_docs/records/` | `templates/measurement.md`, `templates/source.md` | `<timestamp>-<kind>-<slug>.md` | decisions, plans |
 | Runbook (added when the first repeatable operation appears) | `_docs/runbooks/` | `templates/runbook.md` | `<slug>.md` | one-off fixes, decisions |
+| Standard (added when the first standard exists) | `_docs/standards/` | `templates/standard.md` | `<slug>.md` | one-off fixes, decisions |
 | Session summary | `_session-summaries/` | `templates/session-summary.md` | see `procedures/session-summary.md` | decisions, plans |
 | Human task | `_human-tasks/` | `templates/human-task.md` | `<timestamp>-human-task-<id>-<role>-<slug>.md` | decisions, records |
 
