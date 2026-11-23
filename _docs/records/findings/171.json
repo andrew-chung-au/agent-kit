@@ -1,0 +1,58 @@
+{
+  "issue": 171,
+  "logged": "2026-11-23T03:40Z",
+  "findings": [
+    {
+      "id": "F-171-2",
+      "impact": "L",
+      "effort": "S",
+      "scope": "in",
+      "criterion": "C1",
+      "category": "debt",
+      "group": "changelog-missing-notes",
+      "related": "none",
+      "recommendation": "Add the \"Existing projects:\" label to those two bullets, or reword C1 if the label is not required on a bullet that is itself a to-do.",
+      "what": "Two of the 23 \"Changes in 1.10\" bullets carry no \"Existing projects:\" note: \"Installed files to recopy from a clean clone\" (line 176) and \"Kit import with no manifest\" (line 183), though both state the action in prose.",
+      "how_found": ".scratch/qa-171-notes.sh over the tagged README's \"Changes in 1.10\" section."
+    },
+    {
+      "id": "F-171-3",
+      "impact": "M",
+      "effort": "S",
+      "scope": "out",
+      "criterion": "none",
+      "category": "defect",
+      "group": "kit-check-kit-only-project",
+      "related": "none",
+      "recommendation": "Mark the three `repo | none` installed entries (devcontainer.json, setup.sh, the CI template) `optional`, or add a map kind for a profile that does not use them, and say which profile the map assumes.",
+      "what": "A kit-only project, which the README's path 1 supports, gets `missing .devcontainer/devcontainer.json`, `missing .devcontainer/setup.sh` and `missing .github/workflows/verify.yml` from `make kit-check`, so a pristine 1.10 kit exits 1; only the tool-layer files are `optional` (`installed-files.txt` lines 12-14 and 24-32). The map predates this cut (#113, #170).",
+      "how_found": ".scratch/qa-171-manifest.sh: kit-check from `.scratch/qa-171/project`, holding only the tagged kit with `KIT_VERSION=\"1.10\"`; exit 1, 89 kit files unchanged, verdict pristine."
+    },
+    {
+      "id": "F-171-4",
+      "impact": "L",
+      "effort": "S",
+      "scope": "in",
+      "criterion": "C2",
+      "category": "criterion",
+      "group": "criterion-stale-commit",
+      "related": "none",
+      "recommendation": "Amend C2 to name `67153ed` (2026-11-03), or drop the hash and ask only that the notes name the template's last change.",
+      "what": "C2 asks the notes to say the `AGENTS.md` template is unchanged since `72747a1`, but `72747a1` is \"README: Compose variant files go next to the standard setup.sh (#145)\" and never touches `agent-kit/templates/AGENTS.md.template`; the template's last change is `67153ed` (2026-11-03), which the README names (line 158). The criterion cannot be met as written without stating something false.",
+      "how_found": "`git show --stat 72747a1`; `git log bbd25dc..v1.10 -- agent-kit/templates/AGENTS.md.template`."
+    },
+    {
+      "id": "F-171-5",
+      "impact": "L",
+      "effort": "S",
+      "scope": "in",
+      "criterion": "none",
+      "category": "debt",
+      "group": "release-zip-wording",
+      "related": "none",
+      "recommendation": "Mark the \"Installed files in a release\" paragraph as the planned design, or move it under #9, so it agrees with step 6.",
+      "what": "The tagged README states the release zip's behaviour, \"The release zip unpacks only the kit folder\" (line 115), then in the same release section says \"A zip, its unpack layout and a GitHub release are not defined yet (issues #9 and #8)\" (step 6, line 123).",
+      "how_found": "Read the tagged README lines 115 and 117-123."
+    }
+  ]
+}
