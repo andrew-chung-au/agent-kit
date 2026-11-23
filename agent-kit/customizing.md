@@ -117,7 +117,7 @@ The **patchwork guard** fires when the chain has two or more failures (`guard ye
 - The other `agent-kit.conf` lines (`KIT_DIR`, `KIT_VERSION`, `GITHUB_REPO`, `TEST_CMD` and the rest) are explained by the comments in `templates/agent-kit.conf.template`.
 
 **Defaults that differ from what the kit does today.** The human kept these decided defaults (2026-11-19). The issue that wires each one states the change, and the conf line that keeps today's behaviour, in its changelog entry:
-- `GROOM_AHEAD=2`: today `process.md` (Lifecycle, step 2) grooms only the next issue. Wired by #203.
+- `GROOM_AHEAD=2`: before #203 `process.md` (Lifecycle, step 2) groomed only the next issue; the setting acts now, and `GROOM_AHEAD=0` keeps that rule. Wired by #203.
 - `DECISION_BUDGET=3`: today every decision waits for the decision point at the end of the issue. Wired by #204.
 - `QA_SCOPE_STRICT=yes`: before #199 the Heavy second QA launch failed on any problem; now only a failing finding fails it, and an out-of-scope finding never does (`team/qa-engineer.md`). Wired by #199.
 - `QA_FAIL_AT=M`: before #199 a Low finding against a criterion failed the issue. Wired by #199.
