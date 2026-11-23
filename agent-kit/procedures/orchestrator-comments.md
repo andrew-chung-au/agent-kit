@@ -8,7 +8,7 @@ Lines scripts read: each is `<Label>: <value>` alone on its line from column 1, 
 
 ## Claim
 
-Fixed: the body hash with its re-check (`make issue-hash N=<n>`, `Body sha256:` against `Recorded sha256:`); the "live scripts" warning when the issue touches `scripts/` or hooks; cloud `gh` limits; REST fallback for reads; writes still use `make issue-comment`; "do not close or merge"; the return path.
+Fixed: `Approved by: approved label, seen <date>`, naming the body hash the label covers; the body hash with its re-check (`make issue-hash N=<n>`, `Body sha256:` against `Recorded sha256:`); the "live scripts" warning when the issue touches `scripts/` or hooks; cloud `gh` limits; REST fallback for reads; writes still use `make issue-comment`; "do not close or merge"; the return path.
 **Fact:** issue, branch, hash, expected paths, protected files needing approval.
 Never name an env file in a claim.
 
@@ -19,7 +19,7 @@ Fixed: the claim is released; nothing is merged or closed.
 
 ## Confirm
 
-Fixed: the human confirmed the new body; the hash re-check ran; the PM must record the hash in a `PM:` comment.
+Fixed: the human confirmed the new body; the hash re-check ran; the PM must record the hash in a `PM:` comment. After a label first: `Approved by: human confirmation in session, <date>` and the new hash; the label stays.
 **Fact:** the new hash, the old hash, what changed; an amend's criterion id and its finding or review.
 
 ## Ruling

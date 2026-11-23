@@ -46,8 +46,12 @@ class ProcessFreezeTest(unittest.TestCase):
         for phrase in ["The PM grooms it, even if it is not yet labelled, when it is owner-authored",
                        "Then the human reads the groomed text and adds `approved`",
                        "the Engineer starts only after that",
-                       "only the next issue in the agreed order",
-                       "not a second unlabelled issue while the first waits for the label",
+                       # #203 replaced "only the next issue in the agreed order" and "not a second
+                       # unlabelled issue while the first waits for the label" with grooming up to
+                       # GROOM_AHEAD ahead; every hash-rule phrase stays.
+                       "up to `GROOM_AHEAD` issues ahead of the one in progress, in the agreed order",
+                       "`GROOM_AHEAD=0` is one at a time",
+                       "The PM's comment records the body hash",
                        "record the new hash in a new `PM:` comment before the label is added",
                        "Never skip this step."]:
             with self.subTest(phrase=phrase):

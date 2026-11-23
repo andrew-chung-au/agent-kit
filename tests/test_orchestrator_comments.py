@@ -14,8 +14,9 @@ AGENTS = ROOT / "AGENTS.md"
 TEMPLATE = KIT / "templates" / "AGENTS.md.template"
 
 HEADINGS = ("## Claim", "## Release", "## Confirm", "## Ruling", "## Close")
-# Raised from 300 by issue #197 for the Ruling layout and the rule for lines scripts read.
-WORD_CAP = 420
+# Raised from 300 by issue #197 for the Ruling layout and the rule for lines scripts read,
+# and from 420 by issue #203 for the two `Approved by:` lines (Claim and Confirm).
+WORD_CAP = 450
 LINE_RULE = ("Lines scripts read: each is `<Label>: <value>` alone on its line from column 1, the label worded "
              "exactly, in an owner comment with the named first line.")
 PREFIX_RULE = "start with `Orchestrator:`"
