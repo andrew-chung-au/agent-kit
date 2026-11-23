@@ -90,6 +90,16 @@ route-findings: ## Print points, rounds, route and guard for each failing findin
 findings: ## List the open entries of the findings log by group, with age and debt, and refuse a bad file (see _docs/agent-kit/procedures/formats.md)
 	@python3 -B _docs/agent-kit/scripts/findings.py
 
+# decisions is read-only. It checks N as issue-hash does and, with N, writes the issue's dump
+# as settings does (needs gh), so an override or session ruling of DECISION_BUDGET applies.
+# It checks every ledger file in _docs/records/decisions/ and lists the open decision points,
+# the rework items and the open points against the budget (procedures/formats.md).
+decisions: ## List open decision points, rework items and the budget, and refuse a bad ledger line (see _docs/agent-kit/procedures/formats.md): make decisions [N=<issue number>]
+	$(if $(value N),$(if $(call issue-number-ok,$(value N)),,$(error Usage: make decisions [N=<issue number>])))
+	$(if $(value N),@mkdir -p .scratch)
+	$(if $(value N),@if python3 -B _docs/agent-kit/scripts/github_api.py dump "$(N)" > ".scratch/issue-$(N).json.tmp" 2>/dev/null && python3 -B -m json.tool ".scratch/issue-$(N).json.tmp" > /dev/null 2>&1; then mv ".scratch/issue-$(N).json.tmp" ".scratch/issue-$(N).json"; else rm -f ".scratch/issue-$(N).json.tmp"; echo "decisions: gh could not return valid JSON for issue $(N)" >&2; exit 1; fi)
+	@python3 -B _docs/agent-kit/scripts/decisions.py $(if $(value N),"$$N")
+
 issue-dump: ## Write an issue as JSON to .scratch/issue-<N>.json: make issue-dump N=<issue number>
 	$(if $(call issue-number-ok,$(value N)),,$(error Usage: make issue-dump N=<issue number>))
 	@mkdir -p .scratch

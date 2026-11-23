@@ -106,10 +106,12 @@ Keep requests short: one line per field. Several decisions at once go in one mes
 
 The orchestrator's message to the human starts with fixed fields, in the line rule of `_docs/agent-kit/procedures/formats.md`. Line 1 is `Needs you: <n> decision points, <n> ship-or-fix`. Then one block per item, each after one blank line:
 
-- a decision: `Decision: D-<issue>-<n>`, `Question:`, `Impact:` (`L`, `M`, `C`), `Recommended:`
+- a decision point (`process.md`, Decision points): `Decision: D-<issue>-<n>`, `Question:`, `Impact:` (`L`, `M`, `C`), `Effort:` (`S`, `R`, `E`), then for a continued point only `Rollback: <what changes, and what depends on it>`, then `Recommended:`
 - a ship-or-fix: `Ship-or-fix: F-<issue>-<n>`, `Impact:`, `Effort:` (`S`, `R`, `E`), `Points:` (the finding's points from `make route-findings N=<n>`, a whole number from 1), `Recommended:`
 
-The counts match the blocks. Then a blank line and `Status: <text>`. Anything after that is detail, such as the approval requests and decision questions above in full. `Recommended:` is never empty; `none` only as `none, because <reason>`. Check the message with `make check-format KIND=message FILE=<file>`.
+On a decision point, `Impact:` is how bad it is if the wrong answer stands, and `Effort:` is the rework if the answer changes, not the size of the work done. A `Rollback:` line means the point was continued and `Recommended:` names the options taken; no `Rollback:` line means a stop point. There is no `Point:` or `Weight:` line. The counts match the blocks. Then a blank line and `Status: <text>`. Anything after that is detail, such as the approval requests and decision questions above in full. `Recommended:` is never empty; `none` only as `none, because <reason>`. Check the message with `make check-format KIND=message FILE=<file>`.
+
+**Answer per point.** The human answers each point on its own line: `D-12-1 approve` (every recommendation), `D-12-3 q1=B` (another option for one or more questions, comma-separated: `q1=B, q2=A`) or `D-12-1 reject`. The orchestrator appends each answer to the point's ledger file as an `answer` entry (`procedures/formats.md`, Decision ledger), recording only what the human said, and checks it with `make decisions N=<n>`. An answer closes the point. On a continued point, `reject` or an option other than the one taken makes a rework item for the Engineer (apply the rollback, or build the new option), listed until a `reworked` entry names the commit. Refused: a second answer to a closed point, an unknown id, and a question or option the point doesn't offer.
 
 **Ship or fix has three answers.** Every ship-or-fix question offers them, and its `Recommended:` names one:
 - **fix:** the code is wrong; the Engineer fixes it.
@@ -129,12 +131,20 @@ Findings (Medium, out of scope: logged)
 ```
 
 ```
-Needs you: 1 decision points, 1 ship-or-fix
+Needs you: 2 decision points, 1 ship-or-fix
 
 Decision: D-12-1
 Question: Should signup log usernames at all?
 Impact: L
+Effort: S
 Recommended: No; drop the log line in #14.
+
+Decision: D-12-3
+Question: Where do the signup fixtures live?
+Impact: L
+Effort: R
+Rollback: move tests/fixtures/signup/ back to tests/signup/; tests/test_signup.py and 5e6f7a8 depend on it.
+Recommended: q1=A, tests/fixtures/signup/ (taken).
 
 Ship-or-fix: F-12-2
 Impact: M
@@ -142,7 +152,7 @@ Effort: S
 Points: 4
 Recommended: Ship; fix it with #14.
 
-Status: #12 failed QA at 1a2b3c4; F-12-2 has failed three re-checks and waits for fix, ship or amend.
+Status: #12 failed QA at 1a2b3c4; F-12-2 has failed three re-checks and waits for fix, ship or amend; D-12-3 was continued.
 ```
 
 ## Spec note

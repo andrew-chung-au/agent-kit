@@ -1,6 +1,6 @@
 # Report formats
 
-The fixed fields every role writes, so whoever needs one fact reads one line. This page holds the role return, the Engineer's criteria list, the finding and the findings log. The QA comment is in `_docs/agent-kit/team/qa-engineer.md` and the message to the human in `_docs/agent-kit/procedures/asking-the-human.md`; each format is defined once.
+The fixed fields every role writes, so whoever needs one fact reads one line. This page holds the role return, the Engineer's criteria list, the finding, the findings log and the decision ledger. The QA comment is in `_docs/agent-kit/team/qa-engineer.md` and the message to the human in `_docs/agent-kit/procedures/asking-the-human.md`; each format is defined once.
 
 ## The line rule
 
@@ -19,7 +19,7 @@ Every role ends with this as its final message to whoever launched it: exactly t
 - `Commit:` 7 to 40 lowercase hex, or `none`
 - `Verdict:` `PASS` or `FAIL` from QA, `none` from any other role
 - `Findings:` `<n> fail / <n> log`, or `none`
-- `Decisions:` `none`, or `D-<issue>-<n>` ids separated by a comma and one space
+- `Decisions:` `none`, or the ids of the decision points the role opened (`D-<issue>-<n>`), separated by a comma and one space
 - `Needs the human:` `none` or `yes`
 - `Recommendation:` what you recommend next
 - `Detail:` an `https://` link, or a relative path inside the project with no `..`
@@ -126,3 +126,19 @@ The sweep's rulings go in `_docs/records/findings-rulings.jsonl`, append-only, o
 `issued` and `dropped` close an entry; `kept` restarts its age at `at`; `regroup` replaces its group. An entry's age is the number of sweep entries named later than its `logged` time (or its last `kept`).
 
 `make findings` lists the open entries by group, largest first, with age in sweeps and debt counts. It flags a group of `FINDINGS_GROUP_AT` open entries `draft one issue` and an entry of `FINDINGS_KEEP_SWEEPS` sweeps `keep or drop`, prints `none` when nothing is open, and refuses a bad file or line by name (`scripts/findings.py`, which uses `check_finding`).
+
+## Decision ledger
+
+Where decision points live while the work runs (`process.md`, Decision points): one file per issue, `_docs/records/decisions/<issue>.jsonl`, append-only, one JSON object per line. A line is never edited or deleted; the role that writes a line commits it with its work. The ledger is a process record, as the findings log is, so writing it is never `scope` work. Three events:
+
+- `open`: a role met a decision point. Keys: `event`, `id` (`D-<issue>-<n>`, of the issue the file names), `at` (UTC, `YYYY-MM-DDTHH:MMZ`), `kind` (a stop kind or `choice`), `mode` (`stop` or `continue`; `continue` only for `choice`), `impact` (`L`, `M`, `C`), `effort` (`S`, `R`, `E`: the rework if the answer changes), `questions` (`q1`, `q2`, ... in order, each with `text`, lettered `options` from `A` and a `recommended` option it offers), `dependents` (paths, commits or issue ids; may be empty), and for `continue` only `rollback` (what to undo, and where). No `points` key: points come from `effort`.
+- `answer`: the orchestrator records the human's answer. Keys: `event`, `id`, `at`, `answer` (`approve`, `reject`, or `q<n>=<option>` pairs separated by a comma). One per point; it closes the point.
+- `reworked`: the Engineer finished a rework item. Keys: `event`, `id`, `at`, `commit` (7 to 40 lowercase hex).
+
+```
+{"event": "open", "id": "D-12-3", "at": "2026-11-23T10:15Z", "kind": "choice", "mode": "continue", "impact": "L", "effort": "R", "questions": [{"q": "q1", "text": "Where do the signup fixtures live?", "options": {"A": "tests/fixtures/signup/", "B": "tests/signup/"}, "recommended": "A"}], "dependents": ["tests/test_signup.py", "5e6f7a8"], "rollback": "move tests/fixtures/signup/ back to tests/signup/"}
+{"event": "answer", "id": "D-12-3", "at": "2026-11-24T09:00Z", "answer": "q1=B"}
+{"event": "reworked", "id": "D-12-3", "at": "2026-11-24T11:30Z", "commit": "9a8b7c6"}
+```
+
+A continue point answered `reject`, or with an option other than the one taken, is a rework item until a `reworked` entry names the commit. `make decisions [N=<n>]` (read-only) lists each open point with its id, impact, effort, points, mode, age in whole days and dependents, then each rework item, then `open points <p>, budget <b>:` and `within budget`, `budget reached` or `over budget` (exit 1); with N, the issue's points against the open points of every issue, with the issue's `DECISION_BUDGET` (read as `make settings N=<n>` reads it). It prints `none` when nothing is open, and refuses a bad file or line by name (`scripts/decisions.py`).

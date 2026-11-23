@@ -4,7 +4,7 @@ Where a project goes to change a kit value. Reader: the human running a project,
 
 Every value the process uses is a **setting** with a kit default. A project changes one with a single line in `agent-kit.conf`, or picks a **profile** that sets a few of them at once, instead of editing the kit's text and carrying a fork. `make settings` prints each setting, its value and where that value comes from. This page also holds the **grade vocabulary** every role uses.
 
-The QA settings of #199 act now: `QA_FAIL_AT`, `QA_SCOPE_STRICT`, `RECHECK`, `FIX_CHECK_LOOPS`, `ASK_AT`, `SHIP_RULE` and `STEP_UP` (QA's verdict, `make check-format KIND=qa`, `make route-findings` and Lifecycle step 6 of `process.md`). The findings settings of #200 act now too: `FINDINGS_TO_ISSUE_AT`, `FINDINGS_GROUP_AT` and `FINDINGS_KEEP_SWEEPS` (where an unfixed finding goes, `make findings`, and the sweep's step 3; see Findings log in `procedures/formats.md`). Each other setting below names the issue that makes it take effect; until that issue lands, a value you write has no effect.
+The QA settings of #199 act now: `QA_FAIL_AT`, `QA_SCOPE_STRICT`, `RECHECK`, `FIX_CHECK_LOOPS`, `ASK_AT`, `SHIP_RULE` and `STEP_UP` (QA's verdict, `make check-format KIND=qa`, `make route-findings` and Lifecycle step 6 of `process.md`). The findings settings of #200 act now too: `FINDINGS_TO_ISSUE_AT`, `FINDINGS_GROUP_AT` and `FINDINGS_KEEP_SWEEPS` (where an unfixed finding goes, `make findings`, and the sweep's step 3; see Findings log in `procedures/formats.md`). `DECISION_BUDGET` of #204 acts now (`make decisions` and Decision points in `process.md`). Each other setting below names the issue that makes it take effect; until that issue lands, a value you write has no effect.
 
 ## Grades
 
@@ -73,7 +73,7 @@ Most settings aren't in any profile at all: they have one default and are set on
 | Setting | Default | Allowed values | What it does | Takes effect with |
 |---|---|---|---|---|
 | `PROFILE` | `solo` | `solo`, `team`, `fleet` | Selects the profile column above; unset means `solo` | #196 |
-| `DECISION_BUDGET` | `3` | whole number 0 to 99 | Open Continue weight before new work stops; 0 means every decision point stops. Often changed by a session ruling, for example before you go away | #204 |
+| `DECISION_BUDGET` | `3` | whole number 0 to 99 | Open continued points (Effort points: S = 1, R = 2, E = 3, as in Points below) before new work stops: a `choice` that would go past it is a stop point, and at the budget no new role launches; 0 means every decision point stops. Often changed by a session ruling, for example before you go away | #204 |
 | `QA_FAIL_AT` | `M` | `L`, `M`, `C` | Lowest impact that fails | #199 |
 | `QA_SCOPE_STRICT` | `yes` | `yes`, `no` | `yes`: only a `Scope: in` finding can fail (what the issue asks for, or what its own change caused; `procedures/formats.md`); `no`: an out-of-scope finding fails too | #199 |
 | `RECHECK` | `changed` | `changed`, `full` | `changed` (with its automatic step-ups) or `full` | #199 |
@@ -118,7 +118,7 @@ The **patchwork guard** fires when the chain has two or more failures (`guard ye
 
 **Defaults that differ from what the kit does today.** The human kept these decided defaults (2026-11-19). The issue that wires each one states the change, and the conf line that keeps today's behaviour, in its changelog entry:
 - `GROOM_AHEAD=2`: before #203 `process.md` (Lifecycle, step 2) groomed only the next issue; the setting acts now, and `GROOM_AHEAD=0` keeps that rule. Wired by #203.
-- `DECISION_BUDGET=3`: today every decision waits for the decision point at the end of the issue. Wired by #204.
+- `DECISION_BUDGET=3`: before #204 every choice waited, uncounted, for the decision point at the end of the issue; now a `choice` is continued past, logged with its rollback, only while the open continued points stay within the budget, and the stop kinds always wait (`process.md`, Decision points). `DECISION_BUDGET=99` comes closest to the old behaviour; `0` is stricter than before. Wired by #204.
 - `QA_SCOPE_STRICT=yes`: before #199 the Heavy second QA launch failed on any problem; now only a failing finding fails it, and an out-of-scope finding never does (`team/qa-engineer.md`). Wired by #199.
 - `QA_FAIL_AT=M`: before #199 a Low finding against a criterion failed the issue. Wired by #199.
 - `RECHECK=changed`: before #199 a re-check was a full QA launch. Wired by #199.
