@@ -101,6 +101,22 @@ class GroomAheadTest(unittest.TestCase):
                       "the label stays", confirm)
         self.assertTrue((KIT / "environments" / "local-sandbox" / "README.md").exists())
 
+    def test_c6_label_first_has_a_launch_gate(self):
+        lifecycle = between(self.process, "## Lifecycle", "## Commits and pushes")
+        step3 = re.search(r"(?:^| )3\. (.*?)(?= 4\. )", lifecycle).group(1)
+        step4 = re.search(r"(?:^| )4\. (.*?)(?= 5\. )", lifecycle).group(1)
+        for needle in ("Where the latest valid `PM:` comment records `Grooming authorised by: approved "
+                       "label`, the hash check is not enough: launch only after an owner "
+                       "`Orchestrator:` Confirm comment with `Approved by: human confirmation in "
+                       "session, <date>` naming the current `Body sha256:` exists",
+                       "A label alone, even with a matching `PM:` hash, doesn't start work in that path"):
+            self.assertIn(needle, step3, needle)
+        self.assertIn("with the Confirm comment of step 3 where that step requires it", step4)
+        self.assertIn("launches the Engineer and QA only after that Confirm comment exists for the "
+                      "current body hash", self.approved)
+        self.assertIn("the label approves the groomed text, on the groom-first path; where the label "
+                      "comes first it only permits grooming", self.backlog)
+
     def test_c7_a_groomed_ahead_issue_is_rechecked_before_its_claim(self):
         for needle in ("is re-checked before its Claim",
                        "reads `git diff --stat <sha>..HEAD`",
