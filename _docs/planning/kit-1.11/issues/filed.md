@@ -28,6 +28,16 @@ The filed bodies name other 1.11 issues by draft id (01a, 02, ...). Read each id
 | 20 | 11b | issue #215 | Let the delivery lead and workers talk through Lead: and Status: issue comments (Kiro and cloud) |
 | 21 | 12 | issue #216 | Move this repo's docs into one _docs/ tree following socboard's layout, with an index row for each file |
 
+## Follow-ups placed in the order
+
+Issues filed after the 21 above, each placed by the human (`process.md`, Backlog). The repo has no roadmap file yet, so this list carries their place.
+
+| Issue | Place | Trigger | Placed |
+|---|---|---|---|
+| issue #239 | After #204 (order 9) | #204 merged | The human, 2026-11-23 |
+
+Not in the order: issue #238 (V2: evaluate adapting T3 Code with the agent kit), a long-term idea parked until 1.11 has landed. The human, 2026-11-23.
+
 ## How they were filed
 
 `make issue-create` could not post from the cloud session (its `gh api` write failed; the script discards gh's error, issue #187). With the human's approval, the orchestrator filed them through the GitHub connector as the owner's account, title and body only, after the PM's pre-filing scan (secret patterns, title line, criteria with `Check:` lines) passed on every file. A read-back compared each filed title and body with its source file: all 21 match, none has a label.
