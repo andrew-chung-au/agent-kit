@@ -33,6 +33,7 @@ Before the human approves a groomed plan:
 - [ ] The intent matches what was asked.
 - [ ] Nothing extra crept into scope.
 - [ ] Each requirement is observable and testable.
+- [ ] Each criterion's `Check:` can be run or read without asking the PM.
 - [ ] Each has a case, including an awkward one.
 - [ ] The case the human cares about most is covered.
 - [ ] What is missing is named.

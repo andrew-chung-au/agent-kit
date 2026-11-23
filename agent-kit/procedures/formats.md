@@ -1,6 +1,6 @@
 # Report formats
 
-The fixed fields every role writes, so whoever needs one fact reads one line. This page holds the role return, the finding and the findings log. The QA comment is in `_docs/agent-kit/team/qa-engineer.md` and the message to the human in `_docs/agent-kit/procedures/asking-the-human.md`; each format is defined once.
+The fixed fields every role writes, so whoever needs one fact reads one line. This page holds the role return, the Engineer's criteria list, the finding and the findings log. The QA comment is in `_docs/agent-kit/team/qa-engineer.md` and the message to the human in `_docs/agent-kit/procedures/asking-the-human.md`; each format is defined once.
 
 ## The line rule
 
@@ -48,6 +48,23 @@ Approval needed: commit the staged kit files for #198 with HUMAN_APPROVED=1.
 - Alternatives: you commit it yourself; or I change the diff first.
 - Recommendation: approve; make verify printed PASS.
 ```
+
+## Criteria list
+
+The Engineer's issue comment holds a `Criteria` list: one line for every criterion of the issue, in its order, in one of four forms. Evidence names a test, a command and its result, or a file.
+
+- `C<n>: done (<evidence>)`
+- `C<n>: not done`
+- `C<n>: not checked (<reason>)`
+- `C<n>: challenged (<reason>)`: the criterion was raised before building as one that can't be met as written (`team/software-engineer.md`)
+
+```
+Criteria
+C1: done (tests/test_x.py passes)
+C2: challenged (the Check: names a script that does not exist)
+```
+
+QA reads the list first and names any disagreement on its own `Criteria` line (`team/qa-engineer.md`). No script reads the list; `make check-format` has no kind for it.
 
 ## Finding
 
