@@ -1,0 +1,58 @@
+{
+  "issue": 201,
+  "logged": "2026-11-23T00:52Z",
+  "findings": [
+    {
+      "id": "F-201-1",
+      "impact": "L",
+      "effort": "S",
+      "scope": "in",
+      "criterion": "C4",
+      "category": "defect",
+      "group": "challenged-routing",
+      "related": "none",
+      "recommendation": "In team/qa-engineer.md, say that the finding for an unresolved `challenged` criterion has `Category: criterion`, because that is the only category `make route-findings` sends straight to the human.",
+      "what": "The new Criteria paragraph says an unresolved `challenged` criterion is \"a finding that goes to the human\" but names no category (agent-kit/team/qa-engineer.md line 97). `route-findings.py` sends only `Category: criterion` to the human (line 125); a finding posted as `defect` routes to the Engineer, who cannot amend a criterion.",
+      "how_found": "First QA launch: read the paragraph against the route order in agent-kit/customizing.md (Points, rule 1) and agent-kit/scripts/route-findings.py."
+    },
+    {
+      "id": "F-201-2",
+      "impact": "L",
+      "effort": "S",
+      "scope": "in",
+      "criterion": "C3",
+      "category": "defect",
+      "group": "doc-test-needles",
+      "related": "none",
+      "recommendation": "In tests/test_criteria_checklist.py, also assert that the role files do not contain the forms without the `C<n>:` prefix (for example `done (<evidence>)` and `challenged (<reason>)`), or accept the gap.",
+      "what": "test_role_files_do_not_restate_the_forms looks only for the full strings with the `C<n>: ` prefix (tests/test_criteria_checklist.py lines 42 to 46), so a role file that restated `done (<evidence>)` or `not checked (<reason>)` without the prefix would pass. The three role files do not restate the forms today, so the criterion holds; the test guards it weakly.",
+      "how_found": "First QA launch: read the test against C3 and grepped the three role files for each form."
+    },
+    {
+      "id": "F-201-3",
+      "impact": "L",
+      "effort": "S",
+      "scope": "in",
+      "criterion": "C4",
+      "category": "defect",
+      "group": "doc-test-needles",
+      "related": "F-201-2",
+      "recommendation": "In tests/test_criteria_checklist.py, replace the two needles that the base commit already satisfies (`Criterion: none` for QA, `procedures/formats.md` for the Engineer) with text only the new lines hold, such as the whole `in the forms of` clause of the Engineer's bullet, or accept the gap.",
+      "what": "test_qa_reads_the_list_first_and_names_disagreement asserts `Criterion: none` (tests/test_criteria_checklist.py line 60) and test_engineer_points_to_the_list_and_requires_it asserts `procedures/formats.md` (line 49), but both strings are in the base files already (qa-engineer.md lines 20 and 99; software-engineer.md line 10). Removing the new promise or the new pointer leaves the test green, so the C2 and C4 Check lines are not guarded for those two parts.",
+      "how_found": "Heavy second QA launch: .scratch/qa201b-mutate.py, mutated copies under .scratch/; cases m1 and m2 ran 6 tests with 0 failures."
+    },
+    {
+      "id": "F-201-4",
+      "impact": "L",
+      "effort": "S",
+      "scope": "in",
+      "criterion": "C2",
+      "category": "defect",
+      "group": "criteria-list-timing",
+      "related": "none",
+      "recommendation": "In agent-kit/team/software-engineer.md, say when the list is posted: a `challenged` raised before building goes in the return and in the issue comment that follows when the work continues, and a fix-round comment repeats the list (or says it is unchanged), so QA's re-check reads a current list.",
+      "what": "The list is required only in the Definition of done comment (software-engineer.md line 24). Line 7 says to list a criterion as `challenged` when raised before building, but an Engineer that returns at once with `Needs the human: yes` posts no such comment, and the Fix rounds section does not ask for the list again. QA's rule that an unresolved `challenged` goes to the human then has nothing to read in that case, and a re-check reads a list from before the fix.",
+      "how_found": "Heavy second QA launch: read software-engineer.md against formats.md and the Re-checks rules of qa-engineer.md."
+    }
+  ]
+}

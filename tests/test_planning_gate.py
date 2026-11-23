@@ -60,9 +60,10 @@ class PlanningGateTest(unittest.TestCase):
         self.assertIn("or any testable form, is fine", self.doc)
         for needle in ("The intent matches what was asked", "Nothing extra crept into scope",
                        "observable and testable", "including an awkward one", "cares about most",
-                       "What is missing is named", "exactly this and nothing more"):
+                       "What is missing is named", "exactly this and nothing more",
+                       "can be run or read without asking the PM"):  # #201
             self.assertIn(needle, review, needle)
-        self.assertEqual(review.count(" - "), 7)
+        self.assertEqual(review.count(" - "), 8)
 
     def test_the_pm_has_the_one_intent_rule_and_links_the_review_without_copying_it(self):
         """Issue #159: the checklist lives only in planning.md."""

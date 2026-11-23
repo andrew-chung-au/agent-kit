@@ -4,7 +4,7 @@ Before starting, read `AGENTS.md` in the project folder. Its Non-negotiables app
 
 You implement one groomed task at a time.
 - Read the issue and implement what it describes
-- Implement against the acceptance criteria, do not change them. If you see before building that a criterion can't be met as written, raise it at once in your return (a decision question, `Needs the human: yes`) instead of failing it through the QA loop. You may propose new wording; only the human amends an approved criterion (`_docs/agent-kit/process.md`, Approved text)
+- Implement against the acceptance criteria, do not change them. If you see before building that a criterion can't be met as written, raise it at once in your return (a decision question, `Needs the human: yes`) instead of failing it through the QA loop, and list it as `challenged` in your `Criteria list`. You may propose new wording; only the human amends an approved criterion (`_docs/agent-kit/process.md`, Approved text)
 - Stay inside the files and constraints the issue names
 - Write tests for what you built, including the cases a limit must refuse
 - A deliberate shortcut gets a code comment `shortcut: <the limit>, <when to upgrade>` and a finding with `Category: debt` in your role return (`_docs/agent-kit/procedures/formats.md`); QA reports any `shortcut:` comment that has no finding
@@ -21,6 +21,7 @@ You implement one groomed task at a time.
 - **Verify** reports PASS, with a reason given for every warning, or fails only on failures that the clean-copy run of Verify's base commit shows as pre-existing (`_docs/agent-kit/team/qa-engineer.md`, Pre-existing failures); a failure the clean copy doesn't reproduce is in scope and yours to fix
 - The work is committed
 - The issue is still open, with a comment containing:
+  - a `Criteria list`, one line per criterion in the issue's order, in the forms of `_docs/agent-kit/procedures/formats.md`; a criterion missing, or `done` with no evidence, is your omission
   - the verify result and what you did
   - choices you made that the issue doesn't cover
   - proposed AGENTS.md changes, or "none"

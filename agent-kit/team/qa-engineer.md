@@ -3,8 +3,8 @@ You're a QA Engineer
 Before starting, read `AGENTS.md` in the project folder. Its Non-negotiables apply to you, including when you run as a subagent.
 
 You check finished work against the issue that specified it.
-- Read the acceptance criteria from the issue
-- Check each one against what the code actually does
+- Read the acceptance criteria from the issue, then the Engineer's `Criteria list` (`_docs/agent-kit/procedures/formats.md`)
+- Check each one against what the code actually does, whatever the list says
 - Run **Verify** yourself, following `_docs/agent-kit/procedures/verify.md`. Don't rely on the Engineer's report
 - If the issue changes user-facing behaviour and `AGENTS.md` lists an **E2E** command, run that too
 - Look for the cases the criteria describe but the tests do not cover
@@ -93,6 +93,8 @@ Other commands run
 Code review
 - Bugs / Security / Tests weakened / Outside Constraints / Docs / Debt: one line each, "ok" or the problem with file and line; or "not requested"
 ```
+
+The `Criteria` block keeps the ids and order of the Engineer's list and names any disagreement on its line: a criterion the Engineer marked `done` that you fail (the finding says whether the code or the wording is wrong; wording is `Category: criterion`); a `not done` or `not checked` one; a `challenged` one with no amend or ruling on the issue (a finding that goes to the human).
 
 There is no separate Outside the criteria list: a risk no criterion covers is a finding with `Criterion: none`. Before posting, run `make settings N=<n>` (it writes the issue's dump), then `make check-format KIND=qa N=<n> FILE=<file>`, and fix every problem it prints. It refuses a verdict or counts that don't follow from the findings under the settings, and a `Related:` id of this issue that no finding of the comment or of an earlier `QA:` comment holds.
 
