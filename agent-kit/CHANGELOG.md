@@ -76,6 +76,8 @@ Not released yet. Each entry says what was added or changed, and any behaviour c
 - **Dev container recipe for Python plus frontend projects** (`environments/local-sandbox/`): Node and uv at pinned versions (all unverified until you rebuild and check), the `claude` and `opencode` folders on `PATH`, a container named after its folder, and `setup.sh` that refuses early in a clean clone. The CI template shows the same Node and uv pins, and the Makefile blueprint has a `tool-versions` target. Existing projects: copy the recipe changes into your `.devcontainer/` from a clean clone, then rebuild; commit the lock file the rebuild creates.
 - **Optional Compose variant** (`environments/local-sandbox/compose/`): an `app` plus Postgres `db` recipe for projects whose checks need a database, with its limits pinned by tests. Existing projects need nothing.
 
+**Correction (2026-11-23).** The `v1.10` tag's own `README.md` still says, under "Adding the kit to a project folder", that there is no tagged release yet and that a project gets the kit by cloning the repository. That paragraph predates the tag and is wrong for 1.10: a project taking 1.10 gets the `agent-kit` folder and its `MANIFEST.sha256` from the tag, as `releasing.md` describes. The current tree replaces the paragraph with `install-and-upgrade.md`.
+
 ## Changes in 1.9
 
 - **Environment profiles** (`environments.md`): Codespaces, local sandbox (dev container plus a clean clone) and local checkout, with where agents work, where hooks run, where you push and what checks a push. A new **Environment** setting in `AGENTS.md` tells agents which profile applies.
