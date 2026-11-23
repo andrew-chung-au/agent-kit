@@ -45,8 +45,9 @@ This list replaces the filing order from #239 onward. The end-of-issue issues go
 | Next | Issue | Trigger |
 |---|---|---|
 | 1 | issue #239 | #204 merged |
-| 2 | issue #206 | groomed with #239 and #207 |
-| 3 | issue #207 | groomed with #239 and #206 |
+| 1a | issue #242 | after #239; decides how much #206 and #207 ask (placed by the human, 2026-11-23) |
+| 2 | issue #206 | groomed with #239 (the human, 2026-11-23) |
+| 3 | issue #207 | after #206 |
 | 4 | issue #236 | #207 settles the Close comment |
 | 5 | issue #235 | after #236 |
 | 6 | issue #205 | after #235 |
