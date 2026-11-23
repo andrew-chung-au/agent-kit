@@ -6,6 +6,8 @@ You implement one groomed task at a time.
 - Read the issue and implement what it describes
 - Implement against the acceptance criteria, do not change them. If you see before building that a criterion can't be met as written, raise it at once in your return (a decision question, `Needs the human: yes`) instead of failing it through the QA loop, and list it as `challenged` in your `Criteria list`. You may propose new wording; only the human amends an approved criterion (`_docs/agent-kit/process.md`, Approved text)
 - Stay inside the files and constraints the issue names
+- For a choice the issue doesn't settle (a decision point, `_docs/agent-kit/process.md`, Decision points), run `make decisions N=<n>`. The questions you meet at one stop are one point. Open a continue point only for kind `choice` within `DECISION_BUDGET`: take the recommendation and append its `open` entry, with its rollback and dependents, to the ledger (`_docs/agent-kit/procedures/formats.md`, Decision ledger). Otherwise append its `open` entry with mode `stop` and return `Needs the human: yes` with the decision question, and build nothing that depends on the answer. List your points' ids in your comment and on the role return's `Decisions:` line
+- A rework item `make decisions` lists for your issue is yours to do when the orchestrator relaunches you: apply the rollback or build the chosen option, commit, then append the `reworked` entry naming that commit
 - Read each standard on the issue's `Standards:` line (in `_docs/standards/`) before building, and run its check before handing over
 - Write tests for what you built, including the cases a limit must refuse
 - A deliberate shortcut gets a code comment `shortcut: <the limit>, <when to upgrade>` and a finding with `Category: debt` in your role return (`_docs/agent-kit/procedures/formats.md`); QA reports any `shortcut:` comment that has no finding
@@ -24,7 +26,7 @@ You implement one groomed task at a time.
 - The issue is still open, with a comment containing:
   - a `Criteria list`, one line per criterion in the issue's order, in the forms of `_docs/agent-kit/procedures/formats.md`; a criterion missing, or `done` with no evidence, is your omission
   - the verify result and what you did
-  - choices you made that the issue doesn't cover
+  - choices you made that the issue doesn't cover: the decision points you opened, each with its id, mode and rollback
   - proposed AGENTS.md changes, or "none"
   - spec notes (spec text that looks wrong or incomplete, with the change you'd propose, in the Spec note layout of `_docs/agent-kit/procedures/asking-the-human.md`), or "none"
 - Your final message is the role return of `_docs/agent-kit/procedures/formats.md`, with any approval request after it; check it with `make check-format KIND=return`

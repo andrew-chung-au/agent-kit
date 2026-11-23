@@ -550,10 +550,10 @@ class MessageTest(Runner):
             "decision without Impact": (swap(MESSAGE, "Question: Should signup log usernames at all?\nImpact: L\n",
                                              "Question: Should signup log usernames at all?\n"), "Impact"),
             "Impact: High": (swap(MESSAGE, "Impact: L", "Impact: High"), "Impact has 'High'"),
-            "counts above the blocks": (swap(MESSAGE, "1 decision points", "2 decision points"), "Decision block"),
+            "counts above the blocks": (swap(MESSAGE, "2 decision points", "3 decision points"), "Decision block"),
             "ship-or-fix counts": (swap(MESSAGE, "1 ship-or-fix", "0 ship-or-fix"), "Ship-or-fix block"),
             "missing Status": (MESSAGE.rsplit("\nStatus:", 1)[0], "Status"),
-            "first line wording": (swap(MESSAGE, "Needs you: 1 decision points", "Needs you: 1 decisions"), "Needs you has"),
+            "first line wording": (swap(MESSAGE, "Needs you: 2 decision points", "Needs you: 2 decisions"), "Needs you has"),
             "Effort: L": (swap(MESSAGE, "Effort: S", "Effort: L"), "Effort has"),
             "decision id": (swap(MESSAGE, "Decision: D-12-1", "Decision: D12"), "Decision has"),
             "ship-or-fix id": (swap(MESSAGE, "Ship-or-fix: F-12-2", "Ship-or-fix: L2"), "Ship-or-fix has"),
@@ -565,6 +565,50 @@ class MessageTest(Runner):
         for name, (text, reason) in cases.items():
             with self.subTest(case=name):
                 self.assert_refused("message", text, reason=reason)
+
+    # Issue #204 C9: the decision block gains Effort: and, for a continued point only, Rollback:.
+    STOP = ("Decision: D-12-1\nQuestion: Should signup log usernames at all?\nImpact: L\nEffort: S\n"
+            "Recommended: No; drop the log line in #14.\n")
+    CONTINUED = ("Decision: D-12-3\nQuestion: Where do the signup fixtures live?\nImpact: L\nEffort: R\n"
+                 "Rollback: move tests/fixtures/signup/ back to tests/signup/; tests/test_signup.py and 5e6f7a8 "
+                 "depend on it.\nRecommended: q1=A, tests/fixtures/signup/ (taken).\n")
+
+    def message(self, *blocks: str) -> str:
+        return (f"Needs you: {len(blocks)} decision points, 0 ship-or-fix\n\n" + "".join(b + "\n" for b in blocks)
+                + "Status: #12 waits for the points above.\n")
+
+    def test_the_example_holds_a_stop_block_and_a_continued_block(self):
+        self.assertIn(self.STOP, MESSAGE)
+        self.assertIn(self.CONTINUED, MESSAGE)
+
+    def test_a_stop_block_and_a_continued_block_both_pass(self):
+        self.assert_ok("message", self.message(self.STOP))
+        self.assert_ok("message", self.message(self.CONTINUED))
+        self.assert_ok("message", self.message(self.STOP, self.CONTINUED))
+        self.assert_ok("message", self.message(swap(self.CONTINUED, "Effort: R", "Effort: E")))
+
+    def test_decision_block_refusals(self):
+        rollback = "Rollback: move tests/fixtures/signup/ back to tests/signup/; tests/test_signup.py and 5e6f7a8 depend on it.\n"
+        cases = {
+            "stop block without Effort": (swap(self.STOP, "Effort: S\n", ""), "missing the Effort: line"),
+            "continued block without Effort": (swap(self.CONTINUED, "Effort: R\n", ""), "missing the Effort: line"),
+            "Effort: L": (swap(self.STOP, "Effort: S", "Effort: L"), "Effort has 'L'"),
+            "Effort: 2": (swap(self.STOP, "Effort: S", "Effort: 2"), "Effort has '2'"),
+            "Effort: s": (swap(self.STOP, "Effort: S", "Effort: s"), "Effort has 's'"),
+            "empty Rollback": (swap(self.CONTINUED, rollback, "Rollback: \n"), "Rollback has an empty value"),
+            "bare Rollback": (swap(self.CONTINUED, rollback, "Rollback:\n"), "Rollback has an empty value"),
+            "Rollback before Effort": (swap(swap(self.CONTINUED, rollback, ""), "Impact: L\n", "Impact: L\n" + rollback),
+                                       "missing the Effort: line"),
+            "Rollback after Recommended": (swap(self.CONTINUED, rollback, "") + rollback, "expected a blank line"),
+            "Point: line": (swap(self.STOP, "Effort: S\n", "Effort: S\nPoint: stop\n"), "no Point: line"),
+            "Point: continued": (swap(self.CONTINUED, "Effort: R\n", "Effort: R\nPoint: continued\n"), "no Point: line"),
+            "Weight: line": (swap(self.STOP, "Impact: L\n", "Impact: L\nWeight: 2\n"), "no Weight: line"),
+            "Point: after Recommended": (self.STOP + "Point: stop\n", "no Point: line"),
+            "indented point": (swap(self.STOP, "Effort: S\n", "Effort: S\n  - point: stop\n"), "no point: line"),
+        }
+        for name, (block, reason) in cases.items():
+            with self.subTest(case=name):
+                self.assert_refused("message", self.message(block), reason=reason)
 
     def test_the_doc_keeps_its_other_layouts(self):
         text = ASK_DOC.read_text(encoding="utf-8")

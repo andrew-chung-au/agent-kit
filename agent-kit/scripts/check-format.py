@@ -10,7 +10,9 @@ or directly: python3 -B <kit>/scripts/check-format.py KIND FILE [N]. N is requir
 The layouts are defined once each: the role return and the finding in
 procedures/formats.md, the QA comment in team/qa-engineer.md, the message to the human in
 procedures/asking-the-human.md. This file holds them in one table, FORMATS (KIND to its
-fields, each with its allowed values); a later KIND adds a row there.
+fields, each with its allowed values); a later KIND adds a row there. A block field may be
+optional (OPTIONAL: the decision block's `Rollback:` line, issue #204), and a block may refuse
+labels by name (REFUSED_LINES: `Point:` and `Weight:` in a decision block).
 
 The line rule (procedures/orchestrator-comments.md, "Lines scripts read"): every field is
 `<Label>: <value>` alone on its line from column 1, the label worded exactly (case
@@ -129,12 +131,22 @@ def key_of(label: str) -> str:
 
 FINDING_LABELS = tuple((label_of(key), FINDING_KINDS[key]) for key in FINDING_FIELDS)
 
+# A field whose label is in OPTIONAL may be left out; when present it sits in its place in
+# the order. A decision block has one (issue #204): `Rollback:`, only for a continued point,
+# between `Effort:` and `Recommended:`; no `Rollback:` line means a stop point. The labels in
+# REFUSED_LINES are refused inside the block they name, with the reason given.
 DECISION_BLOCK = (
     ("Decision", ("pattern", DECISION_ID, "`D-<issue>-<n>`")),
     ("Question", ("text",)),
     ("Impact", LMC),
+    ("Effort", SRE),
+    ("Rollback", ("text",)),
     ("Recommended", ("recommendation",)),
 )
+OPTIONAL = {"Decision": ("Rollback",)}
+REFUSED_LINES = {"Decision": (("Point", "Weight"),
+                              "a decision block has no {label}: line; a Rollback: line marks a continued point, "
+                              "and its absence a stop point")}
 SHIP_OR_FIX_BLOCK = (
     ("Ship-or-fix", ("pattern", FINDING_ID, "`F-<issue>-<n>`")),
     ("Impact", LMC),
@@ -325,12 +337,32 @@ class Checker:
             return True, f"`{label}:` must be followed by exactly one space, then the value"
         return True, None
 
-    def read_fields(self, i: int, fields: tuple, what: str):
-        """Read field lines in order from line index i. Returns (next index, {label: (value, index)})."""
+    def skip_refused(self, i: int, block: str | None) -> int:
+        """Report and pass over each line from i that carries a label REFUSED_LINES names for
+        this block (any indent, list marker or case). Returns the next index."""
+        if block not in REFUSED_LINES:
+            return i
+        labels, reason = REFUSED_LINES[block]
+        pattern = re.compile(r"[ \t]*(?:(?:[-*+]|[0-9]+\.)[ \t]+)?(" + "|".join(labels) + r")[ \t]*:", re.I)
+        while self.line(i) is not None:
+            match = pattern.match(self.line(i))
+            if match is None:
+                break
+            self.problem(i, reason.format(label=match.group(1)))
+            i += 1
+        return i
+
+    def read_fields(self, i: int, fields: tuple, what: str, block: str | None = None):
+        """Read field lines in order from line index i. Returns (next index, {label: (value, index)}).
+        `block` names the block, for its OPTIONAL fields and REFUSED_LINES."""
         values = {}
         labels = [label for label, _ in fields]
+        optional = OPTIONAL.get(block, ())
         for position, (label, kind) in enumerate(fields):
+            i = self.skip_refused(i, block)
             line = self.line(i)
+            if label in optional and (line is None or not self.form_problem(line, label)[0]):
+                continue  # an optional field left out
             if line is None or line.strip(" \t") == "":
                 self.problem(i, f"missing the {label}: line of the {what}")
                 continue
@@ -412,7 +444,8 @@ class Checker:
             if label is None:
                 break
             start = i + 1
-            i, values = self.read_fields(start, row["blocks"][label], f"{label} block")
+            i, values = self.read_fields(start, row["blocks"][label], f"{label} block", label)
+            i = self.skip_refused(i, label)
             if row["blocks"][label] is FINDING_LABELS:
                 self.check_finding_block(values, start)
             else:
