@@ -83,7 +83,7 @@ A decision point is a choice made while the work runs, from the Claim to the Clo
 - `amend`: amending an approved criterion (Approved text).
 - `gate`: a label, a merge, a push, a waiver or an override.
 
-A role return with `Needs the human: yes` also stops. A stop point is logged with mode `stop`, and nothing that depends on its answer is built until the human answers.
+A role return with `Needs the human: yes` also stops. The role that meets a stop point appends its `open` entry with mode `stop` before asking (the orchestrator for a point it raises itself, such as at the decision point), and nothing that depends on its answer is built until the human answers.
 
 **The continue kind** is `choice`, and only within the budget. The role that meets one runs `make decisions N=<n>` and adds the point's points (its Effort as for findings: S = 1, R = 2, E = 3, `customizing.md`, Points; never stored). If the open points with it stay at or below `DECISION_BUDGET`, it takes the recommended options, appends an `open` entry with mode `continue`, its rollback (what to undo, and where) and its dependents (paths, commits or issue ids) to `_docs/records/decisions/<issue>.jsonl` (`_docs/agent-kit/procedures/formats.md`, Decision ledger), and keeps working. Otherwise it is a stop point. The open points are the points of the open `continue` points in every ledger file, so the points of a closed issue whose branch isn't merged still count. With `DECISION_BUDGET=0` every point stops.
 
