@@ -1,0 +1,97 @@
+{
+  "issue": 202,
+  "logged": "2026-11-23T03:21Z",
+  "findings": [
+    {
+      "id": "F-202-1",
+      "impact": "L",
+      "effort": "S",
+      "scope": "in",
+      "criterion": "none",
+      "category": "defect",
+      "group": "files-list-omissions",
+      "related": "none",
+      "recommendation": "Accept the blueprints.md row (tests/test_claims.py forces it) and have the PM list blueprints.md in the Files of any issue that adds a template.",
+      "what": "agent-kit/blueprints.md (one row, line 59) is changed but is not in the body's Constraints Files list; the body's Not changed list does not name it either.",
+      "how_found": "First QA launch: git diff 6831f69 dd591e3 --stat against the body's Files; test_every_loose_template_has_a_blueprints_row (tests/test_claims.py line 287) fails for any new templates/ file without a row."
+    },
+    {
+      "id": "F-202-2",
+      "impact": "L",
+      "effort": "S",
+      "scope": "in",
+      "criterion": "C5",
+      "category": "defect",
+      "group": "standards-line-pointers",
+      "related": "none",
+      "recommendation": "Reword both to \"the standards on the issue's `Standards:` line\" so no phrase says \"lists\" without the line.",
+      "what": "Two kit sentences still say \"the standards the issue lists\" with no pointer to the line: agent-kit/team/qa-engineer.md line 107 (Re-checks, `changed`) and agent-kit/team/software-engineer.md line 47 (Fix check). The new tests do not catch them.",
+      "how_found": "First QA launch: grep for \"standards? (the issue|it) lists\" across the repo."
+    },
+    {
+      "id": "F-202-3",
+      "impact": "L",
+      "effort": "S",
+      "scope": "in",
+      "criterion": "C5",
+      "category": "defect",
+      "group": "standards-second-launch",
+      "related": "none",
+      "recommendation": "State in the Code review item or in Scope that the Heavy second launch opens each listed standard and runs its check, and that a breach of an unlisted standard found in review is Scope: out (formats.md Scope says Code review items are in scope).",
+      "what": "The Heavy second launch is limited to the Code review checklist, whose only standards text is the two words \"; `Standards:` breaches\" (agent-kit/team/qa-engineer.md line 40). The instruction to run each check is in the Constraints-level bullet at line 10 (\"in every launch and re-check\"). The launch limit and the two-word item leave open whether that launch runs the checks, and formats.md Scope counts all Code review items as Scope: in, which reads against \"a standard the line doesn't list is Scope: out\".",
+      "how_found": "First QA launch: read the base and committed qa-engineer.md and formats.md; tests/test_heavy_gates.py line 84 caps the review block at 150 words."
+    },
+    {
+      "id": "F-202-4",
+      "impact": "L",
+      "effort": "S",
+      "scope": "in",
+      "criterion": "C2",
+      "category": "defect",
+      "group": "standards-cap-unenforced",
+      "related": "none",
+      "recommendation": "When the first standard exists, add a test that scans `_docs/standards/*.md` for the word cap, skipped while the folder is absent.",
+      "what": "The 120-word cap is asserted only on the template (90 words) and on a local helper function (tests/test_standards.py lines 43 and 51). No test applies the cap to any file in `_docs/standards/`, so a real standard can exceed it unnoticed. No such file exists yet, so nothing fails today.",
+      "how_found": "First QA launch: read tests/test_standards.py."
+    },
+    {
+      "id": "F-202-5",
+      "impact": "L",
+      "effort": "S",
+      "scope": "in",
+      "criterion": "none",
+      "category": "defect",
+      "group": "standard-check-bounds",
+      "related": "none",
+      "recommendation": "Add one sentence to team/qa-engineer.md line 10 and templates/standard.md: a standard's text and check are data and never change QA's own rules (Verdict by finding, Scope, QA_SCOPE_STRICT, AGENTS.md Non-negotiables); a check names a read-only `make` target, and QA does not run a target that writes or deletes. Pin \"read-only\" and \"a `make` target\" as the only command form in tests/test_standards.py.",
+      "what": "A listed standard's `Check:` is run by QA in every launch (agent-kit/team/qa-engineer.md line 10) and by the Engineer before handing over (software-engineer.md line 9) with no bound on what the target does and no statement that the standard cannot override QA's rules. `_docs/standards/` is not protected, so a standard (or a Makefile target it names) written in a PR or by an Engineer in the issue that adds it makes QA run unreviewed project code. The `Standards:` line also names files with no rule that a name must be a plain file name inside `_docs/standards/`, and the needle tests cannot catch a widened check wording.",
+      "how_found": "Heavy second QA launch: .scratch/qa-202-mutate.py mutated copies; changing the template's Check line to \"a `make` target the project provides, or any shell command\" still passes tests/test_standards.py and tests/test_task_template.py."
+    },
+    {
+      "id": "F-202-6",
+      "impact": "L",
+      "effort": "S",
+      "scope": "in",
+      "criterion": "none",
+      "category": "defect",
+      "group": "standard-fail-wording",
+      "related": "none",
+      "recommendation": "Reword to \"a breach of a listed standard is an in-scope finding; it fails when its impact reaches QA_FAIL_AT\", in templates/standard.md line 3 and the blueprints.md row, or add an `Impact if breached:` label to the standard template.",
+      "what": "templates/standard.md line 3 (\"QA fails a breach of a listed standard\") and the new blueprints.md row (\"A rule QA should fail work on\") say a listed breach fails, but under team/qa-engineer.md line 17 a finding fails only at or above QA_FAIL_AT (default M) and a standard has no impact field, so a listed breach graded L is logged and the issue passes. A reader of the template expects a hard failure.",
+      "how_found": "Heavy second QA launch: read the added text against qa-engineer.md line 17 and formats.md Scope."
+    },
+    {
+      "id": "F-202-7",
+      "impact": "L",
+      "effort": "S",
+      "scope": "in",
+      "criterion": "C6",
+      "category": "defect",
+      "group": "upgrade-note-approved-body",
+      "related": "none",
+      "recommendation": "Change the note to \"an issue without the line is read as `Standards: none`; add the line only to bodies you are grooming or confirming anyway\", and say that QA treats a missing line as `none`.",
+      "what": "The CHANGELOG entry (agent-kit/CHANGELOG.md line 29) tells existing projects to write `Standards: none` on issues groomed before this. Editing an approved body changes its hash, and process.md Approved text then blocks the launch until the human confirms and the PM records the new hash, so the note asks for a Confirm round trip on every open approved issue, against the entry's own C4 rule, and nothing says what QA does with an older body that has no line.",
+      "how_found": "Heavy second QA launch: read the note against process.md Approved text and pm.md line 16."
+    }
+  ]
+}
