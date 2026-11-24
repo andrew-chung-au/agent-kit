@@ -79,6 +79,11 @@ issue-close: ## Close one issue when its recorded history shows the process was 
 	$(if $(value REASON),$(if $(call issue-reason-ok,$(value REASON)),,$(error Usage: make issue-close N=<issue number> [REASON=completed|not-planned])))
 	@bash agent-kit/scripts/issue-close.sh "$(N)" $(if $(value REASON),"$$REASON")
 
+pr-open: ## Open a draft pull request from the pushed session branch (FILE: first line Title: <text>, blank line, body with Refs #N): make pr-open N=<issue number> FILE=.scratch/<name>.md
+	$(if $(call issue-number-ok,$(value N)),,$(error Usage: make pr-open N=<issue number> FILE=.scratch/<name>.md))
+	$(if $(call issue-file-ok,$(value FILE)),,$(error Usage: make pr-open N=<issue number> FILE=.scratch/<name>.md - one word under .scratch/ with letters digits . _ / - only))
+	@bash agent-kit/scripts/pr-open.sh "$(N)" "$(FILE)"
+
 sweep-due: ## Say whether a sweep is due (read-only; the sweep interval is set in the script)
 	@python3 -B agent-kit/scripts/sweep-due.py
 
