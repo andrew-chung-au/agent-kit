@@ -38,6 +38,23 @@ Issues filed after the 21 above, each placed by the human (`process.md`, Backlog
 
 Not in the order: issue #238 (V2: evaluate adapting T3 Code with the agent kit), a long-term idea parked until 1.11 has landed. The human, 2026-11-23.
 
+### Order from #239 on (the human, 2026-11-23)
+
+This list replaces the filing order from #239 onward. The end-of-issue issues go first and are groomed together. #205 moves after them, since nothing depends on it.
+
+| Next | Issue | Trigger |
+|---|---|---|
+| 1 | issue #239 | #204 merged |
+| 1a | issue #242 | after #239; decides how much #206 and #207 ask (placed by the human, 2026-11-23) |
+| 2 | issue #206 | groomed with #239 (the human, 2026-11-23) |
+| 3 | issue #207 | after #206 |
+| 4 | issue #236 | #207 settles the Close comment |
+| 5 | issue #235 | after #236 |
+| 6 | issue #205 | after #235 |
+| 7 on | issue #208 to issue #216, in filing order | unchanged |
+
+Unplaced: #232 and #234, meant for after the core 1.11 issues. They are placed once the list above is done.
+
 ## How they were filed
 
 `make issue-create` could not post from the cloud session (its `gh api` write failed; the script discards gh's error, issue #187). With the human's approval, the orchestrator filed them through the GitHub connector as the owner's account, title and body only, after the PM's pre-filing scan (secret patterns, title line, criteria with `Check:` lines) passed on every file. A read-back compared each filed title and body with its source file: all 21 match, none has a label.

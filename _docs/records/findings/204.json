@@ -1,0 +1,97 @@
+{
+  "issue": 204,
+  "logged": "2026-11-23T17:30Z",
+  "findings": [
+    {
+      "id": "F-204-1",
+      "impact": "L",
+      "effort": "S",
+      "scope": "in",
+      "criterion": "C4",
+      "category": "defect",
+      "group": "refusal-traceback",
+      "related": "F-200-6",
+      "recommendation": "Catch RecursionError in parse_line of agent-kit/scripts/decisions.py and refuse the line as not one JSON object, naming the file and line.",
+      "what": "A ledger line of deeply nested JSON (100000 brackets) makes make decisions end in a RecursionError traceback, exit 1, without naming the file and line that C4 asks for (agent-kit/scripts/decisions.py line 126, parse_line catches only JSONDecodeError and ValueError).",
+      "how_found": ".scratch/qa_204_probe.py, probe \"deeply nested JSON\"."
+    },
+    {
+      "id": "F-204-2",
+      "impact": "L",
+      "effort": "S",
+      "scope": "in",
+      "criterion": "none",
+      "category": "defect",
+      "group": "ledger-text-control-chars",
+      "related": "none",
+      "recommendation": "Refuse control characters and Unicode line or paragraph separators in text_ok, or print ledger text through settings.echo as the refusals do.",
+      "what": "text_ok (agent-kit/scripts/decisions.py line 120) refuses only LF and CR, so a rollback, dependent or question text holding ESC sequences or U+2028 is accepted and printed raw by make decisions (rework and point lines, lines 347 to 354), where it can recolour or split the line the orchestrator and the human read.",
+      "how_found": ".scratch/qa_204_probe.py, probes \"escape char in rollback\" and \"U+2028 in rollback\"."
+    },
+    {
+      "id": "F-204-3",
+      "impact": "L",
+      "effort": "S",
+      "scope": "in",
+      "criterion": "none",
+      "category": "debt",
+      "group": "decisions-script-pointers",
+      "related": "none",
+      "recommendation": "Point the docstring and the STOP_KINDS comment at process.md, Decision points (Stop kinds).",
+      "what": "agent-kit/scripts/decisions.py line 10 cites process.md (Orchestrator, Stop points, ...) and line 75 cites process.md (Stop points), but process.md has no Stop points section; the list is under Decision points, **Stop kinds**.",
+      "how_found": "Read the diff; searched agent-kit/process.md for the heading."
+    },
+    {
+      "id": "F-204-4",
+      "impact": "L",
+      "effort": "S",
+      "scope": "in",
+      "criterion": "C4",
+      "category": "defect",
+      "group": "refusal-traceback",
+      "related": "F-204-1",
+      "recommendation": "Catch RecursionError in parse_line (agent-kit/scripts/decisions.py line 124) and refuse the line as not one JSON object, naming the file and line.",
+      "what": "A ledger line of 100000 nested brackets ends make decisions in a RecursionError traceback (exit 1) instead of the one-line refusal naming the file and line that C4 asks for; parse_line catches only JSONDecodeError and ValueError (lines 127 to 130). Same cause as F-204-1, found again independently.",
+      "how_found": ".scratch/qa2_204_probe.py, probe \"deeply nested JSON\", run against the live script in a throwaway folder."
+    },
+    {
+      "id": "F-204-5",
+      "impact": "L",
+      "effort": "S",
+      "scope": "in",
+      "criterion": "none",
+      "category": "defect",
+      "group": "ledger-text-control-chars",
+      "related": "F-204-2",
+      "recommendation": "Refuse control characters and the Unicode line and paragraph separators in text_ok, or print ledger text through settings.echo as the refusals do.",
+      "what": "text_ok (agent-kit/scripts/decisions.py line 120) refuses only LF and CR. A dependent holding U+2028 and a rollback holding an ESC sequence are accepted; make decisions prints dependents raw on the point line (line 348) and the rollback raw on the rework line (line 354), where they can split or recolour what the orchestrator and the human read. Same cause as F-204-2.",
+      "how_found": ".scratch/qa2_204_probe.py, probes \"U+2028 in dependents\" (printed raw, exit 0) and \"ESC in rollback\" (accepted, exit 0)."
+    },
+    {
+      "id": "F-204-6",
+      "impact": "L",
+      "effort": "S",
+      "scope": "in",
+      "criterion": "none",
+      "category": "debt",
+      "group": "decisions-script-pointers",
+      "related": "F-204-3",
+      "recommendation": "Point the docstring (line 10) and the STOP_KINDS comment (line 75) at process.md, Decision points (Stop kinds).",
+      "what": "agent-kit/scripts/decisions.py lines 10 and 75 cite a Stop points section of process.md; process.md has none (its headings are Orchestrator, then Decision points with Stop kinds at line 71). Same as F-204-3.",
+      "how_found": "Read the diff; listed the headings of agent-kit/process.md."
+    },
+    {
+      "id": "F-204-8",
+      "impact": "L",
+      "effort": "S",
+      "scope": "in",
+      "criterion": "none",
+      "category": "defect",
+      "group": "stop-point-logging-owner",
+      "related": "F-204-7",
+      "recommendation": "Say in process.md Decision points whether an approval gate the process itself requires (the Engineer's protected-commit approval request, the merge) is a decision point with a ledger entry, or only a stop the message carries.",
+      "what": "The fix names who appends a stop point's open entry (process.md line 86, team/software-engineer.md line 9), but not the second half of F-204-7's recommendation: whether gate stops such as a protected-commit approval are logged. The stop kind protected covers \"a protected-file change or commit\" (process.md line 78), yet a decision point is a choice the issue doesn't settle (line 69), so a reader can take either way. #204's ledger holds no entry for the commit approvals of f6ae9b1 or cfa80b9, and the fix-round comment cites a further answer (\"option 1 for the differences\") that no ledger line records.",
+      "how_found": "Read the diff 80c7f61..cfa80b9, process.md lines 67 to 90 and _docs/records/decisions/204.jsonl against the Engineer's fix-round comment."
+    }
+  ]
+}
