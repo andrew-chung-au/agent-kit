@@ -3,7 +3,7 @@
 Import it with `from fake_gh_rest import FAKE_GH, rest_config`. Write FAKE_GH to a file named
 `gh` in a folder first on PATH, with a `config.json` beside it. The fake logs every call as one
 JSON line in `calls.log` (the argument list), records standard input of create and comment calls
-in `stdin.bin`, and answers by kind of call:
+in `stdin.bin` (pull request creates too), and answers by kind of call:
 
     issue_view   GET  repos/<o>/<n>/issues/<N>
     comments     GET  repos/<o>/<n>/issues/<N>/comments?per_page=<S>&page=<P>
@@ -12,6 +12,8 @@ in `stdin.bin`, and answers by kind of call:
     create       POST repos/<o>/<n>/issues
     comment      POST repos/<o>/<n>/issues/<N>/comments
     close        PATCH repos/<o>/<n>/issues/<N>
+    pulls        GET  repos/<o>/<n>/pulls?state=open&head=<o>:<branch>&per_page=<S>
+    pull_create  POST repos/<o>/<n>/pulls
 
 `config.json` maps a kind to {"stdout": text, "exit": code}; for `comments` and `issues_list`
 {"list": [...]} serves that list in pages of the requested size, like GitHub does.
@@ -40,6 +42,10 @@ elif method == "POST" and re.fullmatch(R + r"/issues", path):
     kind = "create"
 elif method == "PATCH" and re.fullmatch(R + r"/issues/[0-9]+", path):
     kind = "close"
+elif method == "POST" and re.fullmatch(R + r"/pulls", path):
+    kind = "pull_create"
+elif method == "GET" and re.fullmatch(R + r"/pulls", path):
+    kind = "pulls"
 elif method == "GET" and re.fullmatch(R + r"/issues/[0-9]+/comments", path):
     kind = "comments"
 elif method == "GET" and re.fullmatch(R + r"/issues/[0-9]+", path):
@@ -48,7 +54,7 @@ elif method == "GET" and re.fullmatch(R + r"/issues", path):
     kind = "issues_list"
 elif method == "GET" and re.fullmatch(R, path):
     kind = "repo_view"
-if kind in ("create", "comment"):
+if kind in ("create", "comment", "pull_create"):
     with open(os.path.join(here, "stdin.bin"), "ab") as out:
         out.write(sys.stdin.buffer.read())
 entry = config.get(kind, {})
