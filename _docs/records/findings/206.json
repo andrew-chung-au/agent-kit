@@ -1,0 +1,71 @@
+{
+  "issue": 206,
+  "logged": "2026-11-24T07:30Z",
+  "findings": [
+    {
+      "id": "F-206-1",
+      "impact": "L",
+      "effort": "S",
+      "scope": "in",
+      "criterion": "C7",
+      "category": "defect",
+      "group": "changelog-word-counts",
+      "related": "none",
+      "recommendation": "Change the figure in the #206 entry to `README.md` 2509 to 2510 (+1).",
+      "what": "The #206 entry of agent-kit/CHANGELOG.md (line 32) says `README.md` 2508 to 2509 (+1). The base f6340da already counts 2509 words and 1a618a8 counts 2510. The other eight figures in the entry are correct.",
+      "how_found": ".scratch/qa-206-probe.py, word counts at 1a618a8, then `git diff --word-diff f6340da 1a618a8 -- agent-kit/README.md`, which adds one word."
+    },
+    {
+      "id": "F-206-2",
+      "impact": "L",
+      "effort": "S",
+      "scope": "in",
+      "criterion": "C6",
+      "category": "defect",
+      "group": "sweep-reflection-cutoff",
+      "related": "none",
+      "recommendation": "In a later issue (#207 also edits step 2), have the sweep read the sections added since the cutoff commit (`git diff <cutoff commit>..HEAD -- <file>`) instead of comparing heading times.",
+      "what": "agent-kit/procedures/sweep.md step 2 (line 14) reads only the sections whose heading time is after the cutoff's time. A reflection written before a sweep's cutoff time but appended after its cutoff commit is never read. Within one session the rule to commit before the next launch prevents this, so the gap only opens when two lanes or sessions overlap with a sweep. The criterion's wording sets this filter.",
+      "how_found": "Read sweep.md step 2 against the Cutoff definition (line 18, the HEAD and time of the sweep) and process.md, Reading a return."
+    },
+    {
+      "id": "F-206-3",
+      "impact": "L",
+      "effort": "S",
+      "scope": "in",
+      "criterion": "none",
+      "category": "defect",
+      "group": "reflection-no-issue-launches",
+      "related": "none",
+      "recommendation": "Say that a launch with no issue (sweep, planning) writes no reflection, or name the file it writes. Do it in a follow-up, because the approved C2 wording says every PM launch writes one.",
+      "what": "agent-kit/procedures/formats.md line 54 and agent-kit/process.md line 65 say every PM launch writes `.scratch/reflection-<issue>-pm.md`, which the orchestrator appends to `_docs/records/reflections/<issue>.md`. A sweep launch (sweep.md line 9) or a planning launch has no issue number, so neither path is defined for it.",
+      "how_found": "Read formats.md Reflection, process.md Reading a return and sweep.md."
+    },
+    {
+      "id": "F-206-4",
+      "impact": "L",
+      "effort": "S",
+      "scope": "in",
+      "criterion": "none",
+      "category": "defect",
+      "group": "reflection-dedupe-heading",
+      "related": "none",
+      "recommendation": "Skip a reflection only when its whole text is already in the issue's file, not only its heading; or give the heading seconds. A follow-up, since D-206-2 approved the heading wording.",
+      "what": "agent-kit/procedures/formats.md line 71 and agent-kit/process.md line 65 append nothing when the file's heading is already in the issue's file. The heading holds only the role and the minute (`### qa, 2026-11-24T10:15Z`), so two launches of one role that finish in the same minute share it, and the second launch's reflection is silently dropped. Example: a QA launch that stops early and is relaunched at once, or the fix-check launch and the Engineer.",
+      "how_found": "Read formats.md Reflection against process.md, Reading a return. .scratch/qa2-206-probe.py check 4 shows that the two headings are equal."
+    },
+    {
+      "id": "F-206-5",
+      "impact": "L",
+      "effort": "S",
+      "scope": "in",
+      "criterion": "none",
+      "category": "defect",
+      "group": "reflection-commit-branch",
+      "related": "none",
+      "recommendation": "In a follow-up, say on which branch a reflection from a launch for another issue is committed (for example, held in `.scratch/` until that issue's own branch exists, or committed to the default branch).",
+      "what": "agent-kit/process.md line 65 has the orchestrator commit each launch's reflection file before the next launch. With grooming ahead (`GROOM_AHEAD=2` by default, process.md line 132), a PM grooming issue B runs while issue A's branch is checked out. In a project that works on branches, `_docs/records/reflections/B.md` then lands in A's pull request, and is lost if A's pull request is dropped. Committing directly to `main`, as this repository does, is not affected.",
+      "how_found": "Read process.md, Reading a return, against Lifecycle step 2 (grooming ahead)."
+    }
+  ]
+}
