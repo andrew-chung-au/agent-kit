@@ -46,6 +46,7 @@ What a project using this kit should have, when each piece applies, and how to c
 | Ignore rules | Always, at setup | Project `.gitignore` | See Ignore rules below |
 | Product spec | Planning; written or approved by the human | `_docs/specs.md` | Human-owned; see `process.md` |
 | Session summaries folder | The first session summary | `_session-summaries/` | `procedures/session-summary.md`, `templates/session-summary.md` |
+| Reflection files | The first role launch on an issue | `_docs/records/reflections/<issue>.md`, one append-only file per issue, appended by the orchestrator from each role's `.scratch/` reflection file; its row goes in `_docs/index.md` | `templates/reflection.md`, `procedures/formats.md` |
 | Human task files | The first time the human must run or check something by hand beyond a one-line command | `_human-tasks/` at the project root | `templates/human-task.md`, `procedures/session-summary.md` |
 | Issue task format | Always, at setup | Every groomed issue | `templates/task-template.md` |
 | Starter docs | Always, at setup | The three day-one files; anything else is created at its first entry | `templates/starter-docs.md` |

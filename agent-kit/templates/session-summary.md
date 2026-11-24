@@ -9,13 +9,7 @@
 
 ## Reflection
 
-<Repeat for each role: a `###` heading, then its block copied unchanged from its issue comment.>
-
-### <Role>
-
-**What slowed you down (evidence):**
-**What nearly went wrong or was blocked:**
-**One proposed change (file, expected effect, measure):**
+<The path of the issue's reflection file, `_docs/records/reflections/<issue>.md`, or "none". Don't copy its sections here.>
 
 ## Launch usage
 
