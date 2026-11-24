@@ -367,6 +367,53 @@ class PhraseTest(unittest.TestCase):
         self.assertTrue(any(re.match(r"issue-\d{3}", n) for n in names), names)
         self.assertTrue(any(n.startswith("planning-") for n in names), names)
 
+    def test_step_two_reads_the_reflection_files(self):
+        # #206 C6: the reflection files since the cutoff, the summaries' blocks kept, Launch usage unchanged.
+        text = self.text()
+        for phrase in (
+            "`git log <cutoff commit>..HEAD --name-only -- _docs/records/reflections/`",
+            "read the sections whose heading time is after the cutoff's time",
+            "Draft proposals from those sections and the Reflection blocks",
+            "Read their Reflection blocks (the reflections written before reflection files existed) and Launch usage lines",
+            "and the whole git history, and every reflection file in `_docs/records/reflections/`",
+        ):
+            with self.subTest(phrase=phrase[:40]):
+                self.assertIn(phrase, text)
+        commands = re.findall(r"`(git log <cutoff commit>\.\.HEAD [^`]+)`", SWEEP_MD.read_text())
+        self.assertEqual(commands[0], "git log <cutoff commit>..HEAD --diff-filter=A --name-only -- _session-summaries/")
+
+    def test_the_reflection_command_lists_files_changed_after_the_cutoff(self):
+        # #206 C6: runs the command as sweep.md writes it, in a throwaway repository. A file appended
+        # to after the cutoff is listed; one changed only before it is not.
+        match = re.search(r"`(git log <cutoff commit>\.\.HEAD [^`]*_docs/records/reflections/)`", SWEEP_MD.read_text())
+        self.assertIsNotNone(match, "sweep.md has no reflection-file command")
+        env = {**os.environ, "GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_SYSTEM": os.devnull,
+               "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@example.test",
+               "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@example.test"}
+        with tempfile.TemporaryDirectory() as tmp:
+            def git(*args):
+                done = subprocess.run(["git", *args], cwd=tmp, env=env, capture_output=True, text=True)
+                self.assertEqual(done.returncode, 0, done.stderr)
+                return done.stdout
+
+            folder = Path(tmp) / "_docs" / "records" / "reflections"
+            folder.mkdir(parents=True)
+            git("init", "-q")
+            (folder / "1.md").write_text("### qa, 2026-11-01T10:00Z\n\nNothing to report.\n")
+            (folder / "2.md").write_text("### pm, 2026-11-01T10:00Z\n\nNothing to report.\n")
+            git("add", "_docs")
+            git("commit", "-q", "-m", "before the cutoff")
+            cutoff = git("rev-parse", "HEAD").strip()
+            with (folder / "2.md").open("a") as handle:
+                handle.write("\n### engineer, 2026-11-02T10:00Z\n\nNothing to report.\n")
+            (folder / "3.md").write_text("### pm, 2026-11-02T11:00Z\n\nNothing to report.\n")
+            git("add", "_docs")
+            git("commit", "-q", "-m", "after the cutoff")
+            command = shlex.split(match.group(1).replace("<cutoff commit>", cutoff))
+            listed = sorted({line for line in git(*command[1:]).splitlines()
+                             if line.startswith("_docs/records/reflections/")})
+        self.assertEqual(listed, ["_docs/records/reflections/2.md", "_docs/records/reflections/3.md"])
+
 
 class WrapperTest(unittest.TestCase):
     PATHS = {"claude": KIT / "claude-code" / "skills" / "sweep" / "SKILL.md",
