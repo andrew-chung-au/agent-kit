@@ -46,14 +46,17 @@ This list replaces the filing order from #239 onward. The end-of-issue issues go
 |---|---|---|
 | 1 | issue #239 | #204 merged |
 | 1a | issue #242 | after #239; decides how much #206 and #207 ask (placed by the human, 2026-11-23) |
-| 2 | issue #206 | groomed with #239 (the human, 2026-11-23) |
+| 2 | issue #206 | groomed with #239 (the human, 2026-11-23); built first at the human's request, merged in #243 |
 | 3 | issue #207 | after #206 |
 | 4 | issue #236 | #207 settles the Close comment |
 | 5 | issue #235 | after #236 |
 | 6 | issue #205 | after #235 |
 | 7 on | issue #208 to issue #216, in filing order | unchanged |
+| then | issue #244 (READMEs: why the kit exists, guardrails, routing) | after #207, #210, #211, #214, #216 and #232 have merged; just before #234 (the PM's placement; D-244-1 accepted by the human, 2026-11-24) |
 
 Unplaced: #232 and #234, meant for after the core 1.11 issues. They are placed once the list above is done.
+
+Parked, not in the 1.11 run: issue #245 (one reproducible headless run), right after #244 once #52 is merged and the human approves the model API cost.
 
 ## How they were filed
 
