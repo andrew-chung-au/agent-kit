@@ -1,6 +1,6 @@
 # Report formats
 
-The fixed fields every role writes, so whoever needs one fact reads one line. This page holds the role return, the Engineer's criteria list, the finding, the findings log and the decision ledger. The QA comment is in `_docs/agent-kit/team/qa-engineer.md` and the message to the human in `_docs/agent-kit/procedures/asking-the-human.md`; each format is defined once.
+The fixed fields every role writes, so whoever needs one fact reads one line. This page holds the role return, the reflection, the Engineer's criteria list, the finding, the findings log and the decision ledger. The QA comment is in `_docs/agent-kit/team/qa-engineer.md` and the message to the human in `_docs/agent-kit/procedures/asking-the-human.md`; each format is defined once.
 
 ## The line rule
 
@@ -12,7 +12,7 @@ Check a file before you send or post it: `make check-format KIND=<return|finding
 
 ## Role return
 
-Every role ends with this as its final message to whoever launched it: exactly ten lines, in this order.
+Every role ends with this as its final message to whoever launched it: exactly ten lines, in this order. Before that message, every role (PM, Engineer, QA) writes its reflection for the launch to `.scratch/reflection-<issue>-<role>.md` from the template (Reflection, below); the ten lines don't change. A launch that stops early may leave none.
 
 - `Status:` `done`, `blocked` or `stopped-early`
 - `Issue:` `#<n>`
@@ -48,6 +48,32 @@ Approval needed: commit the staged kit files for #198 with HUMAN_APPROVED=1.
 - Alternatives: you commit it yourself; or I change the diff first.
 - Recommendation: approve; make verify printed PASS.
 ```
+
+## Reflection
+
+What a role learned in one launch, for the sweep. Every PM, Engineer and QA launch ends by writing one from `_docs/agent-kit/templates/reflection.md` to `.scratch/reflection-<issue>-<role>.md`, `<role>` being `pm`, `engineer` or `qa`, replacing any file a previous launch left there. It costs no launch of its own.
+
+- A heading `### <role>, <UTC time YYYY-MM-DDTHH:MMZ>`: the role and the time of writing.
+- `Slowed:` what slowed you, with evidence.
+- `Nearly:` what nearly went wrong or was blocked.
+- `Change:` one proposed change: the file it touches, the expected effect, how it would be measured.
+
+The three lines follow the line rule. A role with nothing to report writes the single line `Nothing to report.` under the heading instead. A proposal is a suggestion for the human; nobody applies it.
+
+```
+### qa, 2026-11-24T10:15Z
+
+Slowed: make verify ran twice because the first run hit a stale .scratch fixture (QA comment on #206).
+Nearly: the HEAD check nearly ran before Assert clean.
+Change: process.md step 5, name the order; fewer QA re-runs, measured by QA rounds per issue.
+```
+
+The orchestrator appends each file unchanged to `_docs/records/reflections/<issue>.md`, one section per launch, and commits it (`process.md`, Reading a return). It appends nothing when the launch left no file, or when the file's heading is already in the issue's file. The file is append-only, as the decision ledger is: an earlier section is never edited or removed, and the orchestrator writes no reflection text of its own; the human's diff review reads that it was only appended to. Refused:
+
+- A reflection posted as an issue comment. It lives only in the file; the orchestrator's and the human's reading enforce this.
+- QA writing to `_docs/records/reflections/` itself: **Assert clean** fails on the changed or untracked file, and QA's verdict is discarded (`process.md`, Lifecycle step 5).
+
+The sweep reads these files (`procedures/sweep.md`, step 2).
 
 ## Criteria list
 
