@@ -1131,11 +1131,11 @@ class MakeTargetTest(FakeGhMixin, unittest.TestCase):
             self.assertRegex(text, r"(?m)^issue-comment: ## ")
             self.assertNotIn("--label", text)
 
-    def test_the_fragment_names_only_three_targets(self):
-        # #119 added issue-close; anything beyond these three is still refused.
+    def test_the_fragment_names_only_four_targets(self):
+        # #119 added issue-close and #239 pr-open; anything beyond these four is still refused.
         template = (KIT / "templates" / "Makefile.github.mk").read_text(encoding="utf-8")
         targets = re.findall(r"(?m)^([a-z][a-z-]*):(?!=)", template)
-        self.assertEqual(targets, ["issue-create", "issue-comment", "issue-close"])
+        self.assertEqual(targets, ["issue-create", "issue-comment", "issue-close", "pr-open"])
 
 
 if __name__ == "__main__":
